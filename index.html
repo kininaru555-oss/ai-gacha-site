@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIガチャ</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      text-align: center;
+      color: #666;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .image-wrap {
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      background: #eee;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .meta {
+      margin-top: 16px;
+      line-height: 1.8;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button,
+    a.button-link {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .draw-btn {
+      background: #111;
+      color: #fff;
+      flex: 1;
+    }
+
+    .like-btn {
+      background: #e91e63;
+      color: #fff;
+    }
+
+    .visit-btn {
+      background: #0b57d0;
+      color: #fff;
+    }
+
+    .share-btn {
+      background: #222;
+      color: #fff;
+    }
+
+    .stats {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .footer-box {
+      margin-top: 24px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    .footer-box h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .footer-box a {
+      color: #0b57d0;
+      word-break: break-all;
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 24px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .notice {
+      font-size: 13px;
+      color: #777;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AIガチャ</h1>
+    <p class="sub">ランダムで作品を1枚表示する無料ガチャです</p>
+
+    <div class="card">
+      <div class="image-wrap">
+        <img id="gachaImage" src="" alt="ガチャ画像" class="hidden" />
+        <div id="loadingText" class="loading">読み込み中...</div>
+      </div>
+
+      <div class="meta">
+        <div><span class="label">タイトル:</span> <span id="title">-</span></div>
+        <div><span class="label">作者名:</span> <span id="creator">-</span></div>
+        <div><span class="label">ジャンル:</span> <span id="genre">-</span></div>
+        <div><span class="label">説明:</span> <span id="description">-</span></div>
+      </div>
+
+      <div class="stats">
+        いいね: <span id="likeCount">0</span>
+      </div>
+
+      <div class="buttons">
+        <button id="drawButton" class="draw-btn">ガチャを引く</button>
+        <button id="likeButton" class="like-btn">♡ いいね</button>
+      </div>
+
+      <div class="buttons">
+        <a id="visitLink" class="button-link visit-btn" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
+        <a id="shareLink" class="button-link share-btn" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+      </div>
+
+      <p class="notice">
+        ※ いいね数はこのブラウザ内で保存されます
+      </p>
+    </div>
+
+    <div class="footer-box">
+      <h2>掲載したい人へ</h2>
+      <p>
+        AI画像を宣伝したいクリエイター向けに、掲載応募フォームを用意できます。
+        まずはこのページを公開してからフォームURLを追記してください。
+      </p>
+      <p>
+        投稿フォームURL:
+        <a id="formLink" href="#" target="_blank" rel="noopener noreferrer">https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    let works = [];
+    let currentWork = null;
+
+    const FORM_URL = "https://forms.gle/ここを自分のフォームURLに置き換え";
+
+    document.getElementById("formLink").href = FORM_URL;
+    document.getElementById("formLink").textContent = FORM_URL;
+
+    async function loadWorks() {
+      try {
+        const response = await fetch("data.json");
+        if (!response.ok) {
+          throw new Error("data.json の読み込みに失敗しました");
+        }
+
+        works = await response.json();
+
+        if (!Array.isArray(works) || works.length === 0) {
+          throw new Error("作品データが空です");
+        }
+
+        drawRandomWork();
+      } catch (error) {
+        document.getElementById("loadingText").textContent = "作品を読み込めませんでした";
+        console.error(error);
+      }
+    }
+
+    function getWorkId(work) {
+      return `${work.creator}__${work.title}`;
+    }
+
+    function getLikes() {
+      const raw = localStorage.getItem("ai_gacha_likes");
+      return raw ? JSON.parse(raw) : {};
+    }
+
+    function setLikes(likes) {
+      localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
+    }
+
+    function getLikeCount(work) {
+      const likes = getLikes();
+      return likes[getWorkId(work)] || 0;
+    }
+
+    function addLike(work) {
+      const likes = getLikes();
+      const id = getWorkId(work);
+      likes[id] = (likes[id] || 0) + 1;
+      setLikes(likes);
+      return likes[id];
+    }
+
+    function buildShareUrl(work) {
+      const text = `AIガチャで見つけた作品\nタイトル: ${work.title}\n作者: ${work.creator}\n#AIガチャ`;
+      const url = work.link;
+      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    }
+
+    function renderWork(work) {
+      currentWork = work;
+
+      const img = document.getElementById("gachaImage");
+      const loadingText = document.getElementById("loadingText");
+
+      img.src = work.image;
+      img.alt = work.title;
+      img.classList.remove("hidden");
+      loadingText.classList.add("hidden");
+
+      document.getElementById("title").textContent = work.title;
+      document.getElementById("creator").textContent = work.creator;
+      document.getElementById("genre").textContent = work.genre;
+      document.getElementById("description").textContent = work.description;
+      document.getElementById("likeCount").textContent = getLikeCount(work);
+
+      const visitLink = document.getElementById("visitLink");
+      visitLink.href = work.link;
+
+      const shareLink = document.getElementById("shareLink");
+      shareLink.href = buildShareUrl(work);
+    }
+
+    function drawRandomWork() {
+      if (!works.length) return;
+      const randomIndex = Math.floor(Math.random() * works.length);
+      renderWork(works[randomIndex]);
+    }
+
+    document.getElementById("drawButton").addEventListener("click", drawRandomWork);
+
+    document.getElementById("likeButton").addEventListener("click", () => {
+      if (!currentWork) return;
+      const newCount = addLike(currentWork);
+      document.getElementById("likeCount").textContent = newCount;
+    });
+
+    loadWorks();
+  </script>
+</body>
+</html>
