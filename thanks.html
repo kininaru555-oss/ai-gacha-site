@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>投稿ありがとうございました</title>
+<style>
+body{
+  font-family:sans-serif;
+  background:#111;
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.card{
+  background:#222;
+  padding:30px;
+  border-radius:14px;
+  text-align:center;
+}
+a{
+  display:inline-block;
+  margin-top:15px;
+  padding:12px 20px;
+  background:#ff4081;
+  color:white;
+  text-decoration:none;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h2>投稿ありがとうございます</h2>
+<p>ガチャを1回引けます</p>
+
+<a href="index.html">ガチャを引く</a>
+</div>
+
+<script>
+const current = parseInt(localStorage.getItem("gacha_ticket") || "0",10)
+localStorage.setItem("gacha_ticket",current+1)
+</script>
+
+</body>
+</html>
