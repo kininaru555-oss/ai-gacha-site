@@ -1,152 +1,142 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>AIガチャ 人気ランキング</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIガチャ 人気ランキング</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
 
-<style>
+    h1 {
+      margin-bottom: 30px;
+    }
 
-body{
-font-family:sans-serif;
-background:#111;
-color:white;
-text-align:center;
-margin:0;
-padding:20px;
-}
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
 
-h1{
-margin-bottom:30px;
-}
+    .card {
+      background: #222;
+      padding: 15px;
+      border-radius: 12px;
+    }
 
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:20px;
-max-width:1000px;
-margin:auto;
-}
+    img,
+    video {
+      width: 100%;
+      border-radius: 10px;
+    }
 
-.card{
-background:#222;
-padding:15px;
-border-radius:12px;
-}
+    button {
+      margin-top: 10px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #e91e63;
+      color: white;
+      cursor: pointer;
+    }
 
-img,video{
-width:100%;
-border-radius:10px;
-}
+    .likes {
+      margin-top: 8px;
+      color: #ffcc66;
+      font-size: 14px;
+    }
 
-button{
-margin-top:10px;
-padding:8px 14px;
-border:none;
-border-radius:8px;
-background:#e91e63;
-color:white;
-cursor:pointer;
-}
-
-.likes{
-margin-top:8px;
-color:#ffcc66;
-font-size:14px;
-}
-
-.toplink{
-display:inline-block;
-margin-bottom:20px;
-color:#fff;
-text-decoration:none;
-background:#444;
-padding:8px 14px;
-border-radius:8px;
-}
-
-</style>
+    .toplink {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #fff;
+      text-decoration: none;
+      background: #444;
+      padding: 8px 14px;
+      border-radius: 8px;
+    }
+  </style>
 </head>
-
 <body>
+  <a class="toplink" href="index.html">← ガチャに戻る</a>
 
-<a class="toplink" href="index.html">← ガチャに戻る</a>
+  <h1>人気ランキング</h1>
 
-<h1>人気ランキング</h1>
+  <div id="ranking" class="grid"></div>
 
-<div id="ranking" class="grid"></div>
+  <script>
+    function optimizeCloudinary(url) {
+      if (!url) return "";
+      if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
+        return url.replace("/upload/", "/upload/f_auto,q_auto/");
+      }
+      return url;
+    }
 
-<script>
+    async function loadRanking() {
+      try {
+        const res = await fetch("data.json");
+        const data = await res.json();
 
-async function loadRanking(){
+        const items = data.map((item, i) => {
+          const likes = localStorage.getItem("like_" + i) || 0;
+          return {
+            ...item,
+            likes: parseInt(likes, 10),
+            index: i
+          };
+        });
 
-const res = await fetch("data.json");
-const data = await res.json();
+        items.sort((a, b) => b.likes - a.likes);
 
-let items = data.map((item,i)=>{
+        const rankingDiv = document.getElementById("ranking");
+        rankingDiv.innerHTML = "";
 
-let likes = localStorage.getItem("like_"+i) || 0;
+        items.forEach((item) => {
+          let media = "";
+          const fileUrl = optimizeCloudinary(item.file);
 
-return {
-...item,
-likes:parseInt(likes),
-index:i
-}
+          if (item.type === "video") {
+            media = `<video src="${fileUrl}" controls playsinline preload="metadata"></video>`;
+          } else {
+            media = `<img src="${fileUrl}" alt="${item.title}">`;
+          }
 
-})
+          const card = document.createElement("div");
+          card.className = "card";
 
-items.sort((a,b)=>b.likes-a.likes)
+          card.innerHTML = `
+            <h3>${item.title || ""}</h3>
+            ${media}
+            <div>作者: ${item.creator || ""}</div>
+            <div class="likes">❤️ ${item.likes}</div>
+            <button onclick="like(${item.index})">いいね</button>
+          `;
 
-const rankingDiv = document.getElementById("ranking");
+          rankingDiv.appendChild(card);
+        });
+      } catch (error) {
+        document.getElementById("ranking").innerHTML = "<p>ランキングを読み込めませんでした。</p>";
+        console.error(error);
+      }
+    }
 
-items.forEach(item=>{
+    function like(i) {
+      let count = localStorage.getItem("like_" + i) || 0;
+      count++;
+      localStorage.setItem("like_" + i, count);
+      location.reload();
+    }
 
-let media="";
-
-if(item.type==="video"){
-media=`<video src="${item.file}" controls></video>`
-}else{
-media=`<img src="${item.file}">`
-}
-
-const card=document.createElement("div");
-
-card.className="card";
-
-card.innerHTML=`
-
-<h3>${item.title}</h3>
-
-${media}
-
-<div>作者: ${item.creator}</div>
-
-<div class="likes">❤️ ${item.likes}</div>
-
-<button onclick="like(${item.index})">いいね</button>
-
-`
-
-rankingDiv.appendChild(card)
-
-})
-
-}
-
-function like(i){
-
-let count = localStorage.getItem("like_"+i) || 0;
-
-count++;
-
-localStorage.setItem("like_"+i,count);
-
-location.reload();
-
-}
-
-loadRanking()
-
-</script>
-
+    loadRanking();
+  </script>
 </body>
 </html>
