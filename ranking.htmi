@@ -2,107 +2,149 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>無料AIガチャMAX 人気ランキング</title>
+<title>AIガチャ 人気ランキング</title>
 
 <style>
+
 body{
-  font-family:sans-serif;
-  background:#111;
-  color:white;
-  text-align:center;
+font-family:sans-serif;
+background:#111;
+color:white;
+text-align:center;
+margin:0;
+padding:20px;
 }
 
 h1{
-  margin:30px;
+margin-bottom:30px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;
+max-width:1000px;
+margin:auto;
 }
 
 .card{
-  background:#222;
-  margin:20px auto;
-  padding:20px;
-  width:300px;
-  border-radius:10px;
+background:#222;
+padding:15px;
+border-radius:12px;
 }
 
 img,video{
-  width:100%;
-  border-radius:10px;
+width:100%;
+border-radius:10px;
 }
 
 button{
-  margin-top:10px;
-  padding:10px 20px;
-  background:#ffcc00;
-  border:none;
-  border-radius:5px;
-  font-size:16px;
+margin-top:10px;
+padding:8px 14px;
+border:none;
+border-radius:8px;
+background:#e91e63;
+color:white;
+cursor:pointer;
 }
+
+.likes{
+margin-top:8px;
+color:#ffcc66;
+font-size:14px;
+}
+
+.toplink{
+display:inline-block;
+margin-bottom:20px;
+color:#fff;
+text-decoration:none;
+background:#444;
+padding:8px 14px;
+border-radius:8px;
+}
+
 </style>
 </head>
 
 <body>
 
-<h1>AIガチャ 人気ランキング</h1>
+<a class="toplink" href="index.html">← ガチャに戻る</a>
 
-<div id="ranking"></div>
+<h1>人気ランキング</h1>
+
+<div id="ranking" class="grid"></div>
 
 <script>
 
 async function loadRanking(){
 
-  const res = await fetch("data.json");
-  const data = await res.json();
+const res = await fetch("data.json");
+const data = await res.json();
 
-  const rankingDiv = document.getElementById("ranking");
+let items = data.map((item,i)=>{
 
-  data.forEach((item,index)=>{
+let likes = localStorage.getItem("like_"+i) || 0;
 
-    const likes = localStorage.getItem("like_"+index) || 0;
+return {
+...item,
+likes:parseInt(likes),
+index:i
+}
 
-    const card = document.createElement("div");
-    card.className="card";
+})
 
-    let media="";
+items.sort((a,b)=>b.likes-a.likes)
 
-    if(item.type==="image"){
-      media=`<img src="${item.file}">`
-    }else{
-      media=`<video src="${item.file}" controls></video>`
-    }
+const rankingDiv = document.getElementById("ranking");
 
-    card.innerHTML=`
+items.forEach(item=>{
 
-      <h3>${item.title}</h3>
+let media="";
 
-      ${media}
+if(item.type==="video"){
+media=`<video src="${item.file}" controls></video>`
+}else{
+media=`<img src="${item.file}">`
+}
 
-      <p>作者 : ${item.creator}</p>
+const card=document.createElement("div");
 
-      <p>❤️ ${likes}</p>
+card.className="card";
 
-      <button onclick="like(${index})">いいね</button>
+card.innerHTML=`
 
-    `;
+<h3>${item.title}</h3>
 
-    rankingDiv.appendChild(card);
+${media}
 
-  });
+<div>作者: ${item.creator}</div>
+
+<div class="likes">❤️ ${item.likes}</div>
+
+<button onclick="like(${item.index})">いいね</button>
+
+`
+
+rankingDiv.appendChild(card)
+
+})
 
 }
 
 function like(i){
 
-  let count = localStorage.getItem("like_"+i) || 0;
+let count = localStorage.getItem("like_"+i) || 0;
 
-  count++;
+count++;
 
-  localStorage.setItem("like_"+i,count);
+localStorage.setItem("like_"+i,count);
 
-  location.reload();
+location.reload();
 
 }
 
-loadRanking();
+loadRanking()
 
 </script>
 
