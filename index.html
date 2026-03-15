@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIガチャ 画像＋動画対応版</title>
+  <title>AIガチャ 完成版</title>
   <style>
     body {
       margin: 0;
@@ -18,7 +18,7 @@
 
     .container {
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       padding: 20px;
       box-sizing: border-box;
     }
@@ -34,7 +34,418 @@
     }
 
     h1 {
-      margin-top: 0;
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .sub {
+      margin: 0 0 16px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      background: #eee;
+      border-radius: 14px;
+      overflow: hidden;
+      margin: 16px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .media {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .placeholder {
+      color: #666;
+      font-size: 15px;
+      padding: 16px;
+      line-height: 1.6;
+    }
+
+    .flash {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle,
+        rgba(255,255,255,0.95) 0%,
+        rgba(255,255,255,0.18) 55%,
+        rgba(255,255,255,0) 100%
+      );
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .shine {
+      position: absolute;
+      top: -20%;
+      left: -40%;
+      width: 40%;
+      height: 140%;
+      background: linear-gradient(
+        110deg,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,0.8) 50%,
+        rgba(255,255,255,0) 100%
+      );
+      transform: skewX(-20deg);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .draw-btn {
+      border: none;
+      background: #111;
+      color: #fff;
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .draw-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .meta {
+      margin-top: 14px;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.8;
+      background: #fafafa;
+      border-radius: 12px;
+      padding: 12px;
+      display: none;
+    }
+
+    .rarity {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      background: #222;
+      color: #fff;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sub-btn,
+    .share-btn,
+    .link-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .link-btn {
+      background: #0b57d0;
+      color: #fff;
+    }
+
+    .share-btn {
+      background: #222;
+      color: #fff;
+    }
+
+    .sub-btn {
+      background: #e91e63;
+      color: #fff;
+    }
+
+    .stats {
+      margin-top: 8px;
+      color: #666;
+      font-size: 13px;
+    }
+
+    .stage.animating {
+      animation: shake 0.45s ease-in-out;
+    }
+
+    .stage.animating .flash {
+      animation: flashAnim 0.8s ease;
+    }
+
+    .stage.animating .shine {
+      animation: shineAnim 0.8s ease;
+    }
+
+    .stage.ssr {
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.4), 0 0 28px rgba(212, 175, 55, 0.35);
+    }
+
+    .stage.rare {
+      box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.28), 0 0 20px rgba(123, 97, 255, 0.22);
+    }
+
+    @keyframes shake {
+      0%   { transform: translateX(0) scale(1); }
+      20%  { transform: translateX(-4px) scale(1.01); }
+      40%  { transform: translateX(4px) scale(1.01); }
+      60%  { transform: translateX(-3px) scale(1.005); }
+      80%  { transform: translateX(3px) scale(1.005); }
+      100% { transform: translateX(0) scale(1); }
+    }
+
+    @keyframes flashAnim {
+      0%   { opacity: 0; }
+      20%  { opacity: 1; }
+      60%  { opacity: 0.65; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes shineAnim {
+      0%   { left: -45%; opacity: 0; }
+      20%  { opacity: 1; }
+      100% { left: 120%; opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>AIガチャ</h1>
+      <p class="sub">画像も動画もランダムで出る軽量ガチャです</p>
+
+      <div id="stage" class="stage">
+        <div id="placeholder" class="placeholder">
+          ボタンを押すとランダムで作品が出ます
+        </div>
+
+        <img id="resultImage" class="media" alt="ガチャ画像" />
+
+        <video
+          id="resultVideo"
+          class="media"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="metadata"
+        ></video>
+
+        <div class="flash"></div>
+        <div class="shine"></div>
+      </div>
+
+      <button id="drawButton" class="draw-btn">ガチャを引く</button>
+
+      <div id="meta" class="meta">
+        <div><strong>タイトル:</strong> <span id="title"></span></div>
+        <div><strong>作者:</strong> <span id="creator"></span></div>
+        <div><strong>ジャンル:</strong> <span id="genre"></span></div>
+        <div><strong>説明:</strong> <span id="description"></span></div>
+        <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
+
+        <div class="stats">
+          いいね: <span id="likeCount">0</span>
+        </div>
+
+        <div><span id="rarity" class="rarity">NORMAL</span></div>
+
+        <div class="buttons">
+          <button id="likeButton" class="sub-btn">♡ いいね</button>
+          <a id="linkButton" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
+          <a id="shareButton" class="share-btn" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let works = [];
+    let currentWork = null;
+
+    const drawButton = document.getElementById("drawButton");
+    const stage = document.getElementById("stage");
+    const placeholder = document.getElementById("placeholder");
+    const resultImage = document.getElementById("resultImage");
+    const resultVideo = document.getElementById("resultVideo");
+    const meta = document.getElementById("meta");
+
+    async function loadWorks() {
+      try {
+        const response = await fetch("data.json");
+        if (!response.ok) {
+          throw new Error("data.json の読み込みに失敗しました");
+        }
+        works = await response.json();
+
+        if (!Array.isArray(works) || works.length === 0) {
+          throw new Error("作品データが空です");
+        }
+      } catch (error) {
+        placeholder.textContent = "作品を読み込めませんでした";
+        console.error(error);
+      }
+    }
+
+    function getWorkId(work) {
+      return `${work.creator}__${work.title}`;
+    }
+
+    function getLikes() {
+      const raw = localStorage.getItem("ai_gacha_likes");
+      return raw ? JSON.parse(raw) : {};
+    }
+
+    function setLikes(likes) {
+      localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
+    }
+
+    function getLikeCount(work) {
+      const likes = getLikes();
+      return likes[getWorkId(work)] || 0;
+    }
+
+    function addLike(work) {
+      const likes = getLikes();
+      const id = getWorkId(work);
+      likes[id] = (likes[id] || 0) + 1;
+      setLikes(likes);
+      return likes[id];
+    }
+
+    function setRarityStyle(rarityText) {
+      const rarity = document.getElementById("rarity");
+      rarity.textContent = rarityText;
+
+      stage.classList.remove("rare", "ssr");
+
+      if (rarityText === "SSR") {
+        rarity.style.background = "#d4af37";
+        rarity.style.color = "#111";
+        stage.classList.add("ssr");
+      } else if (rarityText === "RARE") {
+        rarity.style.background = "#7b61ff";
+        rarity.style.color = "#fff";
+        stage.classList.add("rare");
+      } else {
+        rarity.style.background = "#222";
+        rarity.style.color = "#fff";
+      }
+    }
+
+    function resetMedia() {
+      resultImage.style.display = "none";
+      resultVideo.style.display = "none";
+      resultVideo.pause();
+      resultVideo.removeAttribute("src");
+      resultVideo.load();
+    }
+
+    function weightedDraw() {
+      const normalPool = works.filter(w => w.rarity === "NORMAL");
+      const rarePool = works.filter(w => w.rarity === "RARE");
+      const ssrPool = works.filter(w => w.rarity === "SSR");
+
+      const roll = Math.random() * 100;
+
+      if (roll < 2 && ssrPool.length > 0) {
+        return ssrPool[Math.floor(Math.random() * ssrPool.length)];
+      }
+
+      if (roll < 20 && rarePool.length > 0) {
+        return rarePool[Math.floor(Math.random() * rarePool.length)];
+      }
+
+      if (normalPool.length > 0) {
+        return normalPool[Math.floor(Math.random() * normalPool.length)];
+      }
+
+      return works[Math.floor(Math.random() * works.length)];
+    }
+
+    function buildShareUrl(work) {
+      const text = `AIガチャ結果\n${work.rarity}：${work.title}\n作者：${work.creator}\n#AIガチャ`;
+      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(work.link)}`;
+    }
+
+    function renderWork(work) {
+      currentWork = work;
+      placeholder.style.display = "none";
+      meta.style.display = "block";
+      resetMedia();
+
+      if (work.type === "video") {
+        resultVideo.src = work.file;
+        resultVideo.style.display = "block";
+        resultVideo.play().catch(() => {});
+      } else {
+        resultImage.src = work.file;
+        resultImage.alt = work.title;
+        resultImage.style.display = "block";
+      }
+
+      document.getElementById("title").textContent = work.title;
+      document.getElementById("creator").textContent = work.creator;
+      document.getElementById("genre").textContent = work.genre;
+      document.getElementById("description").textContent = work.description || "なし";
+      document.getElementById("mediaType").textContent = work.type === "video" ? "動画" : "画像";
+      document.getElementById("likeCount").textContent = getLikeCount(work);
+
+      const linkButton = document.getElementById("linkButton");
+      linkButton.href = work.link;
+
+      const shareButton = document.getElementById("shareButton");
+      shareButton.href = buildShareUrl(work);
+
+      setRarityStyle(work.rarity || "NORMAL");
+    }
+
+    drawButton.addEventListener("click", () => {
+      if (!works.length) return;
+
+      drawButton.disabled = true;
+      stage.classList.add("animating");
+
+      setTimeout(() => {
+        const work = weightedDraw();
+        renderWork(work);
+      }, 550);
+
+      setTimeout(() => {
+        stage.classList.remove("animating");
+        drawButton.disabled = false;
+      }, 850);
+    });
+
+    document.getElementById("likeButton").addEventListener("click", () => {
+      if (!currentWork) return;
+      const count = addLike(currentWork);
+      document.getElementById("likeCount").textContent = count;
+    });
+
+    loadWorks();
+  </script>
+</body>
+</html>      margin-top: 0;
       font-size: 24px;
     }
 
