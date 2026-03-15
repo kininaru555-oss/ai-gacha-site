@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>無料AI画像、動画ガチャ</title>
+  <title>AIガチャ</title>
   <style>
     body {
       margin: 0;
@@ -39,9 +39,10 @@
     }
 
     .sub {
-      margin: 0 0 16px;
+      margin: 0 0 10px;
       color: #666;
       font-size: 14px;
+      line-height: 1.6;
     }
 
     .stage {
@@ -149,7 +150,9 @@
 
     .btn-link,
     .btn-like,
-    .btn-share {
+    .btn-share,
+    .btn-post,
+    .btn-ranking {
       border: none;
       border-radius: 10px;
       padding: 10px 12px;
@@ -176,6 +179,16 @@
 
     .btn-like {
       background: #e91e63;
+      color: #fff;
+    }
+
+    .btn-post {
+      background: #16a34a;
+      color: #fff;
+    }
+
+    .btn-ranking {
+      background: #f59e0b;
       color: #fff;
     }
 
@@ -248,7 +261,27 @@
   <div class="container">
     <div class="card">
       <h1>AIガチャ</h1>
-      <p class="sub">画像も動画もランダムで出る無料ガチャです</p>
+      <p class="sub">
+        AI作品をランダムで発見できる無料ガチャです。<br>
+        あなたの作品も1点から掲載できます。
+      </p>
+
+      <div class="buttons" style="margin-bottom: 10px;">
+        <a
+          class="btn-post"
+          href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          作品を投稿する
+        </a>
+        <a
+          class="btn-ranking"
+          href="ranking.html"
+        >
+          人気ランキング
+        </a>
+      </div>
 
       <div id="stage" class="stage">
         <div id="placeholder" class="placeholder">
@@ -295,12 +328,16 @@
     </div>
 
     <div class="notice-box">
-      <strong>掲載応募フォーム</strong><br>
-      <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
-        Googleフォームを開く
-      </a>
+      <strong>掲載したい人へ</strong><br>
+      画像・動画どちらも1点から投稿できます。<br>
+      投稿された作品は順次ガチャに追加されます。
     </div>
-    <a href="https://github.com/kininaru555-oss/ai-gacha-site/blob/AIgacha/ranking.html">ガチャ画像、動画人気ランキング</a>
+    <a
+  class="btn-ranking"
+  href="creators.html"
+>
+  作者ランキング
+    </a>
   </div>
 
   <script>
