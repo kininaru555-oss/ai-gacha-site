@@ -1,160 +1,9 @@
- }
-      100% { opacity: 0; }
-    }
-
-    @keyframes shineAnim {
-      0%   { left: -45%; opacity: 0; }
-      20%  { opacity: 1; }
-      100% { left: 120%; opacity: 0; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="card">
-      <h1>AIガチャ</h1>
-      <p class="sub">画像も動画もランダムで出る軽量ガチャです</p>
-
-      <div id="stage" class="stage">
-        <div id="placeholder" class="placeholder">
-          ボタンを押すとランダムで作品が出ます
-        </div>
-
-        <img id="resultImage" class="media" alt="ガチャ画像" />
-
-        <video
-          id="resultVideo"
-          class="media"
-          autoplay
-          loop
-          muted
-          playsinline
-          preload="metadata"
-        ></video>
-
-        <div class="flash"></div>
-        <div class="shine"></div>
-      </div>
-
-      <button id="drawButton" class="draw-btn">ガチャを引く</button>
-
-      <div id="meta" class="meta">
-        <div><strong>タイトル:</strong> <span id="title"></span></div>
-        <div><strong>作者:</strong> <span id="creator"></span></div>
-        <div><strong>ジャンル:</strong> <span id="genre"></span></div>
-        <div><strong>説明:</strong> <span id="description"></span></div>
-        <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
-
-        <div class="stats">
-          いいね: <span id="likeCount">0</span>
-        </div>
-
-        <div><span id="rarity" class="rarity">NORMAL</span></div>
-
-        <div class="buttons">
-          <button id="likeButton" class="sub-btn">♡ いいね</button>
-          <a id="linkButton" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
-          <a id="shareButton" class="share-btn" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let works = [];
-    let currentWork = null;
-
-    const drawButton = document.getElementById("drawButton");
-    const stage = document.getElementById("stage");
-    const placeholder = document.getElementById("placeholder");
-    const resultImage = document.getElementById("resultImage");
-    const resultVideo = document.getElementById("resultVideo");
-    const meta = document.getElementById("meta");
-
-    async function loadWorks() {
-      try {
-        const response = await fetch("data.json");
-        if (!response.ok) {
-          throw new Error("data.json の読み込みに失敗しました");
-        }
-        works = await response.json();
-
-        if (!Array.isArray(works) || works.length === 0) {
-          throw new Error("作品データが空です");
-        }
-      } catch (error) {
-        placeholder.textContent = "作品を読み込めませんでした";
-        console.error(error);
-      }
-    }
-
-    function getWorkId(work) {
-      return `${work.creator}__${work.title}`;
-    }
-
-    function getLikes() {
-      const raw = localStorage.getItem("ai_gacha_likes");
-      return raw ? JSON.parse(raw) : {};
-    }
-
-    function setLikes(likes) {
-      localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
-    }
-
-    function getLikeCount(work) {
-      const likes = getLikes();
-      return likes[getWorkId(work)] || 0;
-    }
-
-    function addLike(work) {
-      const likes = getLikes();
-      const id = getWorkId(work);
-      likes[id] = (likes[id] || 0) + 1;
-      setLikes(likes);
-      return likes[id];
-    }
-
-    function setRarityStyle(rarityText) {
-      const rarity = document.getElementById("rarity");
-      rarity.textContent = rarityText;
-
-      stage.classList.remove("rare", "ssr");
-
-      if (rarityText === "SSR") {
-        rarity.style.background = "#d4af37";
-        rarity.style.color = "#111";
-        stage.classList.add("ssr");
-      } else if (rarityText === "RARE") {
-        rarity.style.background = "#7b61ff";
-        rarity.style.color = "#fff";
-        stage.classList.add("rare");
-      } else {
-        rarity.style.background = "#222";
-        rarity.style.color = "#fff";
-      }
-    }
-
-    function resetMedia() {
-      resultImage.style.display = "none";
-      resultVideo.style.display = "none";
-      resultVideo.pause();
-      resultVideo.removeAttribute("src");
-      resultVideo.load();
-    }
-
-    function weightedDraw() {
-      const normalPool = works.filter(w => w.rarity === "NORMAL");
-      const rarePool = works.filter(w => w.rarity === "RARE");
-      const ssrPool = works.filter(w => w.rarity === "SSR");
-
-      const roll = Math.random() * 100;
-
-      if (roll < 2 && ssrPool.<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIガチャ 完成版</title>
+  <title>AIガチャ</title>
   <style>
     body {
       margin: 0;
@@ -298,9 +147,9 @@
       flex-wrap: wrap;
     }
 
-    .sub-btn,
-    .share-btn,
-    .link-btn {
+    .btn-link,
+    .btn-like,
+    .btn-share {
       border: none;
       border-radius: 10px;
       padding: 10px 12px;
@@ -312,19 +161,20 @@
       justify-content: center;
       flex: 1;
       min-width: 100px;
+      box-sizing: border-box;
     }
 
-    .link-btn {
+    .btn-link {
       background: #0b57d0;
       color: #fff;
     }
 
-    .share-btn {
+    .btn-share {
       background: #222;
       color: #fff;
     }
 
-    .sub-btn {
+    .btn-like {
       background: #e91e63;
       color: #fff;
     }
@@ -333,6 +183,22 @@
       margin-top: 8px;
       color: #666;
       font-size: 13px;
+    }
+
+    .notice-box {
+      margin-top: 16px;
+      text-align: left;
+      font-size: 13px;
+      color: #555;
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+
+    .notice-box a {
+      color: #0b57d0;
+      word-break: break-all;
     }
 
     .stage.animating {
@@ -382,7 +248,7 @@
   <div class="container">
     <div class="card">
       <h1>AIガチャ</h1>
-      <p class="sub">画像も動画もランダムで出る軽量ガチャです</p>
+      <p class="sub">画像も動画もランダムで出る無料ガチャです</p>
 
       <div id="stage" class="stage">
         <div id="placeholder" class="placeholder">
@@ -421,11 +287,18 @@
         <div><span id="rarity" class="rarity">NORMAL</span></div>
 
         <div class="buttons">
-          <button id="likeButton" class="sub-btn">♡ いいね</button>
-          <a id="linkButton" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
-          <a id="shareButton" class="share-btn" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+          <button id="likeButton" class="btn-like">♡ いいね</button>
+          <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
+          <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
         </div>
       </div>
+    </div>
+
+    <div class="notice-box">
+      <strong>掲載応募フォーム</strong><br>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+        Googleフォームを開く
+      </a>
     </div>
   </div>
 
@@ -446,6 +319,7 @@
         if (!response.ok) {
           throw new Error("data.json の読み込みに失敗しました");
         }
+
         works = await response.json();
 
         if (!Array.isArray(works) || works.length === 0) {
@@ -485,7 +359,7 @@
 
     function setRarityStyle(rarityText) {
       const rarity = document.getElementById("rarity");
-      rarity.textContent = rarityText;
+      rarity.textContent = rarityText || "NORMAL";
 
       stage.classList.remove("rare", "ssr");
 
@@ -512,7 +386,7 @@
     }
 
     function weightedDraw() {
-      const normalPool = works.filter(w => w.rarity === "NORMAL");
+      const normalPool = works.filter(w => (w.rarity || "NORMAL") === "NORMAL");
       const rarePool = works.filter(w => w.rarity === "RARE");
       const ssrPool = works.filter(w => w.rarity === "SSR");
 
@@ -534,7 +408,7 @@
     }
 
     function buildShareUrl(work) {
-      const text = `AIガチャ結果\n${work.rarity}：${work.title}\n作者：${work.creator}\n#AIガチャ`;
+      const text = `AIガチャ結果\n${work.rarity || "NORMAL"}：${work.title}\n作者：${work.creator}\n#AIガチャ`;
       return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(work.link)}`;
     }
 
@@ -554,15 +428,15 @@
         resultImage.style.display = "block";
       }
 
-      document.getElementById("title").textContent = work.title;
-      document.getElementById("creator").textContent = work.creator;
-      document.getElementById("genre").textContent = work.genre;
+      document.getElementById("title").textContent = work.title || "";
+      document.getElementById("creator").textContent = work.creator || "";
+      document.getElementById("genre").textContent = work.genre || "";
       document.getElementById("description").textContent = work.description || "なし";
       document.getElementById("mediaType").textContent = work.type === "video" ? "動画" : "画像";
       document.getElementById("likeCount").textContent = getLikeCount(work);
 
       const linkButton = document.getElementById("linkButton");
-      linkButton.href = work.link;
+      linkButton.href = work.link || "#";
 
       const shareButton = document.getElementById("shareButton");
       shareButton.href = buildShareUrl(work);
@@ -591,143 +465,6 @@
       if (!currentWork) return;
       const count = addLike(currentWork);
       document.getElementById("likeCount").textContent = count;
-    });
-
-    loadWorks();
-  </script>
-</body>
-</html>escription">-</span></div>
-      </div>
-
-      <div class="stats">
-        いいね: <span id="likeCount">0</span>
-      </div>
-
-      <div class="buttons">
-        <button id="drawButton" class="draw-btn">ガチャを引く</button>
-        <button id="likeButton" class="like-btn">♡ いいね</button>
-      </div>
-
-      <div class="buttons">
-        <a id="visitLink" class="button-link visit-btn" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
-        <a id="shareLink" class="button-link share-btn" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
-      </div>
-
-      <p class="notice">
-        ※ いいね数はこのブラウザ内で保存されます
-      </p>
-    </div>
-
-    <div class="footer-box">
-      <h2>掲載したい人へ</h2>
-      <p>
-        AI画像を宣伝したいクリエイター向けに、掲載応募フォームを用意できます。
-        まずはこのページを公開してからフォームURLを追記してください。
-      </p>
-      <p>
-        投稿フォームURL:
-        <a id="formLink" href="#" target="_blank" rel="noopener noreferrer">https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog</a>
-      </p>
-    </div>
-  </div>
-
-  <script>
-    let works = [];
-    let currentWork = null;
-
-    const FORM_URL = "https://forms.gle/ここを自分のフォームURLに置き換え";
-
-    document.getElementById("formLink").href = FORM_URL;
-    document.getElementById("formLink").textContent = FORM_URL;
-
-    async function loadWorks() {
-      try {
-        const response = await fetch("data.json");
-        if (!response.ok) {
-          throw new Error("data.json の読み込みに失敗しました");
-        }
-
-        works = await response.json();
-
-        if (!Array.isArray(works) || works.length === 0) {
-          throw new Error("作品データが空です");
-        }
-
-        drawRandomWork();
-      } catch (error) {
-        document.getElementById("loadingText").textContent = "作品を読み込めませんでした";
-        console.error(error);
-      }
-    }
-
-    function getWorkId(work) {
-      return `${work.creator}__${work.title}`;
-    }
-
-    function getLikes() {
-      const raw = localStorage.getItem("ai_gacha_likes");
-      return raw ? JSON.parse(raw) : {};
-    }
-
-    function setLikes(likes) {
-      localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
-    }
-
-    function getLikeCount(work) {
-      const likes = getLikes();
-      return likes[getWorkId(work)] || 0;
-    }
-
-    function addLike(work) {
-      const likes = getLikes();
-      const id = getWorkId(work);
-      likes[id] = (likes[id] || 0) + 1;
-      setLikes(likes);
-      return likes[id];
-    }
-
-    function buildShareUrl(work) {
-      const text = `AIガチャで見つけた作品\nタイトル: ${work.title}\n作者: ${work.creator}\n#AIガチャ`;
-      const url = work.link;
-      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    }
-
-    function renderWork(work) {
-      currentWork = work;
-
-      const img = document.getElementById("gachaImage");
-      const loadingText = document.getElementById("loadingText");
-
-      img.src = work.image;
-      img.alt = work.title;
-      img.classList.remove("hidden");
-      loadingText.classList.add("hidden");
-
-      document.getElementById("title").textContent = work.title;
-      document.getElementById("creator").textContent = work.creator;
-      document.getElementById("genre").textContent = work.genre;
-      document.getElementById("description").textContent = work.description;
-      document.getElementById("likeCount").textContent = getLikeCount(work);
-
-      const visitLink = document.getElementById("visitLink");
-      visitLink.href = work.link;
-
-      const shareLink = document.getElementById("shareLink");
-      shareLink.href = buildShareUrl(work);
-    }
-
-    function drawRandomWork() {
-      if (!works.length) return;
-      const randomIndex = Math.floor(Math.random() * works.length);
-      renderWork(works[randomIndex]);
-    }
-
-    document.getElementById("drawButton").addEventListener("click", drawRandomWork);
-
-    document.getElementById("likeButton").addEventListener("click", () => {
-      if (!currentWork) return;
-      const newCount = addLike(currentWork);
-      document.getElementById("likeCount").textContent = newCount;
     });
 
     loadWorks();
