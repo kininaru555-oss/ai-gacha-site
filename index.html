@@ -3,56 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIガチャ</title>
+  <title>AIガチャ R18</title>
   <style>
     body {
       margin: 0;
       font-family: sans-serif;
-      background: #f5f5f5;
-      color: #222;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      background: linear-gradient(180deg, #120812 0%, #1a0d1a 100%);
+      color: #f5f5f5;
       min-height: 100vh;
     }
 
     .container {
       width: 100%;
-      max-width: 440px;
-      padding: 20px;
+      max-width: 460px;
+      margin: 0 auto;
+      padding: 18px 16px 40px;
       box-sizing: border-box;
     }
 
-    .card {
-      background: #fff;
+    .hero {
+      background: linear-gradient(135deg, #2a1024 0%, #1f1f1f 100%);
       border-radius: 18px;
       padding: 18px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
       text-align: center;
-      position: relative;
-      overflow: hidden;
+      margin-bottom: 16px;
     }
 
     h1 {
       margin: 0 0 8px;
-      font-size: 24px;
+      font-size: 26px;
+      letter-spacing: 0.5px;
     }
 
     .sub {
-      margin: 0 0 10px;
-      color: #666;
+      margin: 0;
+      color: #d8d8d8;
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.7;
+    }
+
+    .adult-warning {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(179, 21, 75, 0.18);
+      border: 1px solid rgba(255, 120, 170, 0.25);
+      color: #ffd7e2;
+      font-size: 13px;
+      line-height: 1.7;
+      text-align: left;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      flex: 1;
+      min-width: 120px;
+      color: #fff;
+    }
+
+    .btn-post {
+      background: #16a34a;
+      font-weight: bold;
+    }
+
+    .btn-ranking {
+      background: #f59e0b;
+    }
+
+    .btn-creator {
+      background: #7b61ff;
+    }
+
+    .gacha-card {
+      background: #1f1f1f;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
     }
 
     .stage {
       position: relative;
       width: 100%;
       aspect-ratio: 3 / 4;
-      background: #eee;
-      border-radius: 14px;
+      background: #2a2a2a;
+      border-radius: 16px;
       overflow: hidden;
-      margin: 16px 0;
+      margin: 10px 0 16px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -66,21 +122,16 @@
     }
 
     .placeholder {
-      color: #666;
+      color: #bdbdbd;
       font-size: 15px;
-      padding: 16px;
-      line-height: 1.6;
+      padding: 18px;
+      line-height: 1.7;
     }
 
     .flash {
       position: absolute;
       inset: 0;
-      background: radial-gradient(
-        circle,
-        rgba(255,255,255,0.95) 0%,
-        rgba(255,255,255,0.18) 55%,
-        rgba(255,255,255,0) 100%
-      );
+      background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.14) 55%, rgba(255,255,255,0) 100%);
       opacity: 0;
       pointer-events: none;
     }
@@ -104,14 +155,16 @@
 
     .draw-btn {
       border: none;
-      background: #111;
+      background: linear-gradient(135deg, #d61f69 0%, #9f1146 100%);
       color: #fff;
-      border-radius: 12px;
-      padding: 14px 20px;
-      font-size: 16px;
+      border-radius: 14px;
+      padding: 15px 20px;
+      font-size: 17px;
       cursor: pointer;
       width: 100%;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      letter-spacing: 0.3px;
     }
 
     .draw-btn:disabled {
@@ -119,15 +172,22 @@
       cursor: wait;
     }
 
+    .mini-note {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: #bdbdbd;
+    }
+
     .meta {
-      margin-top: 14px;
+      margin-top: 12px;
       text-align: left;
       font-size: 14px;
       line-height: 1.8;
-      background: #fafafa;
+      background: #2a2a2a;
       border-radius: 12px;
       padding: 12px;
       display: none;
+      color: #f5f5f5;
     }
 
     .rarity {
@@ -137,11 +197,17 @@
       border-radius: 999px;
       font-size: 12px;
       font-weight: bold;
-      background: #222;
+      background: #444;
       color: #fff;
     }
 
-    .buttons {
+    .stats {
+      margin-top: 8px;
+      color: #d0d0d0;
+      font-size: 13px;
+    }
+
+    .result-buttons {
       display: flex;
       gap: 8px;
       margin-top: 12px;
@@ -150,9 +216,7 @@
 
     .btn-link,
     .btn-like,
-    .btn-share,
-    .btn-post,
-    .btn-ranking {
+    .btn-share {
       border: none;
       border-radius: 10px;
       padding: 10px 12px;
@@ -165,53 +229,40 @@
       flex: 1;
       min-width: 100px;
       box-sizing: border-box;
+      color: #fff;
     }
 
     .btn-link {
       background: #0b57d0;
-      color: #fff;
     }
 
     .btn-share {
-      background: #222;
-      color: #fff;
+      background: #444;
     }
 
     .btn-like {
       background: #e91e63;
-      color: #fff;
-    }
-
-    .btn-post {
-      background: #16a34a;
-      color: #fff;
-    }
-
-    .btn-ranking {
-      background: #f59e0b;
-      color: #fff;
-    }
-
-    .stats {
-      margin-top: 8px;
-      color: #666;
-      font-size: 13px;
     }
 
     .notice-box {
       margin-top: 16px;
       text-align: left;
       font-size: 13px;
-      color: #555;
-      background: #fff;
+      color: #d0d0d0;
+      background: #1f1f1f;
       border-radius: 14px;
       padding: 14px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+      line-height: 1.8;
     }
 
     .notice-box a {
-      color: #0b57d0;
-      word-break: break-all;
+      color: #8ec2ff;
+      text-decoration: none;
+    }
+
+    .footer-links {
+      margin-top: 10px;
     }
 
     .stage.animating {
@@ -227,11 +278,11 @@
     }
 
     .stage.ssr {
-      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.4), 0 0 28px rgba(212, 175, 55, 0.35);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.45), 0 0 32px rgba(212, 175, 55, 0.34);
     }
 
     .stage.rare {
-      box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.28), 0 0 20px rgba(123, 97, 255, 0.22);
+      box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.32), 0 0 24px rgba(123, 97, 255, 0.24);
     }
 
     @keyframes shake {
@@ -259,29 +310,34 @@
 </head>
 <body>
   <div class="container">
-    <div class="card">
-      <h1>AIガチャ</h1>
+    <div class="hero">
+      <h1>AIガチャ R18</h1>
       <p class="sub">
-        AI作品をランダムで発見できる無料ガチャです。<br>
-        あなたの作品も1点から掲載できます。
+        投稿されたR18向けAI作品がランダムで出る無料ガチャです。<br>
+        あなたの作品も1点から追加できます。
       </p>
 
-      <div class="buttons" style="margin-bottom: 10px;">
+      <div class="adult-warning">
+        このページは18歳以上向けです。18歳未満の方は閲覧・利用できません。<br>
+        利用を続けることで、18歳以上であることに同意したものとみなします。
+      </div>
+
+      <div class="buttons">
         <a
-          class="btn-post"
+          class="btn btn-post"
           href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog"
           target="_blank"
           rel="noopener noreferrer"
         >
           作品を投稿する
         </a>
-        <a
-          class="btn-ranking"
-          href="ranking.html"
-        >
-          人気ランキング
-        </a>
+        <a class="btn btn-ranking" href="ranking.html">人気ランキング</a>
+        <a class="btn btn-creator" href="creators.html">作者ランキング</a>
       </div>
+    </div>
+
+    <div class="gacha-card">
+      <p class="mini-note">投稿された作品が順次ガチャに追加されます</p>
 
       <div id="stage" class="stage">
         <div id="placeholder" class="placeholder">
@@ -319,7 +375,7 @@
 
         <div><span id="rarity" class="rarity">NORMAL</span></div>
 
-        <div class="buttons">
+        <div class="result-buttons">
           <button id="likeButton" class="btn-like">♡ いいね</button>
           <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
           <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
@@ -331,13 +387,12 @@
       <strong>掲載したい人へ</strong><br>
       画像・動画どちらも1点から投稿できます。<br>
       投稿された作品は順次ガチャに追加されます。
+
+      <div class="footer-links">
+        <a href="disclaimer.html">免責事項</a><br>
+        <a href="terms.html">利用規約</a>
+      </div>
     </div>
-    <a
-  class="btn-ranking"
-  href="creators.html"
->
-  作者ランキング
-    </a>
   </div>
 
   <script>
@@ -410,7 +465,7 @@
         rarity.style.color = "#fff";
         stage.classList.add("rare");
       } else {
-        rarity.style.background = "#222";
+        rarity.style.background = "#444";
         rarity.style.color = "#fff";
       }
     }
@@ -446,8 +501,8 @@
     }
 
     function buildShareUrl(work) {
-      const text = `AIガチャ結果\n${work.rarity || "NORMAL"}：${work.title}\n作者：${work.creator}\n#AIガチャ`;
-      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(work.link)}`;
+      const text = `AIガチャR18結果\n${work.rarity || "NORMAL"}：${work.title}\n作者：${work.creator}\n#AIガチャR18`;
+      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(work.link || location.href)}`;
     }
 
     function renderWork(work) {
