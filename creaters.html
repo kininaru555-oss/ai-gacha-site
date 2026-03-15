@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>AIガチャ 作者ランキング</title>
+<style>
+body{
+  font-family:sans-serif;
+  background:#111;
+  color:white;
+  text-align:center;
+  margin:0;
+  padding:20px;
+}
+h1{
+  margin-bottom:30px;
+}
+.toplink{
+  display:inline-block;
+  margin-bottom:20px;
+  color:#fff;
+  text-decoration:none;
+  background:#444;
+  padding:8px 14px;
+  border-radius:8px;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:20px;
+  max-width:1000px;
+  margin:auto;
+}
+.card{
+  background:#222;
+  padding:16px;
+  border-radius:12px;
+  text-align:left;
+}
+.rank{
+  font-size:20px;
+  font-weight:bold;
+  color:#ffcc66;
+  margin-bottom:8px;
+}
+.name{
+  font-size:18px;
+  margin-bottom:8px;
+}
+.meta{
+  color:#ccc;
+  line-height:1.8;
+}
+a.creator-link{
+  display:inline-block;
+  margin-top:10px;
+  color:#fff;
+  text-decoration:none;
+  background:#0b57d0;
+  padding:8px 12px;
+  border-radius:8px;
+}
+</style>
+</head>
+<body>
+
+<a class="toplink" href="index.html">← ガチャに戻る</a>
+<a class="toplink" href="ranking.html">作品ランキング</a>
+
+<h1>作者ランキング</h1>
+
+<div id="creatorRanking" class="grid"></div>
+
+<script>
+async function loadCreatorRanking() {
+  const res = await fetch("data.json");
+  const data = await res.json();
+
+  const creatorMap = {};
+
+  data.forEach((item, index) => {
+    const creator = item.creator || "投稿者";
+    const likes = parseInt(localStorage.getItem("like_" + index) || "0", 10);
+
+    if (!creatorMap[creator]) {
+      creatorMap[creator] = {
+        creator: creator,
+        totalLikes: 0,
+        workCount: 0,
+        link: item.link || "#"
+      };
+    }
+
+    creatorMap[creator].totalLikes += likes;
+    creatorMap[creator].workCount += 1;
+
+    if (creatorMap[creator].link === "#" && item.link) {
+      creatorMap[creator].link = item.link;
+    }
+  });
+
+  const creators = Object.values(creatorMap).sort((a, b) => b.totalLikes - a.totalLikes);
+
+  const container = document.getElementById("creatorRanking");
+
+  creators.forEach((creator, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <div class="rank">#${i + 1}</div>
+      <div class="name">${creator.creator}</div>
+      <div class="meta">
+        合計いいね: ❤️ ${creator.totalLikes}<br>
+        作品数: ${creator.workCount}
+      </div>
+      <a class="creator-link" href="${creator.link}" target="_blank" rel="noopener noreferrer">
+        作者ページへ
+      </a>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+loadCreatorRanking();
+</script>
+
+</body>
+</html>
