@@ -1,4 +1,155 @@
-<!DOCTYPE html>
+ }
+      100% { opacity: 0; }
+    }
+
+    @keyframes shineAnim {
+      0%   { left: -45%; opacity: 0; }
+      20%  { opacity: 1; }
+      100% { left: 120%; opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>AIガチャ</h1>
+      <p class="sub">画像も動画もランダムで出る軽量ガチャです</p>
+
+      <div id="stage" class="stage">
+        <div id="placeholder" class="placeholder">
+          ボタンを押すとランダムで作品が出ます
+        </div>
+
+        <img id="resultImage" class="media" alt="ガチャ画像" />
+
+        <video
+          id="resultVideo"
+          class="media"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="metadata"
+        ></video>
+
+        <div class="flash"></div>
+        <div class="shine"></div>
+      </div>
+
+      <button id="drawButton" class="draw-btn">ガチャを引く</button>
+
+      <div id="meta" class="meta">
+        <div><strong>タイトル:</strong> <span id="title"></span></div>
+        <div><strong>作者:</strong> <span id="creator"></span></div>
+        <div><strong>ジャンル:</strong> <span id="genre"></span></div>
+        <div><strong>説明:</strong> <span id="description"></span></div>
+        <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
+
+        <div class="stats">
+          いいね: <span id="likeCount">0</span>
+        </div>
+
+        <div><span id="rarity" class="rarity">NORMAL</span></div>
+
+        <div class="buttons">
+          <button id="likeButton" class="sub-btn">♡ いいね</button>
+          <a id="linkButton" class="link-btn" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
+          <a id="shareButton" class="share-btn" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let works = [];
+    let currentWork = null;
+
+    const drawButton = document.getElementById("drawButton");
+    const stage = document.getElementById("stage");
+    const placeholder = document.getElementById("placeholder");
+    const resultImage = document.getElementById("resultImage");
+    const resultVideo = document.getElementById("resultVideo");
+    const meta = document.getElementById("meta");
+
+    async function loadWorks() {
+      try {
+        const response = await fetch("data.json");
+        if (!response.ok) {
+          throw new Error("data.json の読み込みに失敗しました");
+        }
+        works = await response.json();
+
+        if (!Array.isArray(works) || works.length === 0) {
+          throw new Error("作品データが空です");
+        }
+      } catch (error) {
+        placeholder.textContent = "作品を読み込めませんでした";
+        console.error(error);
+      }
+    }
+
+    function getWorkId(work) {
+      return `${work.creator}__${work.title}`;
+    }
+
+    function getLikes() {
+      const raw = localStorage.getItem("ai_gacha_likes");
+      return raw ? JSON.parse(raw) : {};
+    }
+
+    function setLikes(likes) {
+      localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
+    }
+
+    function getLikeCount(work) {
+      const likes = getLikes();
+      return likes[getWorkId(work)] || 0;
+    }
+
+    function addLike(work) {
+      const likes = getLikes();
+      const id = getWorkId(work);
+      likes[id] = (likes[id] || 0) + 1;
+      setLikes(likes);
+      return likes[id];
+    }
+
+    function setRarityStyle(rarityText) {
+      const rarity = document.getElementById("rarity");
+      rarity.textContent = rarityText;
+
+      stage.classList.remove("rare", "ssr");
+
+      if (rarityText === "SSR") {
+        rarity.style.background = "#d4af37";
+        rarity.style.color = "#111";
+        stage.classList.add("ssr");
+      } else if (rarityText === "RARE") {
+        rarity.style.background = "#7b61ff";
+        rarity.style.color = "#fff";
+        stage.classList.add("rare");
+      } else {
+        rarity.style.background = "#222";
+        rarity.style.color = "#fff";
+      }
+    }
+
+    function resetMedia() {
+      resultImage.style.display = "none";
+      resultVideo.style.display = "none";
+      resultVideo.pause();
+      resultVideo.removeAttribute("src");
+      resultVideo.load();
+    }
+
+    function weightedDraw() {
+      const normalPool = works.filter(w => w.rarity === "NORMAL");
+      const rarePool = works.filter(w => w.rarity === "RARE");
+      const ssrPool = works.filter(w => w.rarity === "SSR");
+
+      const roll = Math.random() * 100;
+
+      if (roll < 2 && ssrPool.<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
@@ -445,414 +596,7 @@
     loadWorks();
   </script>
 </body>
-</html>      margin-top: 0;
-      font-size: 24px;
-    }
-
-    .stage {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 3 / 4;
-      background: #eee;
-      border-radius: 14px;
-      overflow: hidden;
-      margin: 16px 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .media {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: none;
-    }
-
-    .placeholder {
-      color: #666;
-      font-size: 15px;
-      padding: 16px;
-    }
-
-    .flash {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.15) 55%, rgba(255,255,255,0) 100%);
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .shine {
-      position: absolute;
-      top: -20%;
-      left: -40%;
-      width: 40%;
-      height: 140%;
-      background: linear-gradient(
-        110deg,
-        rgba(255,255,255,0) 0%,
-        rgba(255,255,255,0.7) 50%,
-        rgba(255,255,255,0) 100%
-      );
-      transform: skewX(-20deg);
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .draw-btn {
-      border: none;
-      background: #111;
-      color: #fff;
-      border-radius: 12px;
-      padding: 14px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    .draw-btn:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-
-    .meta {
-      margin-top: 14px;
-      text-align: left;
-      font-size: 14px;
-      line-height: 1.7;
-      background: #fafafa;
-      border-radius: 12px;
-      padding: 12px;
-      display: none;
-    }
-
-    .rarity {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: bold;
-      background: #222;
-      color: #fff;
-    }
-
-    .stage.animating {
-      animation: shake 0.45s ease-in-out;
-    }
-
-    .stage.animating .flash {
-      animation: flashAnim 0.8s ease;
-    }
-
-    .stage.animating .shine {
-      animation: shineAnim 0.8s ease;
-    }
-
-    @keyframes shake {
-      0%   { transform: translateX(0) scale(1); }
-      20%  { transform: translateX(-4px) scale(1.01); }
-      40%  { transform: translateX(4px) scale(1.01); }
-      60%  { transform: translateX(-3px) scale(1.005); }
-      80%  { transform: translateX(3px) scale(1.005); }
-      100% { transform: translateX(0) scale(1); }
-    }
-
-    @keyframes flashAnim {
-      0%   { opacity: 0; }
-      20%  { opacity: 1; }
-      60%  { opacity: 0.65; }
-      100% { opacity: 0; }
-    }
-
-    @keyframes shineAnim {
-      0%   { left: -45%; opacity: 0; }
-      20%  { opacity: 1; }
-      100% { left: 120%; opacity: 0; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="card">
-      <h1>AIガチャ</h1>
-
-      <div id="stage" class="stage">
-        <div id="placeholder" class="placeholder">
-          ボタンを押すとランダムで作品が出ます
-        </div>
-
-        <img id="resultImage" class="media" alt="ガチャ画像">
-
-        <video
-          id="resultVideo"
-          class="media"
-          autoplay
-          loop
-          muted
-          playsinline
-          preload="metadata"
-        ></video>
-
-        <div class="flash"></div>
-        <div class="shine"></div>
-      </div>
-
-      <button id="drawButton" class="draw-btn">ガチャを引く</button>
-
-      <div id="meta" class="meta">
-        <div><strong>タイトル:</strong> <span id="title"></span></div>
-        <div><strong>作者:</strong> <span id="creator"></span></div>
-        <div><strong>ジャンル:</strong> <span id="genre"></span></div>
-        <div><strong>説明:</strong> <span id="description"></span></div>
-        <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
-        <div><strong>リンク:</strong> <a id="link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a></div>
-        <div><span id="rarity" class="rarity">NORMAL</span></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const works = [
-      {
-        type: "image",
-        title: "AI美女サンプル1",
-        creator: "Creator A",
-        genre: "AI美女",
-        description: "やわらかい表情のAI美女です。",
-        file: "https://via.placeholder.com/600x800.png?text=AI+Girl+1",
-        link: "https://example.com/creatorA",
-        rarity: "NORMAL"
-      },
-      {
-        type: "image",
-        title: "AI美女サンプル2",
-        creator: "Creator B",
-        genre: "AI美女",
-        description: "少しレア感のある作品です。",
-        file: "https://via.placeholder.com/600x800.png?text=AI+Girl+2",
-        link: "https://example.com/creatorB",
-        rarity: "RARE"
-      },
-      {
-        type: "video",
-        title: "AI動画サンプル1",
-        creator: "Creator C",
-        genre: "AI動画",
-        description: "6秒程度の短いAI動画です。",
-        file: "sample-video.mp4",
-        link: "https://example.com/creatorC",
-        rarity: "SSR"
-      }
-    ];
-
-    const drawButton = document.getElementById("drawButton");
-    const stage = document.getElementById("stage");
-    const placeholder = document.getElementById("placeholder");
-    const resultImage = document.getElementById("resultImage");
-    const resultVideo = document.getElementById("resultVideo");
-    const meta = document.getElementById("meta");
-
-    function pickRandomWork() {
-      const index = Math.floor(Math.random() * works.length);
-      return works[index];
-    }
-
-    function resetMedia() {
-      resultImage.style.display = "none";
-      resultVideo.style.display = "none";
-      resultVideo.pause();
-      resultVideo.removeAttribute("src");
-      resultVideo.load();
-    }
-
-    function setRarityStyle(rarityText) {
-      const rarity = document.getElementById("rarity");
-      rarity.textContent = rarityText;
-
-      if (rarityText === "SSR") {
-        rarity.style.background = "#d4af37";
-        rarity.style.color = "#111";
-      } else if (rarityText === "RARE") {
-        rarity.style.background = "#7b61ff";
-        rarity.style.color = "#fff";
-      } else {
-        rarity.style.background = "#222";
-        rarity.style.color = "#fff";
-      }
-    }
-
-    function renderWork(work) {
-      placeholder.style.display = "none";
-      meta.style.display = "block";
-      resetMedia();
-
-      if (work.type === "video") {
-        resultVideo.src = work.file;
-        resultVideo.style.display = "block";
-        resultVideo.play().catch(() => {});
-      } else {
-        resultImage.src = work.file;
-        resultImage.alt = work.title;
-        resultImage.style.display = "block";
-      }
-
-      document.getElementById("title").textContent = work.title;
-      document.getElementById("creator").textContent = work.creator;
-      document.getElementById("genre").textContent = work.genre;
-      document.getElementById("description").textContent = work.description;
-      document.getElementById("mediaType").textContent =
-        work.type === "video" ? "動画" : "画像";
-
-      const link = document.getElementById("link");
-      link.href = work.link;
-
-      setRarityStyle(work.rarity);
-    }
-
-    drawButton.addEventListener("click", () => {
-      drawButton.disabled = true;
-      stage.classList.add("animating");
-
-      setTimeout(() => {
-        const work = pickRandomWork();
-        renderWork(work);
-      }, 550);
-
-      setTimeout(() => {
-        stage.classList.remove("animating");
-        drawButton.disabled = false;
-      }, 850);
-    });
-  </script>
-</body>
-</html>    }
-
-    .image-wrap {
-      width: 100%;
-      aspect-ratio: 3 / 4;
-      background: #eee;
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .image-wrap img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .meta {
-      margin-top: 16px;
-      line-height: 1.8;
-    }
-
-    .label {
-      font-weight: bold;
-    }
-
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    button,
-    a.button-link {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 16px;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .draw-btn {
-      background: #111;
-      color: #fff;
-      flex: 1;
-    }
-
-    .like-btn {
-      background: #e91e63;
-      color: #fff;
-    }
-
-    .visit-btn {
-      background: #0b57d0;
-      color: #fff;
-    }
-
-    .share-btn {
-      background: #222;
-      color: #fff;
-    }
-
-    .stats {
-      margin-top: 12px;
-      color: #666;
-      font-size: 14px;
-    }
-
-    .footer-box {
-      margin-top: 24px;
-      background: #fff;
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-    }
-
-    .footer-box h2 {
-      margin-top: 0;
-      font-size: 18px;
-    }
-
-    .footer-box a {
-      color: #0b57d0;
-      word-break: break-all;
-    }
-
-    .loading {
-      text-align: center;
-      color: #666;
-      padding: 24px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .notice {
-      font-size: 13px;
-      color: #777;
-      margin-top: 8px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>AIガチャ</h1>
-    <p class="sub">ランダムで作品を1枚表示する無料ガチャです</p>
-
-    <div class="card">
-      <div class="image-wrap">
-        <img id="gachaImage" src="" alt="ガチャ画像" class="hidden" />
-        <div id="loadingText" class="loading">読み込み中...</div>
-      </div>
-
-      <div class="meta">
-        <div><span class="label">タイトル:</span> <span id="title">-</span></div>
-        <div><span class="label">作者名:</span> <span id="creator">-</span></div>
-        <div><span class="label">ジャンル:</span> <span id="genre">-</span></div>
-        <div><span class="label">説明:</span> <span id="description">-</span></div>
+</html>escription">-</span></div>
       </div>
 
       <div class="stats">
