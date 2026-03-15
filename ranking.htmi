@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>無料AIガチャMAX 人気ランキング</title>
+
+<style>
+body{
+  font-family:sans-serif;
+  background:#111;
+  color:white;
+  text-align:center;
+}
+
+h1{
+  margin:30px;
+}
+
+.card{
+  background:#222;
+  margin:20px auto;
+  padding:20px;
+  width:300px;
+  border-radius:10px;
+}
+
+img,video{
+  width:100%;
+  border-radius:10px;
+}
+
+button{
+  margin-top:10px;
+  padding:10px 20px;
+  background:#ffcc00;
+  border:none;
+  border-radius:5px;
+  font-size:16px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>AIガチャ 人気ランキング</h1>
+
+<div id="ranking"></div>
+
+<script>
+
+async function loadRanking(){
+
+  const res = await fetch("data.json");
+  const data = await res.json();
+
+  const rankingDiv = document.getElementById("ranking");
+
+  data.forEach((item,index)=>{
+
+    const likes = localStorage.getItem("like_"+index) || 0;
+
+    const card = document.createElement("div");
+    card.className="card";
+
+    let media="";
+
+    if(item.type==="image"){
+      media=`<img src="${item.file}">`
+    }else{
+      media=`<video src="${item.file}" controls></video>`
+    }
+
+    card.innerHTML=`
+
+      <h3>${item.title}</h3>
+
+      ${media}
+
+      <p>作者 : ${item.creator}</p>
+
+      <p>❤️ ${likes}</p>
+
+      <button onclick="like(${index})">いいね</button>
+
+    `;
+
+    rankingDiv.appendChild(card);
+
+  });
+
+}
+
+function like(i){
+
+  let count = localStorage.getItem("like_"+i) || 0;
+
+  count++;
+
+  localStorage.setItem("like_"+i,count);
+
+  location.reload();
+
+}
+
+loadRanking();
+
+</script>
+
+</body>
+</html>
