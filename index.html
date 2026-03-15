@@ -407,21 +407,29 @@
     const meta = document.getElementById("meta");
 
     async function loadWorks() {
-      try {
-        const response = await fetch("data.json");
-        if (!response.ok) {
-          throw new Error("data.json の読み込みに失敗しました");
-        }
+  try {
 
-        works = await response.json();
+    const response = await fetch(
+      "https://script.google.com/macros/s/AKfycbzNr63zr_dtRmkhyEPvHy8r8bDvZIYEq26cc7W2Xz8M95G638oAXJUXE_vE2KDf0aWwoQ/exec"
+    );
 
-        if (!Array.isArray(works) || works.length === 0) {
-          throw new Error("作品データが空です");
-        }
-      } catch (error) {
-        placeholder.textContent = "作品を読み込めませんでした";
-        console.error(error);
-      }
+    if (!response.ok) {
+      throw new Error("APIの読み込みに失敗しました");
+    }
+
+    works = await response.json();
+
+    if (!Array.isArray(works) || works.length === 0) {
+      placeholder.textContent = "まだ作品が投稿されていません";
+      return;
+    }
+
+  } catch (error) {
+
+    placeholder.textContent = "作品を読み込めませんでした";
+
+    console.error(error);
+  }
     }
 
     function getWorkId(work) {
