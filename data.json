@@ -2,21 +2,21 @@
   {
     "type": "image",
     "title": "AI美女サンプル1",
-    "creator": "",
+    "creator": "kininaru555-oss",
     "genre": "AI美女",
-    "description": "",
+    "description": "AI美女のサンプル画像です。",
     "file": "images/image_1.jpg",
-    "link": "https://github.com/kininaru555-oss/ai-gacha-site/blob/main/",
+    "link": "https://github.com/kininaru555-oss",
     "rarity": "NORMAL"
   },
   {
     "type": "video",
     "title": "AI美女動画1",
-    "creator": "",
+    "creator": "kininaru555-oss",
     "genre": "AI動画",
-    "description": "6秒の短尺動画",
+    "description": "6秒の短尺動画です。",
     "file": "videos/video1.mp4",
-    "link": "https://github.com/kininaru555-oss/ai-gacha-site/blob/main/",
+    "link": "https://github.com/kininaru555-oss",
     "rarity": "RARE"
   }
 ]
