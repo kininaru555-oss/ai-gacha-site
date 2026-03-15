@@ -41,9 +41,20 @@ a{
 </div>
 
 <script>
-const current = parseInt(localStorage.getItem("gacha_ticket") || "0",10)
-localStorage.setItem("gacha_ticket",current+1)
-</script>
 
+const rewarded = localStorage.getItem("rewarded")
+
+if(!rewarded){
+
+  const current =
+  parseInt(localStorage.getItem("gacha_ticket") || "0",10)
+
+  localStorage.setItem("gacha_ticket",current+1)
+
+  localStorage.setItem("rewarded","true")
+
+}
+
+</script>
 </body>
 </html>
