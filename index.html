@@ -321,12 +321,13 @@
         このページは18歳以上向けです。18歳未満の方は閲覧・利用できません。<br>
         利用を続けることで、18歳以上であることに同意したものとみなします。
       </div>
+
       <p id="ticketInfo" class="mini-note"></p>
 
       <div class="buttons">
         <a
           class="btn btn-post"
-          href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog"
+          href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -400,76 +401,111 @@
     let works = [];
     let currentWork = null;
 
+    const API_URL =
+      "https://script.google.com/macros/s/AKfycbzNr63zr_dtRmkhyEPvHy8r8bDvZIYEq26cc7W2Xz8M95G638oAXJUXE_vE2KDf0aWwoQ/exec";
+
+    const POST_FORM_URL =
+      "https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform";
+
     const drawButton = document.getElementById("drawButton");
     const stage = document.getElementById("stage");
     const placeholder = document.getElementById("placeholder");
     const resultImage = document.getElementById("resultImage");
     const resultVideo = document.getElementById("resultVideo");
     const meta = document.getElementById("meta");
+    const likeButton = document.getElementById("likeButton");
+    const linkButton = document.getElementById("linkButton");
+    const shareButton = document.getElementById("shareButton");
+    const ticketInfo = document.getElementById("ticketInfo");
 
     async function loadWorks() {
-  try {
+      try {
+        const response = await fetch(API_URL, { cache: "no-store" });
 
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbzNr63zr_dtRmkhyEPvHy8r8bDvZIYEq26cc7W2Xz8M95G638oAXJUXE_vE2KDf0aWwoQ/exec"
-    );
+        if (!response.ok) {
+          throw new Error("APIの読み込みに失敗しました");
+        }
 
-    if (!response.ok) {
-      throw new Error("APIの読み込みに失敗しました");
+        works = await response.json();
+
+        if (!Array.isArray(works) || works.length === 0) {
+          placeholder.textContent = "まだ投稿作品がありません";
+          drawButton.disabled = true;
+          return;
+        }
+
+        drawButton.disabled = false;
+      } catch (e) {
+        placeholder.textContent = "作品を読み込めません";
+        drawButton.disabled = true;
+        console.error(e);
+      }
     }
 
-    works = await response.json();
-
-    if (!Array.isArray(works) || works.length === 0) {
-      placeholder.textContent = "まだ作品が投稿されていません";
-      return;
+    function getTicket() {
+      return parseInt(localStorage.getItem("gacha_ticket") || "0", 10);
     }
 
-  } catch (error) {
-
-    placeholder.textContent = "作品を読み込めませんでした";
-
-    console.error(error);
-  }
+    function setTicket(n) {
+      localStorage.setItem("gacha_ticket", String(Math.max(0, n)));
     }
 
-    function getWorkId(work) {
-      return `${work.creator}__${work.title}`;
+    function updateTicket() {
+      const t = getTicket();
+
+      if (t > 0) {
+        ticketInfo.textContent = "ガチャチケット：" + t + "枚";
+      } else {
+        ticketInfo.textContent = "ガチャを引くには作品投稿が必要です";
+      }
     }
 
     function getLikes() {
-      const raw = localStorage.getItem("ai_gacha_likes");
+      const raw = localStorage.getItem("likes");
       return raw ? JSON.parse(raw) : {};
     }
 
     function setLikes(likes) {
-      localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
+      localStorage.setItem("likes", JSON.stringify(likes));
     }
 
-    function getLikeCount(work) {
-      const likes = getLikes();
-      return likes[getWorkId(work)] || 0;
+    function getWorkId(work) {
+      return (work.title || "") + "_" + (work.creator || "");
     }
 
-    function addLike(work) {
-      const likes = getLikes();
-      const id = getWorkId(work);
-      likes[id] = (likes[id] || 0) + 1;
-      setLikes(likes);
-      return likes[id];
+    function optimizeCloudinary(url) {
+      if (!url) return "";
+
+      if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
+        return url.replace("/upload/", "/upload/f_auto,q_auto/");
+      }
+
+      return url;
+    }
+
+    function normalizeRarity(r) {
+      if (!r) return "N";
+
+      const v = String(r).toUpperCase().trim();
+
+      if (v === "SSR") return "SSR";
+      if (v === "SR") return "SR";
+      if (v === "R" || v === "RARE") return "R";
+      return "N";
     }
 
     function setRarityStyle(rarityText) {
       const rarity = document.getElementById("rarity");
-      rarity.textContent = rarityText || "NORMAL";
+      const r = normalizeRarity(rarityText);
 
       stage.classList.remove("rare", "ssr");
+      rarity.textContent = r;
 
-      if (rarityText === "SSR") {
+      if (r === "SSR") {
         rarity.style.background = "#d4af37";
         rarity.style.color = "#111";
         stage.classList.add("ssr");
-      } else if (rarityText === "RARE") {
+      } else if (r === "SR" || r === "R") {
         rarity.style.background = "#7b61ff";
         rarity.style.color = "#fff";
         stage.classList.add("rare");
@@ -488,88 +524,118 @@
     }
 
     function weightedDraw() {
-      const normalPool = works.filter(w => (w.rarity || "NORMAL") === "NORMAL");
-      const rarePool = works.filter(w => w.rarity === "RARE");
-      const ssrPool = works.filter(w => w.rarity === "SSR");
+      const ssr = works.filter(w => normalizeRarity(w.rarity) === "SSR");
+      const sr = works.filter(w => normalizeRarity(w.rarity) === "SR");
+      const r = works.filter(w => normalizeRarity(w.rarity) === "R");
+      const n = works.filter(w => normalizeRarity(w.rarity) === "N");
 
       const roll = Math.random() * 100;
 
-      if (roll < 2 && ssrPool.length > 0) {
-        return ssrPool[Math.floor(Math.random() * ssrPool.length)];
+      if (roll < 2 && ssr.length) {
+        return ssr[Math.floor(Math.random() * ssr.length)];
       }
 
-      if (roll < 20 && rarePool.length > 0) {
-        return rarePool[Math.floor(Math.random() * rarePool.length)];
+      if (roll < 10 && sr.length) {
+        return sr[Math.floor(Math.random() * sr.length)];
       }
 
-      if (normalPool.length > 0) {
-        return normalPool[Math.floor(Math.random() * normalPool.length)];
+      if (roll < 35 && r.length) {
+        return r[Math.floor(Math.random() * r.length)];
+      }
+
+      if (n.length) {
+        return n[Math.floor(Math.random() * n.length)];
       }
 
       return works[Math.floor(Math.random() * works.length)];
     }
 
-    function buildShareUrl(work) {
-      const text = `AIガチャR18結果\n${work.rarity || "NORMAL"}：${work.title}\n作者：${work.creator}\n#AIガチャR18`;
-      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(work.link || location.href)}`;
-    }
-
-    function renderWork(work) {
+    function render(work) {
       currentWork = work;
+
       placeholder.style.display = "none";
       meta.style.display = "block";
+
       resetMedia();
 
+      const file = optimizeCloudinary(work.file);
+
       if (work.type === "video") {
-        resultVideo.src = work.file;
+        resultVideo.src = file;
         resultVideo.style.display = "block";
         resultVideo.play().catch(() => {});
       } else {
-        resultImage.src = work.file;
-        resultImage.alt = work.title;
+        resultImage.src = file;
+        resultImage.alt = work.title || "作品画像";
         resultImage.style.display = "block";
       }
 
       document.getElementById("title").textContent = work.title || "";
       document.getElementById("creator").textContent = work.creator || "";
       document.getElementById("genre").textContent = work.genre || "";
-      document.getElementById("description").textContent = work.description || "なし";
+      document.getElementById("description").textContent = work.description || "";
       document.getElementById("mediaType").textContent = work.type === "video" ? "動画" : "画像";
-      document.getElementById("likeCount").textContent = getLikeCount(work);
 
-      const linkButton = document.getElementById("linkButton");
-      linkButton.href = work.link || "#";
+      const likes = getLikes();
+      const id = getWorkId(work);
+      document.getElementById("likeCount").textContent = likes[id] || 0;
 
-      const shareButton = document.getElementById("shareButton");
-      shareButton.href = buildShareUrl(work);
+      if (work.link && work.link !== "#") {
+        linkButton.href = work.link;
+        linkButton.style.display = "inline-flex";
+      } else {
+        linkButton.style.display = "none";
+      }
 
-      setRarityStyle(work.rarity || "NORMAL");
+      shareButton.href =
+        "https://twitter.com/intent/tweet?text=" +
+        encodeURIComponent("AIガチャR18 " + (work.title || ""));
+
+      setRarityStyle(work.rarity);
     }
 
     drawButton.addEventListener("click", () => {
       if (!works.length) return;
+
+      const ticket = getTicket();
+
+      if (ticket <= 0) {
+        alert("ガチャを引くには作品投稿が必要です");
+        window.open(POST_FORM_URL, "_blank");
+        return;
+      }
+
+      setTicket(ticket - 1);
+      updateTicket();
 
       drawButton.disabled = true;
       stage.classList.add("animating");
 
       setTimeout(() => {
         const work = weightedDraw();
-        renderWork(work);
-      }, 550);
+        render(work);
+      }, 500);
 
       setTimeout(() => {
         stage.classList.remove("animating");
         drawButton.disabled = false;
-      }, 850);
+      }, 800);
     });
 
-    document.getElementById("likeButton").addEventListener("click", () => {
+    likeButton.addEventListener("click", () => {
       if (!currentWork) return;
-      const count = addLike(currentWork);
-      document.getElementById("likeCount").textContent = count;
+
+      const likes = getLikes();
+      const id = getWorkId(currentWork);
+
+      likes[id] = (likes[id] || 0) + 1;
+      setLikes(likes);
+
+      document.getElementById("likeCount").textContent = likes[id];
     });
 
     loadWorks();
+    updateTicket();
   </script>
 </body>
-</html>
+          </html>
