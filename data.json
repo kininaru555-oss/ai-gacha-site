@@ -5,8 +5,8 @@
     "creator": "",
     "genre": "AI美女",
     "description": "",
-    "file": "images/girl1.jpg",
-    "link": "https://example.com/a",
+    "file": "images/image_1.jpg",
+    "link": "https://github.com/kininaru555-oss/ai-gacha-site/blob/main/",
     "rarity": "NORMAL"
   },
   {
@@ -15,8 +15,8 @@
     "creator": "",
     "genre": "AI動画",
     "description": "6秒の短尺動画",
-    "file": "videos/girl1.mp4",
-    "link": "https://example.com/b",
+    "file": "videos/video1.mp4",
+    "link": "https://github.com/kininaru555-oss/ai-gacha-site/blob/main/",
     "rarity": "RARE"
   }
 ]
