@@ -1,8 +1,22 @@
-{
-  "title": "作品タイトル",
-  "creator": "作者名",
-  "genre": "AI美女",
-  "description": "宣伝文",
-  "image": "images/画像ファイル名.jpg",
-  "link": "https://リンク先URL"
-}
+[
+  {
+    "type": "image",
+    "title": "AI美女サンプル1",
+    "creator": "",
+    "genre": "AI美女",
+    "description": "",
+    "file": "images/girl1.jpg",
+    "link": "https://example.com/a",
+    "rarity": "NORMAL"
+  },
+  {
+    "type": "video",
+    "title": "AI美女動画1",
+    "creator": "",
+    "genre": "AI動画",
+    "description": "6秒の短尺動画",
+    "file": "videos/girl1.mp4",
+    "link": "https://example.com/b",
+    "rarity": "RARE"
+  }
+]
