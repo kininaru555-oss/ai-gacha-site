@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>投稿ありがとうございました</title>
 
 <style>
@@ -19,30 +20,39 @@ body{
 
 .card{
   background:#222;
-  padding:40px;
-  border-radius:14px;
+  padding:50px 30px;
+  border-radius:18px;
   text-align:center;
-  max-width:90%;
+  max-width:420px;
+  width:90%;
 }
 
 h2{
-  font-size:28px;
-  margin-bottom:10px;
+  font-size:34px;
+  margin-bottom:16px;
 }
 
 p{
-  font-size:18px;
-  margin-bottom:25px;
+  font-size:22px;
+  margin-bottom:30px;
+  line-height:1.6;
+}
+
+.ticket{
+  font-size:28px;
+  color:#ff66cc;
+  font-weight:bold;
 }
 
 a{
   display:inline-block;
-  padding:16px 30px;
+  padding:20px 36px;
   background:#ff4081;
   color:white;
   text-decoration:none;
-  border-radius:12px;
-  font-size:18px;
+  border-radius:14px;
+  font-size:22px;
+  font-weight:bold;
 }
 
 </style>
@@ -54,7 +64,10 @@ a{
 
 <h2>投稿ありがとうございます！</h2>
 
-<p>ガチャチケットを1枚プレゼント</p>
+<p>
+<span class="ticket">ガチャチケット +1</span><br>
+プレゼントしました
+</p>
 
 <a href="index.html">ガチャを引く</a>
 
@@ -62,17 +75,10 @@ a{
 
 <script>
 
+const current =
+parseInt(localStorage.getItem("gacha_ticket") || "0",10)
 
-if(!rewarded){
-
-  const current =
-  parseInt(localStorage.getItem("gacha_ticket") || "0",10)
-
-  localStorage.setItem("gacha_ticket",current+1)
-
-  localStorage.setItem("rewarded","true")
-
-}
+localStorage.setItem("gacha_ticket", current + 1)
 
 </script>
 
