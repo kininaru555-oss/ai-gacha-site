@@ -627,16 +627,7 @@ drawButton.addEventListener("click", () => {
   }, 850);
 });
 
-      setTimeout(() => {
-        const work = weightedDraw();
-        render(work);
-      }, 500);
-
-      setTimeout(() => {
-        stage.classList.remove("animating");
-        drawButton.disabled = false;
-      }, 800);
-    });
+  
 
     likeButton.addEventListener("click", () => {
       if (!currentWork) return;
