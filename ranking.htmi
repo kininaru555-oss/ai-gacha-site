@@ -62,17 +62,32 @@
       background: #444;
       padding: 8px 14px;
       border-radius: 8px;
+      margin-right: 8px;
+    }
+
+    .work-link {
+      display: inline-block;
+      margin-top: 10px;
+      color: #fff;
+      text-decoration: none;
+      background: #0b57d0;
+      padding: 8px 12px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <a class="toplink" href="index.html">← ガチャに戻る</a>
+  <a class="toplink" href="creators.html">作者ランキング</a>
 
   <h1>人気ランキング</h1>
 
   <div id="ranking" class="grid"></div>
 
   <script>
+    const API_URL =
+      "https://script.google.com/macros/s/AKfycbzNr63zr_dtRmkhyEPvHy8r8bDvZIYEq26cc7W2Xz8M95G638oAXJUXE_vE2KDf0aWwoQ/exec";
+
     function optimizeCloudinary(url) {
       if (!url) return "";
       if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
@@ -81,16 +96,31 @@
       return url;
     }
 
+    function getLikes() {
+      const raw = localStorage.getItem("likes");
+      return raw ? JSON.parse(raw) : {};
+    }
+
+    function setLikes(likes) {
+      localStorage.setItem("likes", JSON.stringify(likes));
+    }
+
+    function getWorkId(work) {
+      return (work.title || "") + "_" + (work.creator || "");
+    }
+
     async function loadRanking() {
       try {
-        const res = await fetch("https://script.google.com/macros/s/AKfycbzNr63zr_dtRmkhyEPvHy8r8bDvZIYEq26cc7W2Xz8M95G638oAXJUXE_vE2KDf0aWwoQ/exec");
+        const res = await fetch(API_URL, { cache: "no-store" });
         const data = await res.json();
 
+        const likes = getLikes();
+
         const items = data.map((item, i) => {
-          const likes = localStorage.getItem("like_" + i) || 0;
+          const id = getWorkId(item);
           return {
             ...item,
-            likes: parseInt(likes, 10),
+            likes: likes[id] || 0,
             index: i
           };
         });
@@ -107,8 +137,13 @@
           if (item.type === "video") {
             media = `<video src="${fileUrl}" controls playsinline preload="metadata"></video>`;
           } else {
-            media = `<img src="${fileUrl}" alt="${item.title}">`;
+            media = `<img src="${fileUrl}" alt="${item.title || ""}">`;
           }
+
+          const linkHtml =
+            item.link && item.link !== "#"
+              ? `<a class="work-link" href="${item.link}" target="_blank" rel="noopener noreferrer">作品リンクへ</a>`
+              : "";
 
           const card = document.createElement("div");
           card.className = "card";
@@ -118,7 +153,8 @@
             ${media}
             <div>作者: ${item.creator || ""}</div>
             <div class="likes">❤️ ${item.likes}</div>
-            <button onclick="like(${item.index})">いいね</button>
+            <button onclick="likeWork('${encodeURIComponent(getWorkId(item))}')">いいね</button>
+            ${linkHtml}
           `;
 
           rankingDiv.appendChild(card);
@@ -129,10 +165,11 @@
       }
     }
 
-    function like(i) {
-      let count = localStorage.getItem("like_" + i) || 0;
-      count++;
-      localStorage.setItem("like_" + i, count);
+    function likeWork(encodedId) {
+      const id = decodeURIComponent(encodedId);
+      const likes = getLikes();
+      likes[id] = (likes[id] || 0) + 1;
+      setLikes(likes);
       location.reload();
     }
 
