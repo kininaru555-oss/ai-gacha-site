@@ -62,7 +62,7 @@
       line-height: 1.8;
     }
 
-    a.creator-link {
+    .creator-link {
       display: inline-block;
       margin-top: 10px;
       color: #fff;
@@ -75,7 +75,7 @@
 </head>
 <body>
   <a class="toplink" href="index.html">← ガチャに戻る</a>
-  <a class="toplink" href="ranking.html">作品ランキング</a>
+  <a class="toplink" href="ranking.html">人気ランキング</a>
 
   <h1>作者ランキング</h1>
 
@@ -97,6 +97,11 @@
     async function loadCreatorRanking() {
       try {
         const res = await fetch(API_URL, { cache: "no-store" });
+
+        if (!res.ok) {
+          throw new Error("API取得失敗: " + res.status);
+        }
+
         const data = await res.json();
         const likes = getLikes();
 
@@ -138,6 +143,11 @@
         const container = document.getElementById("creatorRanking");
         container.innerHTML = "";
 
+        if (!creators.length) {
+          container.innerHTML = "<p>まだ作者データがありません。</p>";
+          return;
+        }
+
         creators.forEach((creator, i) => {
           const card = document.createElement("div");
           card.className = "card";
@@ -159,9 +169,11 @@
 
           container.appendChild(card);
         });
+
       } catch (e) {
-        document.getElementById("creatorRanking").innerHTML = "作者ランキングを読み込めませんでした";
         console.error(e);
+        document.getElementById("creatorRanking").innerHTML =
+          "<p>作者ランキングを読み込めませんでした。</p>";
       }
     }
 
