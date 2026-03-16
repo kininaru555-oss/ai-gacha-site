@@ -114,7 +114,7 @@
         const res = await fetch(API_URL, { cache: "no-store" });
 
         if (!res.ok) {
-          throw new Error("API fetch failed: " + res.status);
+          throw new Error("API取得失敗: " + res.status);
         }
 
         const data = await res.json();
