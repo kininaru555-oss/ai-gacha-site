@@ -83,7 +83,7 @@
 
     async function loadRanking() {
       try {
-        const res = await fetch("data.json");
+        const res = await fetch("https://script.google.com/macros/s/AKfycbzNr63zr_dtRmkhyEPvHy8r8bDvZIYEq26cc7W2Xz8M95G638oAXJUXE_vE2KDf0aWwoQ/exec");
         const data = await res.json();
 
         const items = data.map((item, i) => {
