@@ -465,9 +465,9 @@
       localStorage.setItem("likes", JSON.stringify(likes));
     }
 
-    function getWorkId(work) {
-      return (work.title || "") + "_" + (work.creator || "");
-    }
+   function getWorkId(work) {
+  return work.id || ((work.title || "") + "_" + (work.creator || ""));
+      }
 
     function optimizeCloudinary(url) {
       if (!url) return "";
