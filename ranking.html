@@ -105,7 +105,7 @@
     }
 
     function getWorkId(work) {
-      return (work.title || "") + "_" + (work.creator || "");
+  return work.id || ((work.title || "") + "_" + (work.creator || ""));
     }
 
     async function loadRanking() {
