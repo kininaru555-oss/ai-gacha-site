@@ -79,14 +79,6 @@
       resize: vertical;
     }
 
-    .upload-box {
-      margin-top: 12px;
-      margin-bottom: 8px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
     .btn {
       border: none;
       border-radius: 12px;
@@ -96,9 +88,10 @@
       color: #fff;
     }
 
-    .btn-upload {
+    .btn-select {
       background: #7b61ff;
-      flex: 1;
+      width: 100%;
+      margin-top: 10px;
     }
 
     .btn-submit {
@@ -108,6 +101,11 @@
       font-weight: bold;
       font-size: 16px;
       padding: 14px;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: wait;
     }
 
     .btn-back {
@@ -141,8 +139,22 @@
       line-height: 1.6;
     }
 
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #ffd7e2;
+      line-height: 1.6;
+    }
+
     .hidden {
       display: none;
+    }
+
+    .file-name {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #d8d8d8;
+      word-break: break-all;
     }
   </style>
 </head>
@@ -153,13 +165,13 @@
     <div class="card">
       <h1>作品投稿</h1>
       <p class="sub">
-        画像をアップロードして、そのまま投稿できます。<br>
+        端末から画像や動画を選んで、そのまま投稿できます。<br>
         投稿後はガチャチケットを1枚受け取れます。
       </p>
 
       <div class="notice">
         このページは18歳以上向け作品投稿を想定しています。<br>
-        実在人物の無断生成物や、権利侵害のおそれがある作品は投稿しないでください。
+        権利侵害のおそれがある作品や、掲載許可のない作品は投稿しないでください。
       </div>
 
       <form id="submitForm">
@@ -172,18 +184,19 @@
           <option value="動画">動画</option>
         </select>
 
-        <label>作品アップロード</label>
-        <div class="upload-box">
-          <button type="button" id="uploadWidgetBtn" class="btn btn-upload">Cloudinaryにアップロード</button>
-        </div>
+        <label>作品ファイル</label>
+        <input id="fileInput" type="file" accept="image/*,video/*" class="hidden" />
+        <button type="button" id="selectFileBtn" class="btn btn-select">端末からファイルを選ぶ</button>
+        <div id="fileName" class="file-name"></div>
 
         <label for="imageUrl">作品画像URL</label>
-        <input id="imageUrl" type="text" placeholder="アップロードすると自動入力" />
+        <input id="imageUrl" type="text" placeholder="アップロード後に自動入力" readonly />
 
         <label for="videoUrl">作品動画URL（任意）</label>
-        <input id="videoUrl" type="text" placeholder="動画をアップした場合に自動入力" />
+        <input id="videoUrl" type="text" placeholder="アップロード後に自動入力" readonly />
 
         <div id="previewBox" class="preview hidden"></div>
+        <div id="status" class="status"></div>
 
         <label for="workLink">作品リンク（X / DLsite / pixivなど任意）</label>
         <input id="workLink" type="text" />
@@ -218,12 +231,11 @@
           送信すると、Googleフォーム経由で掲載候補に追加されます。
         </div>
 
-        <button type="submit" class="btn btn-submit">投稿する</button>
+        <button id="submitBtn" type="submit" class="btn btn-submit">投稿する</button>
       </form>
     </div>
   </div>
 
-  <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
   <script>
     const CLOUD_NAME = "dc7oz9roa";
     const UPLOAD_PRESET = "ai_gacha";
@@ -231,27 +243,33 @@
     const GOOGLE_FORM_ACTION =
       "https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/formResponse";
 
-    /*
-      ここを先生のフォーム entry 番号に置き換える
-      例: "entry.123456789"
-    */
     const ENTRY = {
-  creator: "entry.1140783314",
-  imageUrl: "entry.1860810674",
-  videoUrl: "entry.2068203384",
-  workLink: "entry.612571064",
-  xAccount: "entry.261752201",
-  genre: "entry.1968524571",
-  xPromo: "entry.619597979",
-  rarity: "entry.658225645",
-  comment: "entry.830075805",
-  type: "entry.496359466",
-  permission: "entry.98167059"
-};
+      creator: "entry.1140783314",
+      imageUrl: "entry.1860810674",
+      videoUrl: "entry.2068203384",
+      workLink: "entry.612571064",
+      xAccount: "entry.261752201",
+      genre: "entry.1968524571",
+      xPromo: "entry.619597979",
+      rarity: "entry.658225645",
+      comment: "entry.830075805",
+      type: "entry.496359466",
+      permission: "entry.98167059"
+    };
+
     const typeEl = document.getElementById("type");
+    const fileInput = document.getElementById("fileInput");
+    const selectFileBtn = document.getElementById("selectFileBtn");
+    const fileNameEl = document.getElementById("fileName");
     const imageUrlEl = document.getElementById("imageUrl");
     const videoUrlEl = document.getElementById("videoUrl");
     const previewBox = document.getElementById("previewBox");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function setStatus(message) {
+      statusEl.textContent = message || "";
+    }
 
     function renderPreview(type, url) {
       if (!url) {
@@ -269,50 +287,80 @@
       }
     }
 
-    const widget = cloudinary.createUploadWidget(
-      {
-        cloudName: CLOUD_NAME,
-        uploadPreset: UPLOAD_PRESET,
-        multiple: false,
-        folder: "ai_gacha",
-        resourceType: "auto",
-        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "mp4", "mov", "webm"]
-      },
-      (error, result) => {
-        if (error) {
-          console.error(error);
-          alert("アップロードに失敗しました");
-          return;
-        }
+    function resetUploadedUrls() {
+      imageUrlEl.value = "";
+      videoUrlEl.value = "";
+      renderPreview(typeEl.value, "");
+    }
 
-        if (result && result.event === "success") {
-          const secureUrl = result.info.secure_url || "";
-          const resourceType = result.info.resource_type || "";
-
-          if (resourceType === "video") {
-            typeEl.value = "動画";
-            videoUrlEl.value = secureUrl;
-            imageUrlEl.value = "";
-            renderPreview("動画", secureUrl);
-          } else {
-            typeEl.value = "画像";
-            imageUrlEl.value = secureUrl;
-            videoUrlEl.value = "";
-            renderPreview("画像", secureUrl);
-          }
-        }
-      }
-    );
-
-    document.getElementById("uploadWidgetBtn").addEventListener("click", () => {
-      widget.open();
+    selectFileBtn.addEventListener("click", () => {
+      fileInput.click();
     });
 
     typeEl.addEventListener("change", () => {
-      if (typeEl.value === "動画") {
-        renderPreview("動画", videoUrlEl.value);
+      resetUploadedUrls();
+      fileInput.value = "";
+      fileNameEl.textContent = "";
+      if (typeEl.value === "画像") {
+        fileInput.accept = "image/*";
       } else {
-        renderPreview("画像", imageUrlEl.value);
+        fileInput.accept = "video/*";
+      }
+    });
+
+    async function uploadToCloudinary(file) {
+      const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+      formData.append("folder", "ai_gacha");
+
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error("Cloudinaryアップロード失敗");
+      }
+
+      return await response.json();
+    }
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+
+      if (!file) return;
+
+      fileNameEl.textContent = `選択中: ${file.name}`;
+      setStatus("アップロード中...");
+      submitBtn.disabled = true;
+
+      try {
+        const result = await uploadToCloudinary(file);
+        const secureUrl = result.secure_url || "";
+        const resourceType = result.resource_type || "";
+
+        if (resourceType === "video" || file.type.startsWith("video/")) {
+          typeEl.value = "動画";
+          videoUrlEl.value = secureUrl;
+          imageUrlEl.value = "";
+          renderPreview("動画", secureUrl);
+        } else {
+          typeEl.value = "画像";
+          imageUrlEl.value = secureUrl;
+          videoUrlEl.value = "";
+          renderPreview("画像", secureUrl);
+        }
+
+        setStatus("アップロード完了");
+      } catch (error) {
+        console.error(error);
+        setStatus("アップロードに失敗しました");
+        alert("Cloudinaryアップロードに失敗しました");
+      } finally {
+        submitBtn.disabled = false;
       }
     });
 
@@ -336,14 +384,17 @@
       }
 
       if (type === "画像" && !imageUrl) {
-        alert("画像をアップロードしてください");
+        alert("先に画像をアップロードしてください");
         return;
       }
 
       if (type === "動画" && !videoUrl) {
-        alert("動画をアップロードしてください");
+        alert("先に動画をアップロードしてください");
         return;
       }
+
+      submitBtn.disabled = true;
+      setStatus("投稿送信中...");
 
       const formData = new FormData();
       formData.append(ENTRY.creator, creator);
@@ -366,9 +417,11 @@
         });
 
         window.location.href = "thanks.html";
-      } catch (err) {
-        console.error(err);
-        alert("投稿に失敗しました");
+      } catch (error) {
+        console.error(error);
+        setStatus("投稿送信に失敗しました");
+        alert("投稿送信に失敗しました");
+        submitBtn.disabled = false;
       }
     });
   </script>
