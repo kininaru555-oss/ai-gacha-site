@@ -518,19 +518,35 @@
     }
 
     function weightedDraw() {
-      const ssr = works.filter(w => normalizeRarity(w.rarity) === "SSR");
-      const sr = works.filter(w => normalizeRarity(w.rarity) === "SR");
-      const r = works.filter(w => normalizeRarity(w.rarity) === "R");
-      const n = works.filter(w => normalizeRarity(w.rarity) === "N");
+  const recommended = works.filter(w => w.recommended === true);
+  const ssr = works.filter(w => normalizeRarity(w.rarity) === "SSR");
+  const sr = works.filter(w => normalizeRarity(w.rarity) === "SR");
+  const r = works.filter(w => normalizeRarity(w.rarity) === "R");
+  const n = works.filter(w => normalizeRarity(w.rarity) === "N");
 
-      const roll = Math.random() * 100;
+  const roll = Math.random() * 100;
 
-      if (roll < 2 && ssr.length) return ssr[Math.floor(Math.random() * ssr.length)];
-      if (roll < 10 && sr.length) return sr[Math.floor(Math.random() * sr.length)];
-      if (roll < 35 && r.length) return r[Math.floor(Math.random() * r.length)];
-      if (n.length) return n[Math.floor(Math.random() * n.length)];
+  if (roll < 8 && recommended.length) {
+    return recommended[Math.floor(Math.random() * recommended.length)];
+  }
 
-      return works[Math.floor(Math.random() * works.length)];
+  if (roll < 10 && ssr.length) {
+    return ssr[Math.floor(Math.random() * ssr.length)];
+  }
+
+  if (roll < 20 && sr.length) {
+    return sr[Math.floor(Math.random() * sr.length)];
+  }
+
+  if (roll < 45 && r.length) {
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  if (n.length) {
+    return n[Math.floor(Math.random() * n.length)];
+  }
+
+  return works[Math.floor(Math.random() * works.length)];
     }
 
     function render(work) {
@@ -619,6 +635,30 @@
 
     loadWorks();
     updateTicket();
+
+    function renderLatestWorks() {
+  const box = document.getElementById("latestWorks");
+  if (!box) return;
+
+  if (!works.length) {
+    box.innerHTML = "<strong>新着作品</strong><br>まだ作品がありません";
+    return;
+  }
+
+  const latest = [...works].slice(-3).reverse();
+
+  box.innerHTML = `
+    <strong>新着作品</strong><br>
+    ${latest.map(work => {
+      const creator = work.creator || "投稿者";
+      const genre = work.genre || "AI作品";
+      const rarity = work.rarity || "NORMAL";
+      return `${creator} / ${genre} / ${rarity}`;
+    }).join("<br>")}
+  `;
+    }
+
+    
   </script>
 </body>
         </html>
