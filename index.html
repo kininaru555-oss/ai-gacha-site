@@ -456,7 +456,7 @@
       if (t > 0) {
         ticketInfo.textContent = "ガチャチケット：" + t + "枚";
       } else {
-        ticketInfo.textContent = "ガチャを引くには作品投稿が必要です";
+        ticketInfo.textContent = "投稿するとガチャを1回引けます";
       }
     }
 
@@ -475,11 +475,9 @@
 
     function optimizeCloudinary(url) {
       if (!url) return "";
-
       if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
         return url.replace("/upload/", "/upload/f_auto,q_auto/");
       }
-
       return url;
     }
 
@@ -531,21 +529,10 @@
 
       const roll = Math.random() * 100;
 
-      if (roll < 2 && ssr.length) {
-        return ssr[Math.floor(Math.random() * ssr.length)];
-      }
-
-      if (roll < 10 && sr.length) {
-        return sr[Math.floor(Math.random() * sr.length)];
-      }
-
-      if (roll < 35 && r.length) {
-        return r[Math.floor(Math.random() * r.length)];
-      }
-
-      if (n.length) {
-        return n[Math.floor(Math.random() * n.length)];
-      }
+      if (roll < 2 && ssr.length) return ssr[Math.floor(Math.random() * ssr.length)];
+      if (roll < 10 && sr.length) return sr[Math.floor(Math.random() * sr.length)];
+      if (roll < 35 && r.length) return r[Math.floor(Math.random() * r.length)];
+      if (n.length) return n[Math.floor(Math.random() * n.length)];
 
       return works[Math.floor(Math.random() * works.length)];
     }
@@ -590,7 +577,6 @@
       shareButton.href =
         "https://twitter.com/intent/tweet?text=" +
         encodeURIComponent("AIガチャR18 " + (work.title || ""));
-
       setRarityStyle(work.rarity);
     }
 
@@ -638,4 +624,4 @@
     updateTicket();
   </script>
 </body>
-          </html>
+        </html>
