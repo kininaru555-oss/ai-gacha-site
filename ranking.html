@@ -57,12 +57,12 @@
     .toplink {
       display: inline-block;
       margin-bottom: 20px;
+      margin-right: 8px;
       color: #fff;
       text-decoration: none;
       background: #444;
       padding: 8px 14px;
       border-radius: 8px;
-      margin-right: 8px;
     }
 
     .work-link {
@@ -112,16 +112,19 @@
     async function loadRanking() {
       try {
         const res = await fetch(API_URL, { cache: "no-store" });
-        const data = await res.json();
 
+        if (!res.ok) {
+          throw new Error("API fetch failed: " + res.status);
+        }
+
+        const data = await res.json();
         const likes = getLikes();
 
-        const items = data.map((item, i) => {
+        const items = data.map((item) => {
           const id = getWorkId(item);
           return {
             ...item,
-            likes: likes[id] || 0,
-            index: i
+            likes: likes[id] || 0
           };
         });
 
@@ -129,6 +132,11 @@
 
         const rankingDiv = document.getElementById("ranking");
         rankingDiv.innerHTML = "";
+
+        if (!items.length) {
+          rankingDiv.innerHTML = "<p>まだ作品がありません。</p>";
+          return;
+        }
 
         items.forEach((item) => {
           let media = "";
@@ -153,24 +161,26 @@
             ${media}
             <div>作者: ${item.creator || ""}</div>
             <div class="likes">❤️ ${item.likes}</div>
-            <button onclick="likeWork('${encodeURIComponent(getWorkId(item))}')">いいね</button>
+            <button data-id="${encodeURIComponent(getWorkId(item))}">いいね</button>
             ${linkHtml}
           `;
+
+          const button = card.querySelector("button");
+          button.addEventListener("click", () => {
+            const id = decodeURIComponent(button.dataset.id);
+            const likesMap = getLikes();
+            likesMap[id] = (likesMap[id] || 0) + 1;
+            setLikes(likesMap);
+            location.reload();
+          });
 
           rankingDiv.appendChild(card);
         });
       } catch (error) {
-        document.getElementById("ranking").innerHTML = "<p>ランキングを読み込めませんでした。</p>";
         console.error(error);
+        document.getElementById("ranking").innerHTML =
+          "<p>ランキングを読み込めませんでした。</p>";
       }
-    }
-
-    function likeWork(encodedId) {
-      const id = decodeURIComponent(encodedId);
-      const likes = getLikes();
-      likes[id] = (likes[id] || 0) + 1;
-      setLikes(likes);
-      location.reload();
     }
 
     loadRanking();
