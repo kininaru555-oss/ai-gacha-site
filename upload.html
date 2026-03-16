@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>作品投稿 | AIガチャ R18</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: linear-gradient(180deg, #120812 0%, #1a0d1a 100%);
+      color: #f5f5f5;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      box-sizing: border-box;
+    }
+
+    .card {
+      background: #1f1f1f;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 26px;
+      text-align: center;
+    }
+
+    .sub {
+      color: #d8d8d8;
+      font-size: 14px;
+      line-height: 1.7;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    .notice {
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(179, 21, 75, 0.18);
+      border: 1px solid rgba(255, 120, 170, 0.25);
+      color: #ffd7e2;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      background: #2a2a2a;
+      color: #fff;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .upload-box {
+      margin-top: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .btn-upload {
+      background: #7b61ff;
+      flex: 1;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #d61f69 0%, #9f1146 100%);
+      width: 100%;
+      margin-top: 18px;
+      font-weight: bold;
+      font-size: 16px;
+      padding: 14px;
+    }
+
+    .btn-back {
+      display: inline-block;
+      margin-bottom: 14px;
+      background: #444;
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+    }
+
+    .preview {
+      margin-top: 12px;
+      background: #2a2a2a;
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .preview img,
+    .preview video {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    .small {
+      color: #bdbdbd;
+      font-size: 12px;
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="btn-back" href="index.html">← ガチャに戻る</a>
+
+    <div class="card">
+      <h1>作品投稿</h1>
+      <p class="sub">
+        画像をアップロードして、そのまま投稿できます。<br>
+        投稿後はガチャチケットを1枚受け取れます。
+      </p>
+
+      <div class="notice">
+        このページは18歳以上向け作品投稿を想定しています。<br>
+        実在人物の無断生成物や、権利侵害のおそれがある作品は投稿しないでください。
+      </div>
+
+      <form id="submitForm">
+        <label for="creator">クリエイター名、ハンドルネーム</label>
+        <input id="creator" type="text" required />
+
+        <label for="type">タイプ</label>
+        <select id="type" required>
+          <option value="画像">画像</option>
+          <option value="動画">動画</option>
+        </select>
+
+        <label>作品アップロード</label>
+        <div class="upload-box">
+          <button type="button" id="uploadWidgetBtn" class="btn btn-upload">Cloudinaryにアップロード</button>
+        </div>
+
+        <label for="imageUrl">作品画像URL</label>
+        <input id="imageUrl" type="text" placeholder="アップロードすると自動入力" />
+
+        <label for="videoUrl">作品動画URL（任意）</label>
+        <input id="videoUrl" type="text" placeholder="動画をアップした場合に自動入力" />
+
+        <div id="previewBox" class="preview hidden"></div>
+
+        <label for="workLink">作品リンク（X / DLsite / pixivなど任意）</label>
+        <input id="workLink" type="text" />
+
+        <label for="xAccount">Xアカウント（任意）</label>
+        <input id="xAccount" type="text" placeholder="@なしでも可" />
+
+        <label for="genre">ジャンル</label>
+        <select id="genre" required>
+          <option value="AI美女2D">AI美女2D</option>
+          <option value="AI美女3D">AI美女3D</option>
+        </select>
+
+        <label for="xPromo">Xで紹介しても良いですか？</label>
+        <select id="xPromo" required>
+          <option value="はい">はい</option>
+          <option value="いいえ">いいえ</option>
+        </select>
+
+        <label for="rarity">レアリティ(自己評価)</label>
+        <select id="rarity" required>
+          <option value="SSR">SSR</option>
+          <option value="SR">SR</option>
+          <option value="R">R</option>
+          <option value="N">N</option>
+        </select>
+
+        <label for="comment">宣伝コメント（任意）</label>
+        <textarea id="comment"></textarea>
+
+        <div class="small">
+          送信すると、Googleフォーム経由で掲載候補に追加されます。
+        </div>
+
+        <button type="submit" class="btn btn-submit">投稿する</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
+  <script>
+    const CLOUD_NAME = "dc7oz9roa";
+    const UPLOAD_PRESET = "ai_gacha";
+
+    const GOOGLE_FORM_ACTION =
+      "https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/formResponse";
+
+    /*
+      ここを先生のフォーム entry 番号に置き換える
+      例: "entry.123456789"
+    */
+    const ENTRY = {
+      creator: "entry.REPLACE_CREATOR",
+      imageUrl: "entry.REPLACE_IMAGE_URL",
+      videoUrl: "entry.REPLACE_VIDEO_URL",
+      workLink: "entry.REPLACE_WORK_LINK",
+      xAccount: "entry.REPLACE_X_ACCOUNT",
+      genre: "entry.REPLACE_GENRE",
+      xPromo: "entry.REPLACE_X_PROMO",
+      rarity: "entry.REPLACE_RARITY",
+      comment: "entry.REPLACE_COMMENT",
+      type: "entry.REPLACE_TYPE",
+      permission: "entry.REPLACE_PERMISSION"
+    };
+
+    const typeEl = document.getElementById("type");
+    const imageUrlEl = document.getElementById("imageUrl");
+    const videoUrlEl = document.getElementById("videoUrl");
+    const previewBox = document.getElementById("previewBox");
+
+    function renderPreview(type, url) {
+      if (!url) {
+        previewBox.classList.add("hidden");
+        previewBox.innerHTML = "";
+        return;
+      }
+
+      previewBox.classList.remove("hidden");
+
+      if (type === "動画") {
+        previewBox.innerHTML = `<video src="${url}" controls playsinline preload="metadata"></video>`;
+      } else {
+        previewBox.innerHTML = `<img src="${url}" alt="preview">`;
+      }
+    }
+
+    const widget = cloudinary.createUploadWidget(
+      {
+        cloudName: CLOUD_NAME,
+        uploadPreset: UPLOAD_PRESET,
+        multiple: false,
+        folder: "ai_gacha",
+        resourceType: "auto",
+        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "mp4", "mov", "webm"]
+      },
+      (error, result) => {
+        if (error) {
+          console.error(error);
+          alert("アップロードに失敗しました");
+          return;
+        }
+
+        if (result && result.event === "success") {
+          const secureUrl = result.info.secure_url || "";
+          const resourceType = result.info.resource_type || "";
+
+          if (resourceType === "video") {
+            typeEl.value = "動画";
+            videoUrlEl.value = secureUrl;
+            imageUrlEl.value = "";
+            renderPreview("動画", secureUrl);
+          } else {
+            typeEl.value = "画像";
+            imageUrlEl.value = secureUrl;
+            videoUrlEl.value = "";
+            renderPreview("画像", secureUrl);
+          }
+        }
+      }
+    );
+
+    document.getElementById("uploadWidgetBtn").addEventListener("click", () => {
+      widget.open();
+    });
+
+    typeEl.addEventListener("change", () => {
+      if (typeEl.value === "動画") {
+        renderPreview("動画", videoUrlEl.value);
+      } else {
+        renderPreview("画像", imageUrlEl.value);
+      }
+    });
+
+    document.getElementById("submitForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const creator = document.getElementById("creator").value.trim();
+      const imageUrl = imageUrlEl.value.trim();
+      const videoUrl = videoUrlEl.value.trim();
+      const workLink = document.getElementById("workLink").value.trim();
+      const xAccount = document.getElementById("xAccount").value.trim();
+      const genre = document.getElementById("genre").value;
+      const xPromo = document.getElementById("xPromo").value;
+      const rarity = document.getElementById("rarity").value;
+      const comment = document.getElementById("comment").value.trim();
+      const type = typeEl.value;
+
+      if (!creator) {
+        alert("クリエイター名を入力してください");
+        return;
+      }
+
+      if (type === "画像" && !imageUrl) {
+        alert("画像をアップロードしてください");
+        return;
+      }
+
+      if (type === "動画" && !videoUrl) {
+        alert("動画をアップロードしてください");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append(ENTRY.creator, creator);
+      formData.append(ENTRY.imageUrl, imageUrl);
+      formData.append(ENTRY.videoUrl, videoUrl);
+      formData.append(ENTRY.workLink, workLink);
+      formData.append(ENTRY.xAccount, xAccount);
+      formData.append(ENTRY.genre, genre);
+      formData.append(ENTRY.xPromo, xPromo);
+      formData.append(ENTRY.rarity, rarity);
+      formData.append(ENTRY.comment, comment);
+      formData.append(ENTRY.type, type);
+      formData.append(ENTRY.permission, "はい");
+
+      try {
+        await fetch(GOOGLE_FORM_ACTION, {
+          method: "POST",
+          mode: "no-cors",
+          body: formData
+        });
+
+        window.location.href = "thanks.html";
+      } catch (err) {
+        console.error(err);
+        alert("投稿に失敗しました");
+      }
+    });
+  </script>
+</body>
+</html>
