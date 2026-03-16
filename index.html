@@ -314,7 +314,8 @@
       <h1>AIガチャ R18</h1>
       <p class="sub">
         投稿されたR18向けAI作品がランダムで出る無料ガチャです。<br>
-        あなたの作品も1点から追加できます。
+        あなたの作品も1点から追加できます。AI作品の処分画像、<br>
+        AI生成動画(10M以下)を残していきませんか？
       </p>
 
       <div class="adult-warning">
@@ -591,23 +592,40 @@
       setRarityStyle(work.rarity);
     }
 
-    drawButton.addEventListener("click", () => {
-      if (!works.length) return;
+    let isDrawing = false;
 
-      const ticket = getTicket();
+drawButton.addEventListener("click", () => {
+  if (isDrawing) return;
+  if (!works.length) return;
 
-      if (ticket <= 0) {
-  if (confirm("ガチャチケットがありません。\n作品投稿で1枚GETできます。投稿ページへ移動しますか？")) {
-    window.location.href = "upload.html";
+  const ticket = getTicket();
+
+  if (ticket <= 0) {
+    if (confirm("ガチャチケットがありません。\n作品投稿で1枚GETできます。投稿ページへ移動しますか？")) {
+      window.location.href = "upload.html";
+    }
+    return;
   }
-  return;
-      }
 
-      setTicket(ticket - 1);
-      updateTicket();
+  isDrawing = true;
+  drawButton.disabled = true;
 
-      drawButton.disabled = true;
-      stage.classList.add("animating");
+  setTicket(ticket - 1);
+  updateTicket();
+
+  stage.classList.add("animating");
+
+  setTimeout(() => {
+    const work = weightedDraw();
+    render(work);
+  }, 500);
+
+  setTimeout(() => {
+    stage.classList.remove("animating");
+    drawButton.disabled = false;
+    isDrawing = false;
+  }, 850);
+});
 
       setTimeout(() => {
         const work = weightedDraw();
