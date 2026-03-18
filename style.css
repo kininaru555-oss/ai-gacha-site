@@ -2,16 +2,23 @@ body {
   margin: 0;
   font-family: sans-serif;
   background: linear-gradient(180deg, #120812 0%, #1a0d1a 100%);
-  color: #f5f5f5;
+  color: #f8f8f8; /* 少し明るくして読みやすく */
   min-height: 100vh;
 }
 
 .container {
   width: 100%;
-  max-width: 460px;
+  max-width: 520px; /* 460 → 520 に広げて余裕を持たせる */
   margin: 0 auto;
-  padding: 18px 16px 40px;
+  padding: 16px 12px 60px; /* 下部余白を増やしてボタン押しやすく */
   box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 720px;
+    padding: 24px 20px;
+  }
 }
 
 .hero {
@@ -29,11 +36,10 @@ h1 {
   letter-spacing: 0.5px;
 }
 
-.sub {
-  margin: 0;
-  color: #d8d8d8;
-  font-size: 14px;
-  line-height: 1.7;
+.sub,
+.mini-note,
+.notice-box {
+  color: #e0e0e0; /* 少し明るく */
 }
 
 .adult-warning {
@@ -55,7 +61,12 @@ h1 {
   margin-top: 14px;
 }
 
-.btn {
+.btn,
+.btn-like,
+.btn-share,
+.btn-link,
+.draw-btn,
+.card button {
   border: none;
   border-radius: 12px;
   padding: 12px 14px;
@@ -66,18 +77,36 @@ h1 {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  flex: 1;
-  min-width: 120px;
-  color: #fff;
   transition: transform 0.08s ease, opacity 0.2s;
 }
 
-.btn:active {
+.btn:active,
+.btn-like:active,
+.btn-share:active,
+.btn-link:active,
+.draw-btn:active,
+.card button:active {
   transform: scale(0.96);
 }
 
-.btn:hover {
+.btn:hover,
+.btn-like:hover,
+.btn-share:hover,
+.btn-link:hover,
+.draw-btn:hover,
+.card button:hover {
   opacity: 0.85;
+}
+
+/* focus状態（アクセシビリティ） */
+.btn:focus,
+.btn-like:focus,
+.btn-share:focus,
+.btn-link:focus,
+.draw-btn:focus,
+.card button:focus {
+  outline: 3px solid #ff66cc;
+  outline-offset: 2px;
 }
 
 .btn-post {
@@ -119,8 +148,14 @@ h1 {
 .media {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* cover → contain に変更（歪み防止） */
+  background: #111; /* ロード中背景 */
   display: none;
+}
+
+.stage video,
+.stage img {
+  aspect-ratio: 3 / 4;
 }
 
 .placeholder {
@@ -130,16 +165,19 @@ h1 {
   line-height: 1.7;
 }
 
-.flash {
+.flash,
+.shine {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.14) 55%, rgba(255, 255, 255, 0) 100%);
-  opacity: 0;
   pointer-events: none;
 }
 
+.flash {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.14) 55%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0;
+}
+
 .shine {
-  position: absolute;
   top: -20%;
   left: -40%;
   width: 40%;
@@ -152,30 +190,18 @@ h1 {
   );
   transform: skewX(-20deg);
   opacity: 0;
-  pointer-events: none;
 }
 
 .draw-btn {
-  border: none;
   background: linear-gradient(135deg, #d61f69 0%, #9f1146 100%);
   color: #fff;
   border-radius: 14px;
   padding: 15px 20px;
   font-size: 17px;
-  cursor: pointer;
   width: 100%;
   margin-bottom: 10px;
   font-weight: bold;
   letter-spacing: 0.3px;
-  transition: transform 0.08s ease, opacity 0.2s;
-}
-
-.draw-btn:active {
-  transform: scale(0.96);
-}
-
-.draw-btn:hover {
-  opacity: 0.85;
 }
 
 .draw-btn:disabled {
@@ -186,7 +212,6 @@ h1 {
 .mini-note {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #bdbdbd;
 }
 
 .meta {
@@ -198,7 +223,6 @@ h1 {
   border-radius: 12px;
   padding: 12px;
   display: none;
-  color: #f5f5f5;
 }
 
 .rarity {
@@ -225,37 +249,6 @@ h1 {
   flex-wrap: wrap;
 }
 
-.btn-link,
-.btn-like,
-.btn-share {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-width: 100px;
-  box-sizing: border-box;
-  color: #fff;
-  transition: transform 0.08s ease, opacity 0.2s;
-}
-
-.btn-link:active,
-.btn-like:active,
-.btn-share:active {
-  transform: scale(0.96);
-}
-
-.btn-link:hover,
-.btn-like:hover,
-.btn-share:hover {
-  opacity: 0.85;
-}
-
 .btn-link {
   background: #0b57d0;
 }
@@ -270,9 +263,7 @@ h1 {
 
 .notice-box {
   margin-top: 16px;
-  text-align: left;
   font-size: 13px;
-  color: #d0d0d0;
   background: #1f1f1f;
   border-radius: 14px;
   padding: 14px;
@@ -289,7 +280,7 @@ h1 {
   margin-top: 10px;
 }
 
-/* 🔥 修正 */
+/* sample_block */
 .sample_block {
   border-radius: 10px;
   overflow: hidden;
@@ -311,7 +302,7 @@ h1 {
   line-height: 1.5;
 }
 
-/* 🔥 追加（プロンプト表示） */
+/* プロンプト表示 */
 #promptBox {
   margin-top: 10px;
   font-size: 13px;
@@ -320,11 +311,11 @@ h1 {
   word-break: break-word;
 }
 
-/* ranking.html / creators.html */
-.toplink {
+/* ranking / creators */
+.toplink,
+.top-nav a {
   display: inline-block;
-  margin-bottom: 20px;
-  margin-right: 8px;
+  margin: 0 8px 20px;
   color: #fff;
   text-decoration: none;
   background: #444;
@@ -351,9 +342,10 @@ h1 {
 .card img,
 .card video {
   width: 100%;
+  max-height: 280px;
+  object-fit: contain;
   border-radius: 10px;
-  display: block;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .rank {
@@ -401,16 +393,24 @@ h1 {
   cursor: default;
 }
 
-/* 🔥 SSR強化 */
+/* SSR / RARE エフェクト強化 */
 .stage.ssr {
   box-shadow:
-    0 0 0 3px rgba(212, 175, 55, 0.6),
-    0 0 40px rgba(212, 175, 55, 0.6),
-    0 0 80px rgba(212, 175, 55, 0.4);
+    0 0 20px 8px rgba(212, 175, 55, 0.7),
+    0 0 60px rgba(212, 175, 55, 0.5),
+    inset 0 0 30px rgba(255, 215, 0, 0.3);
+  animation: ssr-glow 3s infinite alternate;
 }
 
 .stage.rare {
-  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.32), 0 0 24px rgba(123, 97, 255, 0.24);
+  box-shadow:
+    0 0 15px 5px rgba(123, 97, 255, 0.6),
+    0 0 40px rgba(123, 97, 255, 0.4);
+}
+
+@keyframes ssr-glow {
+  0%   { box-shadow: 0 0 20px 8px rgba(212, 175, 55, 0.7); }
+  100% { box-shadow: 0 0 40px 15px rgba(212, 175, 55, 0.9); }
 }
 
 /* アニメーション */
@@ -443,7 +443,7 @@ h1 {
 }
 
 @keyframes shineAnim {
-  0%   { left: -45%; opacity: 0; }
-  20%  { opacity: 1; }
-  100% { left: 120%; opacity: 0; }
-  }
+  0%   { left: -50%; opacity: 0; }
+  50%  { opacity: 0.7; }
+  100% { left: 150%; opacity: 0; }
+                      }
