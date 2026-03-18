@@ -20,7 +20,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbz8CPZk4CpxFPs10axGN9gLorg1Rw3ncS1m3HuqY26-eWIIcKT-6L4noxS3u0TjnAy9_A/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwLrNDEaGQyPJVwq3ggfOfUpHQe0gIrfCrcoXJTs6SRXbBTX957uSY3ndsi_f_ylV12jw/exec";
 
     function optimizeCloudinary(url) {
       if (!url) return "";
@@ -31,7 +31,11 @@
     }
 
     function getWorkId(work) {
-      return work.id || ((work.title || "") + "_" + (work.creator || ""));
+      return work.id || (
+        (work.title || "") + "_" +
+        (work.creator || "") + "_" +
+        (work.file || "")
+      );
     }
 
     function normalizeRarity(r) {
@@ -76,7 +80,7 @@
 
     async function loadRanking() {
       try {
-        const res = await fetch(API_URL, { cache: "no-store" });
+        const res = await fetch(API_URL + "?t=" + Date.now(), { cache: "no-store" });
 
         if (!res.ok) {
           throw new Error("API取得失敗: " + res.status);
@@ -90,7 +94,6 @@
           likes: Number(item.likes || 0)
         }));
 
-        // 並び替え
         items.sort((a, b) => b.likes - a.likes);
 
         const rankingDiv = document.getElementById("ranking");
@@ -101,7 +104,6 @@
           return;
         }
 
-        // 🔥 上位10件だけ
         items.slice(0, 10).forEach((item, index) => {
           const mediaType = getMediaType(item);
           const fileUrl = getMediaUrl(item);
