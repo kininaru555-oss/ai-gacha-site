@@ -4,6 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>無料AIガチャMAX R18</title>
+  
+  <!-- SEO & OGP -->
+  <meta name="description" content="無料でR18向けAI生成画像・動画をガチャ！あなたの作品も投稿可能。シェアでチケットGET！" />
+  <meta property="og:title" content="無料AIガチャMAX R18" />
+  <meta property="og:description" content="投稿されたAI作品がランダムで出る無料ガチャ。あなたのR18 AI画像・動画も追加できます。" />
+  <meta property="og:image" content="https://your-domain.com/og-image.jpg" /> <!-- ここに魅力的なOGP画像URLを入れる -->
+  <meta property="og:url" content="https://your-domain.com/" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="無料AIガチャMAX R18" />
+  <meta name="twitter:description" content="投稿されたAI作品がランダムで出る無料ガチャ。シェアでチケットGET！" />
+  <meta name="twitter:image" content="https://your-domain.com/og-image.jpg" />
+
+  <!-- CSP（XSS対策・GAS許可） -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://script.google.com https://*.googleusercontent.com; frame-src 'none';" />
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -39,8 +55,7 @@
           ボタンを押すとランダムで作品が出ます
         </div>
 
-        <!-- 初期非表示 -->
-        <img id="resultImage" class="media" alt="ガチャ画像" style="display:none;" />
+        <img id="resultImage" class="media" alt="ガチャ結果画像" loading="lazy" style="display:none;" />
 
         <video
           id="resultVideo"
@@ -50,6 +65,7 @@
           muted
           playsinline
           preload="metadata"
+          poster="https://res.cloudinary.com/dc7oz9roa/image/upload/v1773658391/ai_gacha/grok_image_1770816196541_cxthvd.jpg" <!-- 動画ロード中の代替画像（任意） -->
           style="display:none;"
         ></video>
 
@@ -57,7 +73,7 @@
         <div class="shine"></div>
       </div>
 
-      <button id="drawButton" class="draw-btn">ガチャを引く</button>
+      <button id="drawButton" class="draw-btn" aria-label="ガチャを引く">ガチャを引く</button>
 
       <div id="meta" class="meta">
         <div><strong>タイトル:</strong> <span id="title"></span></div>
@@ -70,16 +86,14 @@
           いいね: <span id="likeCount">0</span>
         </div>
 
-        <!-- 初期値修正 -->
         <div><span id="rarity" class="rarity">N</span></div>
 
         <div class="result-buttons">
-          <button id="likeButton" class="btn-like">♡ いいね</button>
+          <button id="likeButton" class="btn-like" aria-label="いいねする">♡ いいね</button>
           <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
           <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
         </div>
 
-        <!-- ★プロンプトUI追加 -->
         <div style="margin-top:10px;">
           <button id="togglePromptBtn" class="btn-like">プロンプトを見る</button>
           <button id="copyPromptBtn" class="btn-like" style="display:none;">コピー</button>
@@ -99,29 +113,26 @@
       画像・動画どちらも1点から投稿できます。<br>
       投稿された作品は順次ガチャに追加されます。
 
+      <!-- 外部アダルトリンクはリスクが高いためコメントアウト（必要なら自サイトのサンプルに変更） -->
+      <!--
       <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-
         <div class="sample_block" style="width:128px; text-align: left; background: #222;">
-          <a href="https://adult.contents.fc2.com/article/2519236/?tag=TXpBNE16ZzVNZz09" target="_blank" rel="noopener noreferrer">
-            <img src="https://contents-thumbnail2.fc2.com/w128/storage61000.contents.fc2.com/file/378/37753126/1639629993.28.jpg" style="margin-bottom: 6px;">
-            <br>「#18」上物です。ハメ撮りしました。
+          <a href="..." target="_blank" rel="noopener noreferrer">
+            <img src="..." loading="lazy" style="margin-bottom: 6px;">
+            <br>サンプル1
           </a>
         </div>
-
-        <div class="sample_block" style="width:128px; text-align: left; background: #222;">
-          <a href="https://adult.contents.fc2.com/article/2905903/?tag=TXpBNE16ZzVNZz09" target="_blank" rel="noopener noreferrer">
-            <img src="https://contents-thumbnail2.fc2.com/w128/storage62000.contents.fc2.com/file/354/35350526/1653063622.33.jpg" style="margin-bottom: 6px;">
-            <br>ショートヘアの長身元バレー部
-          </a>
-        </div>
-
+        ...
       </div>
-      
-      <div class="footer-links">
-        <a href="disclaimer.html">免責事項</a><br>
-        <a href="terms.html">利用規約</a>
-      </div>
+      -->
+
+      <!-- ここに自サイトのサンプル画像を入れると安心 -->
     </div>
+
+    <footer class="footer-links">
+      <a href="disclaimer.html">免責事項</a> | 
+      <a href="terms.html">利用規約</a>
+    </footer>
   </div>
 
   <script src="gacha.js" defer></script>
