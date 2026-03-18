@@ -28,7 +28,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbz8CPZk4CpxFPs10axGN9gLorg1Rw3ncS1m3HuqY26-eWIIcKT-6L4noxS3u0TjnAy9_A/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwLrNDEaGQyPJVwq3ggfOfUpHQe0gIrfCrcoXJTs6SRXbBTX957uSY3ndsi_f_ylV12jw/exec";
 
     async function loadCreatorRanking() {
       try {
@@ -93,25 +93,4 @@
               : "";
 
           card.innerHTML = `
-            <div class="rank">#${i + 1}</div>
-            <div class="name">${creator.creator}</div>
-            <div class="creator-meta">
-              合計いいね: ❤️ ${creator.totalLikes}<br>
-              作品数: ${creator.workCount}
-            </div>
-            ${linkHtml}
-          `;
-
-          container.appendChild(card);
-        });
-      } catch (e) {
-        console.error(e);
-        document.getElementById("creatorRanking").innerHTML =
-          "<div class='card'>作者ランキングを読み込めませんでした。</div>";
-      }
-    }
-
-    loadCreatorRanking();
-  </script>
-</body>
-</html>
+            <div class="rank">#${i + 1}</
