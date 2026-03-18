@@ -30,12 +30,15 @@
       background: #222;
       padding: 15px;
       border-radius: 12px;
+      text-align: left;
     }
 
     img,
     video {
       width: 100%;
       border-radius: 10px;
+      display: block;
+      margin-bottom: 10px;
     }
 
     button {
@@ -46,6 +49,11 @@
       background: #e91e63;
       color: white;
       cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
     }
 
     .likes {
@@ -74,6 +82,13 @@
       padding: 8px 12px;
       border-radius: 8px;
     }
+
+    .rank {
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffcc66;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -85,7 +100,7 @@
   <div id="ranking" class="grid"></div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxh7CW4kVBf1gjBbGzSTq-G8cUEpQ-06347Wlzk2m1VZFPDHgP-JWDWiPVAtCdjvBD1Xw/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbzWLUWKFwRJjIa6QVN8XPr7xRLFfTxmI34XBYb80yvIaDuxzzDR5caWnWEB8KQTUe4E4Q/exec";
 
     function optimizeCloudinary(url) {
       if (!url) return "";
@@ -95,17 +110,50 @@
       return url;
     }
 
-    function getLikes() {
-      const raw = localStorage.getItem("likes");
-      return raw ? JSON.parse(raw) : {};
-    }
-
-    function setLikes(likes) {
-      localStorage.setItem("likes", JSON.stringify(likes));
-    }
-
     function getWorkId(work) {
-  return work.id || ((work.title || "") + "_" + (work.creator || ""));
+      return work.id || ((work.title || "") + "_" + (work.creator || ""));
+    }
+
+    function normalizeRarity(r) {
+      if (!r) return "N";
+      const v = String(r).toUpperCase().trim();
+      if (v === "SSR") return "SSR";
+      if (v === "SR") return "SR";
+      if (v === "R" || v === "RARE") return "R";
+      return "N";
+    }
+
+    function getMediaType(work) {
+      const type = String(work.type || "").trim();
+      if (type === "video" || type === "動画") return "video";
+      if (type === "image" || type === "画像") return "image";
+      if (work.videoUrl) return "video";
+      return "image";
+    }
+
+    function getMediaUrl(work) {
+      const mediaType = getMediaType(work);
+
+      if (mediaType === "video") {
+        return optimizeCloudinary(work.videoUrl || work.file || "");
+      }
+
+      return optimizeCloudinary(work.imageUrl || work.file || "");
+    }
+
+    async function sendLike(id) {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify({
+          mode: "like",
+          id: id
+        })
+      });
+
+      return await response.json();
     }
 
     async function loadRanking() {
@@ -116,14 +164,13 @@
           throw new Error("API取得失敗: " + res.status);
         }
 
-        const data = await res.json();
-        const likes = getLikes();
+        const raw = await res.json();
+        const data = Array.isArray(raw) ? raw : (raw.items || []);
 
         const items = data.map((item) => {
-          const id = getWorkId(item);
           return {
             ...item,
-            likes: likes[id] || 0
+            likes: Number(item.likes || 0)
           };
         });
 
@@ -137,11 +184,12 @@
           return;
         }
 
-        items.forEach((item) => {
+        items.forEach((item, index) => {
           let media = "";
-          const fileUrl = optimizeCloudinary(item.file);
+          const mediaType = getMediaType(item);
+          const fileUrl = getMediaUrl(item);
 
-          if (item.type === "video") {
+          if (mediaType === "video") {
             media = `<video src="${fileUrl}" controls playsinline preload="metadata"></video>`;
           } else {
             media = `<img src="${fileUrl}" alt="${item.title || ""}">`;
@@ -156,21 +204,38 @@
           card.className = "card";
 
           card.innerHTML = `
+            <div class="rank">#${index + 1}</div>
             <h3>${item.title || ""}</h3>
             ${media}
             <div>作者: ${item.creator || ""}</div>
-            <div class="likes">❤️ ${item.likes}</div>
+            <div>ジャンル: ${item.genre || ""}</div>
+            <div>レアリティ: ${normalizeRarity(item.rarity)}</div>
+            <div class="likes">❤️ <span class="like-value">${item.likes}</span></div>
             <button data-id="${encodeURIComponent(getWorkId(item))}">いいね</button>
             ${linkHtml}
           `;
 
           const button = card.querySelector("button");
-          button.addEventListener("click", () => {
-            const id = decodeURIComponent(button.dataset.id);
-            const likesMap = getLikes();
-            likesMap[id] = (likesMap[id] || 0) + 1;
-            setLikes(likesMap);
-            location.reload();
+          const likeValue = card.querySelector(".like-value");
+
+          button.addEventListener("click", async () => {
+            button.disabled = true;
+
+            try {
+              const result = await sendLike(decodeURIComponent(button.dataset.id));
+
+              if (result.success) {
+                likeValue.textContent = result.likes || 0;
+                button.textContent = "いいね済み";
+              } else {
+                alert("いいねに失敗しました");
+                button.disabled = false;
+              }
+            } catch (error) {
+              console.error(error);
+              alert("いいねに失敗しました");
+              button.disabled = false;
+            }
           });
 
           rankingDiv.appendChild(card);
