@@ -4,100 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 人気ランキング</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: #fff;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-
-    h1 {
-      margin-bottom: 30px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-      max-width: 1000px;
-      margin: auto;
-    }
-
-    .card {
-      background: #222;
-      padding: 15px;
-      border-radius: 12px;
-      text-align: left;
-    }
-
-    img,
-    video {
-      width: 100%;
-      border-radius: 10px;
-      display: block;
-      margin-bottom: 10px;
-    }
-
-    button {
-      margin-top: 10px;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 8px;
-      background: #e91e63;
-      color: white;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-
-    .likes {
-      margin-top: 8px;
-      color: #ffcc66;
-      font-size: 14px;
-    }
-
-    .toplink {
-      display: inline-block;
-      margin-bottom: 20px;
-      margin-right: 8px;
-      color: #fff;
-      text-decoration: none;
-      background: #444;
-      padding: 8px 14px;
-      border-radius: 8px;
-    }
-
-    .work-link {
-      display: inline-block;
-      margin-top: 10px;
-      color: #fff;
-      text-decoration: none;
-      background: #0b57d0;
-      padding: 8px 12px;
-      border-radius: 8px;
-    }
-
-    .rank {
-      font-size: 18px;
-      font-weight: bold;
-      color: #ffcc66;
-      margin-bottom: 8px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <a class="toplink" href="index.html">← ガチャに戻る</a>
-  <a class="toplink" href="creators.html">作者ランキング</a>
+  <div class="container">
+    <a class="toplink" href="index.html">← ガチャに戻る</a>
+    <a class="toplink" href="creators.html">作者ランキング</a>
 
-  <h1>人気ランキング</h1>
+    <div class="hero">
+      <h1>人気ランキング</h1>
+      <p class="sub">作品のいいね数順に表示しています</p>
+    </div>
 
-  <div id="ranking" class="grid"></div>
+    <div id="ranking" class="grid"></div>
+  </div>
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbzWLUWKFwRJjIa6QVN8XPr7xRLFfTxmI34XBYb80yvIaDuxzzDR5caWnWEB8KQTUe4E4Q/exec";
@@ -133,11 +53,9 @@
 
     function getMediaUrl(work) {
       const mediaType = getMediaType(work);
-
       if (mediaType === "video") {
         return optimizeCloudinary(work.videoUrl || work.file || "");
       }
-
       return optimizeCloudinary(work.imageUrl || work.file || "");
     }
 
@@ -178,7 +96,7 @@
         rankingDiv.innerHTML = "";
 
         if (!items.length) {
-          rankingDiv.innerHTML = "<p>まだ作品がありません。</p>";
+          rankingDiv.innerHTML = "<div class='card'>まだ作品がありません。</div>";
           return;
         }
 
@@ -239,7 +157,7 @@
       } catch (error) {
         console.error(error);
         document.getElementById("ranking").innerHTML =
-          "<p>ランキングを読み込めませんでした。</p>";
+          "<div class='card'>ランキングを読み込めませんでした。</div>";
       }
     }
 
