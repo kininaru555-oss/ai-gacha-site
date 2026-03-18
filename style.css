@@ -124,7 +124,7 @@ h1 {
 .flash {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.14) 55%, rgba(255,255,255,0) 100%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.14) 55%, rgba(255, 255, 255, 0) 100%);
   opacity: 0;
   pointer-events: none;
 }
@@ -137,9 +137,9 @@ h1 {
   height: 140%;
   background: linear-gradient(
     110deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,0.8) 50%,
-    rgba(255,255,255,0) 100%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-20deg);
   opacity: 0;
@@ -258,6 +258,108 @@ h1 {
   margin-top: 10px;
 }
 
+.sample_block {
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.sample_block img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.sample_block a {
+  color: #111;
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ranking.html / creators.html 用 */
+.toplink {
+  display: inline-block;
+  margin-bottom: 20px;
+  margin-right: 8px;
+  color: #fff;
+  text-decoration: none;
+  background: #444;
+  padding: 8px 14px;
+  border-radius: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #222;
+  padding: 15px;
+  border-radius: 12px;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.card img,
+.card video {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.rank {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffcc66;
+  margin-bottom: 8px;
+}
+
+.name {
+  font-size: 18px;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.likes {
+  margin-top: 8px;
+  color: #ffcc66;
+  font-size: 14px;
+}
+
+.work-link,
+.creator-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: #fff;
+  text-decoration: none;
+  background: #0b57d0;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.card button {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #e91e63;
+  color: white;
+  cursor: pointer;
+}
+
+.card button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .stage.animating {
   animation: shake 0.45s ease-in-out;
 }
@@ -298,4 +400,4 @@ h1 {
   0%   { left: -45%; opacity: 0; }
   20%  { opacity: 1; }
   100% { left: 120%; opacity: 0; }
-}
+  }
