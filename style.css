@@ -69,6 +69,15 @@ h1 {
   flex: 1;
   min-width: 120px;
   color: #fff;
+  transition: transform 0.08s ease, opacity 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn:hover {
+  opacity: 0.85;
 }
 
 .btn-post {
@@ -158,6 +167,15 @@ h1 {
   margin-bottom: 10px;
   font-weight: bold;
   letter-spacing: 0.3px;
+  transition: transform 0.08s ease, opacity 0.2s;
+}
+
+.draw-btn:active {
+  transform: scale(0.96);
+}
+
+.draw-btn:hover {
+  opacity: 0.85;
 }
 
 .draw-btn:disabled {
@@ -223,6 +241,19 @@ h1 {
   min-width: 100px;
   box-sizing: border-box;
   color: #fff;
+  transition: transform 0.08s ease, opacity 0.2s;
+}
+
+.btn-link:active,
+.btn-like:active,
+.btn-share:active {
+  transform: scale(0.96);
+}
+
+.btn-link:hover,
+.btn-like:hover,
+.btn-share:hover {
+  opacity: 0.85;
 }
 
 .btn-link {
@@ -258,6 +289,7 @@ h1 {
   margin-top: 10px;
 }
 
+/* 🔥 修正 */
 .sample_block {
   border-radius: 10px;
   overflow: hidden;
@@ -273,13 +305,22 @@ h1 {
 }
 
 .sample_block a {
-  color: #111;
+  color: #f5f5f5;
   text-decoration: none;
   font-size: 12px;
   line-height: 1.5;
 }
 
-/* ranking.html / creators.html 用 */
+/* 🔥 追加（プロンプト表示） */
+#promptBox {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ranking.html / creators.html */
 .toplink {
   display: inline-block;
   margin-bottom: 20px;
@@ -360,6 +401,19 @@ h1 {
   cursor: default;
 }
 
+/* 🔥 SSR強化 */
+.stage.ssr {
+  box-shadow:
+    0 0 0 3px rgba(212, 175, 55, 0.6),
+    0 0 40px rgba(212, 175, 55, 0.6),
+    0 0 80px rgba(212, 175, 55, 0.4);
+}
+
+.stage.rare {
+  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.32), 0 0 24px rgba(123, 97, 255, 0.24);
+}
+
+/* アニメーション */
 .stage.animating {
   animation: shake 0.45s ease-in-out;
 }
@@ -370,14 +424,6 @@ h1 {
 
 .stage.animating .shine {
   animation: shineAnim 0.8s ease;
-}
-
-.stage.ssr {
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.45), 0 0 32px rgba(212, 175, 55, 0.34);
-}
-
-.stage.rare {
-  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.32), 0 0 24px rgba(123, 97, 255, 0.24);
 }
 
 @keyframes shake {
