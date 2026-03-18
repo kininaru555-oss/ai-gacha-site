@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 人気ランキング</title>
 
-  <!-- SEO & OGP -->
   <meta name="description" content="AIガチャMAX R18の人気ランキング。上位10作品をいいね数でチェック！" />
   <meta property="og:title" content="AIガチャMAX R18 - 人気ランキング" />
   <meta property="og:description" content="投稿されたR18 AI作品の人気TOP10。あなたの作品もランクインしよう！" />
-  <meta property="og:image" content="https://your-domain.com/og-ranking.jpg" /> <!-- ここにランキング風画像URLを -->
+  <meta property="og:image" content="https://your-domain.com/og-ranking.jpg" />
   <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="stylesheet" href="style.css" />
   <style>
-    .card.gold   .rank { background: #ffd700; color: #000; }
+    .card.gold .rank { background: #ffd700; color: #000; }
     .card.silver .rank { background: #c0c0c0; color: #000; }
     .card.bronze .rank { background: #cd7f32; color: #000; }
     .card.error {
@@ -61,11 +60,10 @@
       return url;
     }
 
-    // サーバー側と完全に一致させる
     function getWorkId(work) {
       const creator = (work.creator || "投稿者不明").trim();
       const file = (work.file || "").trim();
-      return work.id || `AI作品_\( {creator}_ \){file}`;
+      return work.id || `AI作品_${creator}_${file}`;
     }
 
     function normalizeRarity(r) {
@@ -97,7 +95,7 @@
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "text/plain;charset=utf-8"
         },
         body: JSON.stringify({
           mode: "like",
@@ -147,8 +145,8 @@
 
           const media =
             mediaType === "video"
-              ? `<video src="${fileUrl}" controls playsinline preload="metadata" muted loading="lazy"></video>`
-              : `<img src="\( {fileUrl}" alt=" \){item.title || "作品画像"}" loading="lazy">`;
+              ? `<video src="${fileUrl}" controls playsinline preload="metadata" muted></video>`
+              : `<img src="${fileUrl}" alt="${item.title || "作品画像"}" loading="lazy">`;
 
           const linkHtml =
             item.link && item.link !== "#"
@@ -156,10 +154,10 @@
               : "";
 
           const card = document.createElement("div");
-          card.className = `card ${index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : ''}`;
+          card.className = `card ${index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : ""}`;
 
           card.innerHTML = `
-            <div class="rank" aria-label="第\( {index + 1}位"># \){index + 1}</div>
+            <div class="rank" aria-label="第${index + 1}位">#${index + 1}</div>
             <h3>${item.title || "無題"}</h3>
             ${media}
             <div>作者: ${item.creator || "投稿者不明"}</div>
@@ -175,6 +173,7 @@
 
           button.addEventListener("click", async () => {
             if (button.disabled) return;
+
             button.disabled = true;
             button.textContent = "処理中...";
 
@@ -184,7 +183,7 @@
               if (result.success) {
                 likeValue.textContent = result.likes || 0;
                 button.textContent = "いいね済み";
-                button.disabled = true; // 成功後も無効化
+                button.disabled = true;
               } else {
                 alert("いいねに失敗しました");
                 button.textContent = "いいね";
