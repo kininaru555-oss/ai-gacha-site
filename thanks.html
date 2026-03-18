@@ -8,32 +8,35 @@
 <style>
 body{
   font-family:sans-serif;
-  background:#111;
+  background:linear-gradient(180deg, #120812 0%, #1a0d1a 100%);
   color:#fff;
   display:flex;
   justify-content:center;
   align-items:center;
-  height:100vh;
+  min-height:100vh;
   margin:0;
+  padding:20px;
+  box-sizing:border-box;
 }
 
 .card{
-  background:#222;
-  padding:50px 30px;
+  background:#1f1f1f;
+  padding:40px 24px;
   border-radius:18px;
   text-align:center;
   max-width:420px;
-  width:90%;
+  width:100%;
+  box-shadow:0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 h2{
-  font-size:34px;
-  margin-bottom:16px;
+  font-size:30px;
+  margin:0 0 16px;
 }
 
 p{
-  font-size:22px;
-  margin-bottom:30px;
+  font-size:20px;
+  margin:0 0 24px;
   line-height:1.6;
 }
 
@@ -43,14 +46,20 @@ p{
   font-weight:bold;
 }
 
+.note{
+  font-size:13px;
+  color:#bdbdbd;
+  margin-bottom:24px;
+}
+
 a{
   display:inline-block;
-  padding:20px 36px;
+  padding:16px 28px;
   background:#ff4081;
   color:white;
   text-decoration:none;
   border-radius:14px;
-  font-size:22px;
+  font-size:20px;
   font-weight:bold;
 }
 </style>
@@ -59,27 +68,27 @@ a{
 <body>
 
 <div class="card">
+  <h2>投稿ありがとうございます！</h2>
 
-<h2>投稿ありがとうございます！</h2>
+  <p>
+    <span class="ticket">ガチャチケット +1</span><br>
+    プレゼントしました
+  </p>
 
-<p>
-<span class="ticket">ガチャチケット +1</span><br>
-プレゼントしました
-</p>
+  <div class="note">3秒後に自動でガチャ画面へ戻ります</div>
 
-<a href="index.html">ガチャを引く</a>
-
+  <a href="index.html">ガチャを引く</a>
 </div>
 
 <script>
-// 🔥 1回だけ付与（無限バグ防止）
-if (!sessionStorage.getItem("post_reward_done")) {
+const params = new URLSearchParams(window.location.search);
+const reward = params.get("reward");
+
+if (reward === "1") {
   const current = parseInt(localStorage.getItem("gacha_ticket") || "0", 10);
-  localStorage.setItem("gacha_ticket", current + 1);
-  sessionStorage.setItem("post_reward_done", "1");
+  localStorage.setItem("gacha_ticket", String(current + 1));
 }
 
-// 🔥 3秒後に自動で戻す（回転率UP）
 setTimeout(() => {
   window.location.href = "index.html";
 }, 3000);
