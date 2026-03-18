@@ -6,7 +6,6 @@
 <title>投稿ありがとうございました</title>
 
 <style>
-
 body{
   font-family:sans-serif;
   background:#111;
@@ -54,7 +53,6 @@ a{
   font-size:22px;
   font-weight:bold;
 }
-
 </style>
 </head>
 
@@ -74,12 +72,17 @@ a{
 </div>
 
 <script>
+// 🔥 1回だけ付与（無限バグ防止）
+if (!sessionStorage.getItem("post_reward_done")) {
+  const current = parseInt(localStorage.getItem("gacha_ticket") || "0", 10);
+  localStorage.setItem("gacha_ticket", current + 1);
+  sessionStorage.setItem("post_reward_done", "1");
+}
 
-const current =
-parseInt(localStorage.getItem("gacha_ticket") || "0",10)
-
-localStorage.setItem("gacha_ticket", current + 1)
-
+// 🔥 3秒後に自動で戻す（回転率UP）
+setTimeout(() => {
+  window.location.href = "index.html";
+}, 3000);
 </script>
 
 </body>
