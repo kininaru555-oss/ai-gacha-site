@@ -54,18 +54,8 @@ function setTicket(n) {
 
 function updateTicket() {
   const t = getTicket();
-  ticketInfo.textContent = t > 0
-    ? "ガチャチケット：" + t + "枚"
-    : "投稿するとガチャを1回引けます";
-}
-
-function getLikes() {
-  const raw = localStorage.getItem("likes");
-  return raw ? JSON.parse(raw) : {};
-}
-
-function setLikes(likes) {
-  localStorage.setItem("likes", JSON.stringify(likes));
+  ticketInfo.textContent =
+    t > 0 ? "ガチャチケット：" + t + "枚" : "投稿するとガチャを1回引けます";
 }
 
 function getWorkId(work) {
@@ -82,7 +72,9 @@ function optimizeCloudinary(url) {
 
 function normalizeRarity(r) {
   if (!r) return "N";
+
   const v = String(r).toUpperCase().trim();
+
   if (v === "SSR") return "SSR";
   if (v === "SR") return "SR";
   if (v === "R" || v === "RARE") return "R";
@@ -118,12 +110,32 @@ function resetMedia() {
   resultVideo.load();
 }
 
+function getMediaType(work) {
+  const type = String(work.type || "").trim();
+
+  if (type === "video" || type === "動画") return "video";
+  if (type === "image" || type === "画像") return "image";
+  if (work.videoUrl) return "video";
+
+  return "image";
+}
+
+function getMediaUrl(work) {
+  const mediaType = getMediaType(work);
+
+  if (mediaType === "video") {
+    return optimizeCloudinary(work.videoUrl || work.file || "");
+  }
+
+  return optimizeCloudinary(work.imageUrl || work.file || "");
+}
+
 function weightedDraw() {
-  const recommended = works.filter(w => w.recommended === true);
-  const ssr = works.filter(w => normalizeRarity(w.rarity) === "SSR");
-  const sr = works.filter(w => normalizeRarity(w.rarity) === "SR");
-  const r = works.filter(w => normalizeRarity(w.rarity) === "R");
-  const n = works.filter(w => normalizeRarity(w.rarity) === "N");
+  const recommended = works.filter((w) => w.recommended === true);
+  const ssr = works.filter((w) => normalizeRarity(w.rarity) === "SSR");
+  const sr = works.filter((w) => normalizeRarity(w.rarity) === "SR");
+  const r = works.filter((w) => normalizeRarity(w.rarity) === "R");
+  const n = works.filter((w) => normalizeRarity(w.rarity) === "N");
 
   const roll = Math.random() * 100;
 
@@ -211,14 +223,15 @@ function render(work) {
   resetMedia();
   resetPromptArea();
 
-  const file = optimizeCloudinary(work.file);
+  const mediaType = getMediaType(work);
+  const mediaUrl = getMediaUrl(work);
 
-  if (work.type === "video") {
-    resultVideo.src = file;
+  if (mediaType === "video") {
+    resultVideo.src = mediaUrl;
     resultVideo.style.display = "block";
     resultVideo.play().catch(() => {});
   } else {
-    resultImage.src = file;
+    resultImage.src = mediaUrl;
     resultImage.alt = work.title || "作品画像";
     resultImage.style.display = "block";
   }
@@ -228,7 +241,7 @@ function render(work) {
   document.getElementById("genre").textContent = work.genre || "";
   document.getElementById("description").textContent = work.description || "";
   document.getElementById("mediaType").textContent =
-    work.type === "video" ? "動画" : "画像";
+    mediaType === "video" ? "動画" : "画像";
 
   document.getElementById("likeCount").textContent = work.likes || 0;
 
@@ -262,12 +275,14 @@ function renderLatestWorks() {
 
   box.innerHTML = `
     <strong>新着作品</strong><br>
-    ${latest.map(work => {
-      const creator = work.creator || "投稿者";
-      const genre = work.genre || "AI作品";
-      const rarity = normalizeRarity(work.rarity);
-      return `・${creator} / ${genre} / ${rarity}`;
-    }).join("<br>")}
+    ${latest
+      .map((work) => {
+        const creator = work.creator || "投稿者";
+        const genre = work.genre || "AI作品";
+        const rarity = normalizeRarity(work.rarity);
+        return `・${creator} / ${genre} / ${rarity}`;
+      })
+      .join("<br>")}
   `;
 }
 
