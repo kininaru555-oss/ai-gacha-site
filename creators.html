@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 作者ランキング</title>
+
+  <!-- SEO & OGP -->
+  <meta name="description" content="AIガチャMAX R18の作者ランキング。合計いいね数で人気クリエイターTOP10をチェック！" />
+  <meta property="og:title" content="AIガチャMAX R18 - 作者ランキング TOP10" />
+  <meta property="og:description" content="投稿されたR18 AI作品の作者をいいね数でランキング。トップ10を発表中！" />
+  <meta property="og:image" content="https://your-domain.com/og-creators-top10.jpg" /> <!-- トップ10風の画像を用意推奨 -->
+  <meta name="twitter:card" content="summary_large_image" />
+
   <link rel="stylesheet" href="style.css" />
   <style>
     .creator-meta {
@@ -12,16 +20,34 @@
       font-size: 14px;
       margin-top: 6px;
     }
+    .card.gold   .rank { background: #ffd700; color: #000; }
+    .card.silver .rank { background: #c0c0c0; color: #000; }
+    .card.bronze .rank { background: #cd7f32; color: #000; }
+    .card.error {
+      background: #330000;
+      border: 1px solid #ff4444;
+      padding: 20px;
+      text-align: center;
+    }
+    .top10-note {
+      font-size: 0.9em;
+      color: #aaa;
+      margin: 10px 0 20px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <a class="toplink" href="index.html">← ガチャに戻る</a>
-    <a class="toplink" href="ranking.html">人気ランキング</a>
+    <header class="top-nav">
+      <a href="index.html">← ガチャに戻る</a>
+      <a href="ranking.html">人気ランキング</a>
+    </header>
 
     <div class="hero">
-      <h1>作者ランキング</h1>
-      <p class="sub">作者ごとの合計いいね数で表示しています</p>
+      <h1>作者ランキング TOP10</h1>
+      <p class="sub">作者ごとの合計いいね数で表示（同率は作品数で順位付け）</p>
+      <div class="top10-note">※ 上位10名のみ表示しています</div>
     </div>
 
     <div id="creatorRanking" class="grid"></div>
@@ -32,7 +58,10 @@
 
     async function loadCreatorRanking() {
       try {
-        const res = await fetch(API_URL + "?t=" + Date.now(), { cache: "no-store" });
+        const res = await fetch(API_URL + "?t=" + Date.now(), {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" }
+        });
 
         if (!res.ok) {
           throw new Error("API取得失敗: " + res.status);
@@ -44,7 +73,7 @@
         const creatorMap = {};
 
         data.forEach((item) => {
-          const creator = item.creator || "投稿者";
+          const creator = item.creator || "投稿者不明";
           const likeCount = Number(item.likes || 0);
 
           if (!creatorMap[creator]) {
@@ -59,21 +88,17 @@
           creatorMap[creator].totalLikes += likeCount;
           creatorMap[creator].workCount += 1;
 
-          if (
-            (!creatorMap[creator].link || creatorMap[creator].link === "#") &&
-            item.link &&
-            item.link !== "#"
-          ) {
+          if (item.link && item.link !== "#" && creatorMap[creator].link === "#") {
             creatorMap[creator].link = item.link;
           }
         });
 
-        const creators = Object.values(creatorMap).sort((a, b) => {
-          if (b.totalLikes !== a.totalLikes) {
-            return b.totalLikes - a.totalLikes;
-          }
-          return b.workCount - a.workCount;
-        });
+        const creators = Object.values(creatorMap)
+          .sort((a, b) => {
+            if (b.totalLikes !== a.totalLikes) return b.totalLikes - a.totalLikes;
+            return b.workCount - a.workCount;
+          })
+          .slice(0, 10);  // ← ここでトップ10に制限
 
         const container = document.getElementById("creatorRanking");
         container.innerHTML = "";
@@ -85,15 +110,14 @@
 
         creators.forEach((creator, i) => {
           const card = document.createElement("div");
-          card.className = "card";
+          card.className = `card ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}`;
 
-          const linkHtml =
-            creator.link && creator.link !== "#"
-              ? `<a class="creator-link" href="${creator.link}" target="_blank" rel="noopener noreferrer">作品リンクへ</a>`
-              : "";
+          const linkHtml = creator.link && creator.link !== "#"
+            ? `<a class="creator-link" href="${creator.link}" target="_blank" rel="noopener noreferrer">作品リンクへ →</a>`
+            : "";
 
           card.innerHTML = `
-            <div class="rank">#${i + 1}</div>
+            <div class="rank" aria-label="第\( {i + 1}位"># \){i + 1}</div>
             <div class="name">${creator.creator}</div>
             <div class="creator-meta">
               合計いいね: ❤️ ${creator.totalLikes}<br>
@@ -106,8 +130,13 @@
         });
       } catch (e) {
         console.error(e);
-        document.getElementById("creatorRanking").innerHTML =
-          "<div class='card'>作者ランキングを読み込めませんでした。</div>";
+        document.getElementById("creatorRanking").innerHTML = `
+          <div class="card error">
+            <p>作者ランキングを読み込めませんでした…</p>
+            <p>しばらく待ってから <a href="#" onclick="loadCreatorRanking(); return false;">もう一度読み込む</a></p>
+            <p>または <a href="index.html">ガチャに戻る</a></p>
+          </div>
+        `;
       }
     }
 
