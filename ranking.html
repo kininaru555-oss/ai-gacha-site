@@ -167,12 +167,10 @@
         const raw = await res.json();
         const data = Array.isArray(raw) ? raw : (raw.items || []);
 
-        const items = data.map((item) => {
-          return {
-            ...item,
-            likes: Number(item.likes || 0)
-          };
-        });
+        const items = data.map((item) => ({
+          ...item,
+          likes: Number(item.likes || 0)
+        }));
 
         items.sort((a, b) => b.likes - a.likes);
 
@@ -185,15 +183,13 @@
         }
 
         items.forEach((item, index) => {
-          let media = "";
           const mediaType = getMediaType(item);
           const fileUrl = getMediaUrl(item);
 
-          if (mediaType === "video") {
-            media = `<video src="${fileUrl}" controls playsinline preload="metadata"></video>`;
-          } else {
-            media = `<img src="${fileUrl}" alt="${item.title || ""}">`;
-          }
+          const media =
+            mediaType === "video"
+              ? `<video src="${fileUrl}" controls playsinline preload="metadata"></video>`
+              : `<img src="${fileUrl}" alt="${item.title || "作品画像"}">`;
 
           const linkHtml =
             item.link && item.link !== "#"
@@ -205,13 +201,13 @@
 
           card.innerHTML = `
             <div class="rank">#${index + 1}</div>
-            <h3>${item.title || ""}</h3>
+            <h3>${item.title || "無題"}</h3>
             ${media}
-            <div>作者: ${item.creator || ""}</div>
+            <div>作者: ${item.creator || "投稿者"}</div>
             <div>ジャンル: ${item.genre || ""}</div>
             <div>レアリティ: ${normalizeRarity(item.rarity)}</div>
             <div class="likes">❤️ <span class="like-value">${item.likes}</span></div>
-            <button data-id="${encodeURIComponent(getWorkId(item))}">いいね</button>
+            <button type="button" data-id="${encodeURIComponent(getWorkId(item))}">いいね</button>
             ${linkHtml}
           `;
 
