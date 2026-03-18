@@ -4,13 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 作者ランキング</title>
-
-  <meta name="description" content="AIガチャMAX R18の作者ランキング。合計いいね数で人気クリエイターTOP10をチェック！" />
-  <meta property="og:title" content="AIガチャMAX R18 - 作者ランキング TOP10" />
-  <meta property="og:description" content="投稿されたR18 AI作品の作者をいいね数でランキング。トップ10を発表中！" />
-  <meta property="og:image" content="https://your-domain.com/og-creators-top10.jpg" />
-  <meta name="twitter:card" content="summary_large_image" />
-
   <link rel="stylesheet" href="style.css" />
   <style>
     .creator-meta {
@@ -58,8 +51,7 @@
     async function loadCreatorRanking() {
       try {
         const res = await fetch(API_URL + "?t=" + Date.now(), {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" }
+          cache: "no-store"
         });
 
         if (!res.ok) {
