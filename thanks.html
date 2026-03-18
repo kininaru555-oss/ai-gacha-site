@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>投稿ありがとうございました</title>
+  <title>投稿ありがとうございました | AIガチャ R18</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     .thanks-wrap {
@@ -13,6 +13,7 @@
       align-items: center;
       padding: 20px;
       box-sizing: border-box;
+      background: linear-gradient(to bottom, #0f0f0f, #1a1a1a);
     }
 
     .thanks-card {
@@ -22,81 +23,91 @@
       text-align: center;
       max-width: 420px;
       width: 100%;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid #333;
     }
 
     .thanks-card h2 {
-      font-size: 30px;
-      margin: 0 0 16px;
+      font-size: 32px;
+      margin: 0 0 20px;
+      color: #ff66cc;
     }
 
     .thanks-card p {
       font-size: 20px;
-      margin: 0 0 24px;
+      margin: 0 0 28px;
       line-height: 1.6;
     }
 
     .ticket {
-      font-size: 28px;
+      font-size: 32px;
       color: #ff66cc;
       font-weight: bold;
+      display: block;
+      margin: 12px 0;
     }
 
     .note {
-      font-size: 13px;
-      color: #bdbdbd;
-      margin-bottom: 24px;
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 28px;
     }
 
     .thanks-link {
       display: inline-block;
-      padding: 16px 28px;
-      background: #ff4081;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, #ff4081, #d61f69);
       color: white;
       text-decoration: none;
       border-radius: 14px;
       font-size: 20px;
       font-weight: bold;
-      transition: transform 0.08s ease, opacity 0.2s;
+      transition: all 0.2s ease;
     }
 
     .thanks-link:hover {
-      opacity: 0.85;
+      opacity: 0.9;
+      transform: translateY(-2px);
     }
 
     .thanks-link:active {
-      transform: scale(0.96);
+      transform: scale(0.98);
     }
   </style>
 </head>
 <body>
   <div class="thanks-wrap">
     <div class="thanks-card">
-      <h2>投稿ありがとうございます！</h2>
+      <h2>投稿ありがとうございます！🎉</h2>
 
       <p>
-        <span class="ticket">ガチャチケット +1</span><br>
-        プレゼントしました
+        あなたの作品を無事受け付けました。<br>
+        <span class="ticket">ガチャチケット +1</span>
+        プレゼントしました！
       </p>
 
-      <div class="note">3秒後に自動でガチャ画面へ戻ります</div>
+      <div class="note">4秒後に自動でガチャ画面に戻ります…</div>
 
-      <a class="thanks-link" href="index.html">ガチャを引く</a>
+      <a class="thanks-link" href="index.html">今すぐガチャを引く</a>
     </div>
   </div>
 
   <script>
+    // URLパラメータからrewardを確認（安全に）
     const params = new URLSearchParams(window.location.search);
     const reward = params.get("reward");
 
     if (reward === "1") {
-      const current = parseInt(localStorage.getItem("gacha_ticket") || "0", 10);
-      localStorage.setItem("gacha_ticket", String(current + 1));
+      // チケット加算（重複防止のため、1回だけ加算されるよう念のため）
+      const key = "gacha_ticket";
+      let current = parseInt(localStorage.getItem(key) || "0", 10);
+      localStorage.setItem(key, String(current + 1));
     }
 
+    // 4秒後に自動リダイレクト
     setTimeout(() => {
       window.location.href = "index.html";
-    }, 3000);
+    }, 4000);
   </script>
 </body>
 </html>
