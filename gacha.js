@@ -2,7 +2,7 @@ let works = [];
 let currentWork = null;
 let isDrawing = false;
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxh7CW4kVBf1gjBbGzSTq-G8cUEpQ-06347Wlzk2m1VZFPDHgP-JWDWiPVAtCdjvBD1Xw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzWLUWKFwRJjIa6QVN8XPr7xRLFfTxmI34XBYb80yvIaDuxzzDR5caWnWEB8KQTUe4E4Q/exec";
 
 const drawButton = document.getElementById("drawButton");
 const stage = document.getElementById("stage");
@@ -15,6 +15,10 @@ const linkButton = document.getElementById("linkButton");
 const shareButton = document.getElementById("shareButton");
 const ticketInfo = document.getElementById("ticketInfo");
 
+const promptBox = document.getElementById("promptBox");
+const togglePromptBtn = document.getElementById("togglePromptBtn");
+const copyPromptBtn = document.getElementById("copyPromptBtn");
+
 async function loadWorks() {
   try {
     const response = await fetch(API_URL, { cache: "no-store" });
@@ -23,7 +27,8 @@ async function loadWorks() {
       throw new Error("APIの読み込みに失敗しました");
     }
 
-    works = await response.json();
+    const raw = await response.json();
+    works = Array.isArray(raw) ? raw : (raw.items || []);
 
     if (!Array.isArray(works) || works.length === 0) {
       placeholder.textContent = "まだ投稿作品がありません";
@@ -180,6 +185,23 @@ function giveShareRewardOncePerDay() {
   return true;
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function resetPromptArea() {
+  if (!promptBox || !togglePromptBtn || !copyPromptBtn) return;
+
+  promptBox.style.display = "none";
+  promptBox.innerHTML = "";
+  togglePromptBtn.textContent = "プロンプトを見る";
+  copyPromptBtn.style.display = "none";
+  copyPromptBtn.textContent = "コピー";
+}
+
 function render(work) {
   currentWork = work;
 
@@ -187,6 +209,7 @@ function render(work) {
   meta.style.display = "block";
 
   resetMedia();
+  resetPromptArea();
 
   const file = optimizeCloudinary(work.file);
 
@@ -207,9 +230,7 @@ function render(work) {
   document.getElementById("mediaType").textContent =
     work.type === "video" ? "動画" : "画像";
 
-  const likes = getLikes();
-  const id = getWorkId(work);
-  document.getElementById("likeCount").textContent = likes[id] || 0;
+  document.getElementById("likeCount").textContent = work.likes || 0;
 
   if (work.link && work.link !== "#") {
     linkButton.href = work.link;
@@ -219,7 +240,6 @@ function render(work) {
   }
 
   const shareText = buildShareText(work);
-
   shareButton.href =
     "https://twitter.com/intent/tweet?text=" +
     encodeURIComponent(shareText) +
@@ -282,20 +302,37 @@ drawButton.addEventListener("click", () => {
   }, 850);
 });
 
-likeButton.addEventListener("click", () => {
+likeButton.addEventListener("click", async () => {
   if (!currentWork) return;
 
-  const likes = getLikes();
-  const id = getWorkId(currentWork);
+  likeButton.disabled = true;
 
-  if (likes[id + "_liked"]) return;
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        mode: "like",
+        id: getWorkId(currentWork)
+      })
+    });
 
-  likes[id] = (likes[id] || 0) + 1;
-  likes[id + "_liked"] = true;
+    const data = await response.json();
 
-  setLikes(likes);
-
-  document.getElementById("likeCount").textContent = likes[id];
+    if (data.success) {
+      document.getElementById("likeCount").textContent = data.likes || 0;
+      currentWork.likes = data.likes || 0;
+    } else {
+      alert("いいねに失敗しました");
+    }
+  } catch (e) {
+    console.error(e);
+    alert("いいねに失敗しました");
+  } finally {
+    likeButton.disabled = false;
+  }
 });
 
 shareButton.addEventListener("click", () => {
@@ -309,6 +346,79 @@ shareButton.addEventListener("click", () => {
     );
   }, 200);
 });
+
+if (togglePromptBtn) {
+  togglePromptBtn.addEventListener("click", () => {
+    if (!currentWork) return;
+
+    const prompt = (currentWork.prompt || "").trim();
+    const negativePrompt = (currentWork.negativePrompt || "").trim();
+
+    if (!prompt && !negativePrompt) {
+      alert("この作品にはプロンプトがありません");
+      return;
+    }
+
+    const isOpen = promptBox.style.display === "block";
+
+    if (isOpen) {
+      promptBox.style.display = "none";
+      togglePromptBtn.textContent = "プロンプトを見る";
+      copyPromptBtn.style.display = "none";
+      return;
+    }
+
+    let html = "";
+
+    if (prompt) {
+      html += "<strong>Prompt:</strong><br>" + escapeHtml(prompt) + "<br><br>";
+    }
+
+    if (negativePrompt) {
+      html += "<strong>Negative:</strong><br>" + escapeHtml(negativePrompt);
+    }
+
+    promptBox.innerHTML = html;
+    promptBox.style.display = "block";
+    togglePromptBtn.textContent = "閉じる";
+    copyPromptBtn.style.display = "inline-flex";
+  });
+}
+
+if (copyPromptBtn) {
+  copyPromptBtn.addEventListener("click", async () => {
+    if (!currentWork) return;
+
+    const prompt = (currentWork.prompt || "").trim();
+    const negativePrompt = (currentWork.negativePrompt || "").trim();
+
+    if (!prompt && !negativePrompt) {
+      alert("コピーできるプロンプトがありません");
+      return;
+    }
+
+    let text = "";
+
+    if (prompt) {
+      text += prompt;
+    }
+
+    if (negativePrompt) {
+      text += (text ? "\n\n" : "") + "Negative: " + negativePrompt;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      copyPromptBtn.textContent = "コピー済み";
+      setTimeout(() => {
+        copyPromptBtn.textContent = "コピー";
+      }, 1200);
+    } catch (e) {
+      console.error(e);
+      alert("コピーに失敗しました");
+    }
+  });
+}
 
 loadWorks().then(() => {
   renderLatestWorks();
