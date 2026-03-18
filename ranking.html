@@ -4,16 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 人気ランキング</title>
+
+  <!-- SEO & OGP -->
+  <meta name="description" content="AIガチャMAX R18の人気ランキング。上位10作品をいいね数でチェック！" />
+  <meta property="og:title" content="AIガチャMAX R18 - 人気ランキング" />
+  <meta property="og:description" content="投稿されたR18 AI作品の人気TOP10。あなたの作品もランクインしよう！" />
+  <meta property="og:image" content="https://your-domain.com/og-ranking.jpg" /> <!-- ここにランキング風画像URLを -->
+  <meta name="twitter:card" content="summary_large_image" />
+
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .card.gold   .rank { background: #ffd700; color: #000; }
+    .card.silver .rank { background: #c0c0c0; color: #000; }
+    .card.bronze .rank { background: #cd7f32; color: #000; }
+    .card.error {
+      background: #330000;
+      border: 1px solid #ff4444;
+      padding: 20px;
+      text-align: center;
+    }
+    .top-nav {
+      margin: 20px 0;
+      text-align: center;
+    }
+    .top-nav a {
+      margin: 0 15px;
+      color: #ff66cc;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <a class="toplink" href="index.html">← ガチャに戻る</a>
-    <a class="toplink" href="creators.html">作者ランキング</a>
+    <header class="top-nav">
+      <a href="index.html">← ガチャに戻る</a>
+      <a href="creators.html">作者ランキング</a>
+    </header>
 
     <div class="hero">
       <h1>人気ランキング</h1>
-      <p class="sub">上位10作品のみ表示しています</p>
+      <p class="sub">いいね数上位10作品のみ表示しています</p>
     </div>
 
     <div id="ranking" class="grid"></div>
@@ -30,12 +61,11 @@
       return url;
     }
 
+    // サーバー側と完全に一致させる
     function getWorkId(work) {
-      return work.id || (
-        (work.title || "") + "_" +
-        (work.creator || "") + "_" +
-        (work.file || "")
-      );
+      const creator = (work.creator || "投稿者不明").trim();
+      const file = (work.file || "").trim();
+      return work.id || `AI作品_\( {creator}_ \){file}`;
     }
 
     function normalizeRarity(r) {
@@ -67,7 +97,7 @@
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
-          "Content-Type": "text/plain;charset=utf-8"
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           mode: "like",
@@ -75,12 +105,19 @@
         })
       });
 
+      if (!response.ok) {
+        throw new Error("いいね更新失敗");
+      }
+
       return await response.json();
     }
 
     async function loadRanking() {
       try {
-        const res = await fetch(API_URL + "?t=" + Date.now(), { cache: "no-store" });
+        const res = await fetch(API_URL + "?t=" + Date.now(), {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" }
+        });
 
         if (!res.ok) {
           throw new Error("API取得失敗: " + res.status);
@@ -110,23 +147,23 @@
 
           const media =
             mediaType === "video"
-              ? `<video src="${fileUrl}" controls playsinline preload="metadata"></video>`
-              : `<img src="${fileUrl}" alt="${item.title || "作品画像"}">`;
+              ? `<video src="${fileUrl}" controls playsinline preload="metadata" muted loading="lazy"></video>`
+              : `<img src="\( {fileUrl}" alt=" \){item.title || "作品画像"}" loading="lazy">`;
 
           const linkHtml =
             item.link && item.link !== "#"
-              ? `<a class="work-link" href="${item.link}" target="_blank" rel="noopener noreferrer">作品リンクへ</a>`
+              ? `<a class="work-link" href="${item.link}" target="_blank" rel="noopener noreferrer">作品リンクへ →</a>`
               : "";
 
           const card = document.createElement("div");
-          card.className = "card";
+          card.className = `card ${index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : ''}`;
 
           card.innerHTML = `
-            <div class="rank">#${index + 1}</div>
+            <div class="rank" aria-label="第\( {index + 1}位"># \){index + 1}</div>
             <h3>${item.title || "無題"}</h3>
             ${media}
-            <div>作者: ${item.creator || "投稿者"}</div>
-            <div>ジャンル: ${item.genre || ""}</div>
+            <div>作者: ${item.creator || "投稿者不明"}</div>
+            <div>ジャンル: ${item.genre || "未指定"}</div>
             <div>レアリティ: ${normalizeRarity(item.rarity)}</div>
             <div class="likes">❤️ <span class="like-value">${item.likes}</span></div>
             <button type="button" data-id="${encodeURIComponent(getWorkId(item))}">いいね</button>
@@ -137,7 +174,9 @@
           const likeValue = card.querySelector(".like-value");
 
           button.addEventListener("click", async () => {
+            if (button.disabled) return;
             button.disabled = true;
+            button.textContent = "処理中...";
 
             try {
               const result = await sendLike(decodeURIComponent(button.dataset.id));
@@ -145,13 +184,16 @@
               if (result.success) {
                 likeValue.textContent = result.likes || 0;
                 button.textContent = "いいね済み";
+                button.disabled = true; // 成功後も無効化
               } else {
                 alert("いいねに失敗しました");
+                button.textContent = "いいね";
                 button.disabled = false;
               }
             } catch (error) {
               console.error(error);
               alert("いいねに失敗しました");
+              button.textContent = "いいね";
               button.disabled = false;
             }
           });
@@ -160,8 +202,13 @@
         });
       } catch (error) {
         console.error(error);
-        document.getElementById("ranking").innerHTML =
-          "<div class='card'>ランキングを読み込めませんでした。</div>";
+        document.getElementById("ranking").innerHTML = `
+          <div class="card error">
+            <p>ランキングを読み込めませんでした…</p>
+            <p><a href="#" onclick="loadRanking(); return false;">もう一度読み込む</a></p>
+            <p>または <a href="index.html">ガチャに戻る</a></p>
+          </div>
+        `;
       }
     }
 
