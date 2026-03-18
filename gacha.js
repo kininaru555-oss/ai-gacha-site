@@ -49,12 +49,9 @@ function setTicket(n) {
 
 function updateTicket() {
   const t = getTicket();
-
-  if (t > 0) {
-    ticketInfo.textContent = "ガチャチケット：" + t + "枚";
-  } else {
-    ticketInfo.textContent = "投稿するとガチャを1回引けます";
-  }
+  ticketInfo.textContent = t > 0
+    ? "ガチャチケット：" + t + "枚"
+    : "投稿するとガチャを1回引けます";
 }
 
 function getLikes() {
@@ -80,9 +77,7 @@ function optimizeCloudinary(url) {
 
 function normalizeRarity(r) {
   if (!r) return "N";
-
   const v = String(r).toUpperCase().trim();
-
   if (v === "SSR") return "SSR";
   if (v === "SR") return "SR";
   if (v === "R" || v === "RARE") return "R";
@@ -130,19 +125,15 @@ function weightedDraw() {
   if (roll < 8 && recommended.length) {
     return recommended[Math.floor(Math.random() * recommended.length)];
   }
-
-  if (roll < 10 && ssr.length) {
+  if (roll < 12 && ssr.length) {
     return ssr[Math.floor(Math.random() * ssr.length)];
   }
-
-  if (roll < 20 && sr.length) {
+  if (roll < 25 && sr.length) {
     return sr[Math.floor(Math.random() * sr.length)];
   }
-
-  if (roll < 45 && r.length) {
+  if (roll < 55 && r.length) {
     return r[Math.floor(Math.random() * r.length)];
   }
-
   if (n.length) {
     return n[Math.floor(Math.random() * n.length)];
   }
@@ -165,10 +156,7 @@ function buildShareText(work) {
 
 function getTodayKey() {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return y + "-" + m + "-" + d;
+  return now.toISOString().slice(0, 10);
 }
 
 function getShareRewardKey() {
@@ -184,12 +172,9 @@ function markShareRewardReceived() {
 }
 
 function giveShareRewardOncePerDay() {
-  if (hasReceivedShareRewardToday()) {
-    return false;
-  }
+  if (hasReceivedShareRewardToday()) return false;
 
-  const ticket = getTicket();
-  setTicket(ticket + 1);
+  setTicket(getTicket() + 1);
   markShareRewardReceived();
   updateTicket();
   return true;
@@ -219,7 +204,8 @@ function render(work) {
   document.getElementById("creator").textContent = work.creator || "";
   document.getElementById("genre").textContent = work.genre || "";
   document.getElementById("description").textContent = work.description || "";
-  document.getElementById("mediaType").textContent = work.type === "video" ? "動画" : "画像";
+  document.getElementById("mediaType").textContent =
+    work.type === "video" ? "動画" : "画像";
 
   const likes = getLikes();
   const id = getWorkId(work);
@@ -259,15 +245,14 @@ function renderLatestWorks() {
     ${latest.map(work => {
       const creator = work.creator || "投稿者";
       const genre = work.genre || "AI作品";
-      const rarity = work.rarity || "NORMAL";
-      return `${creator} / ${genre} / ${rarity}`;
+      const rarity = normalizeRarity(work.rarity);
+      return `・${creator} / ${genre} / ${rarity}`;
     }).join("<br>")}
   `;
 }
 
 drawButton.addEventListener("click", () => {
-  if (isDrawing) return;
-  if (!works.length) return;
+  if (isDrawing || !works.length) return;
 
   const ticket = getTicket();
 
@@ -287,8 +272,7 @@ drawButton.addEventListener("click", () => {
   stage.classList.add("animating");
 
   setTimeout(() => {
-    const work = weightedDraw();
-    render(work);
+    render(weightedDraw());
   }, 500);
 
   setTimeout(() => {
@@ -304,7 +288,11 @@ likeButton.addEventListener("click", () => {
   const likes = getLikes();
   const id = getWorkId(currentWork);
 
+  if (likes[id + "_liked"]) return;
+
   likes[id] = (likes[id] || 0) + 1;
+  likes[id + "_liked"] = true;
+
   setLikes(likes);
 
   document.getElementById("likeCount").textContent = likes[id];
@@ -313,15 +301,13 @@ likeButton.addEventListener("click", () => {
 shareButton.addEventListener("click", () => {
   const rewarded = giveShareRewardOncePerDay();
 
-  if (rewarded) {
-    setTimeout(() => {
-      alert("シェアありがとう！本日のシェア報酬でチケット+1しました。");
-    }, 200);
-  } else {
-    setTimeout(() => {
-      alert("シェアありがとう！シェア報酬は1日1回までです。");
-    }, 200);
-  }
+  setTimeout(() => {
+    alert(
+      rewarded
+        ? "シェアありがとう！チケット+1しました。"
+        : "シェアありがとう！報酬は1日1回までです。"
+    );
+  }, 200);
 });
 
 loadWorks().then(() => {
