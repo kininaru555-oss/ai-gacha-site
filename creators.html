@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 作者ランキング</title>
 
-  <!-- SEO & OGP -->
   <meta name="description" content="AIガチャMAX R18の作者ランキング。合計いいね数で人気クリエイターTOP10をチェック！" />
   <meta property="og:title" content="AIガチャMAX R18 - 作者ランキング TOP10" />
   <meta property="og:description" content="投稿されたR18 AI作品の作者をいいね数でランキング。トップ10を発表中！" />
-  <meta property="og:image" content="https://your-domain.com/og-creators-top10.jpg" /> <!-- トップ10風の画像を用意推奨 -->
+  <meta property="og:image" content="https://your-domain.com/og-creators-top10.jpg" />
   <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="stylesheet" href="style.css" />
@@ -20,7 +19,7 @@
       font-size: 14px;
       margin-top: 6px;
     }
-    .card.gold   .rank { background: #ffd700; color: #000; }
+    .card.gold .rank { background: #ffd700; color: #000; }
     .card.silver .rank { background: #c0c0c0; color: #000; }
     .card.bronze .rank { background: #cd7f32; color: #000; }
     .card.error {
@@ -98,7 +97,7 @@
             if (b.totalLikes !== a.totalLikes) return b.totalLikes - a.totalLikes;
             return b.workCount - a.workCount;
           })
-          .slice(0, 10);  // ← ここでトップ10に制限
+          .slice(0, 10);
 
         const container = document.getElementById("creatorRanking");
         container.innerHTML = "";
@@ -110,14 +109,14 @@
 
         creators.forEach((creator, i) => {
           const card = document.createElement("div");
-          card.className = `card ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}`;
+          card.className = `card ${i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : ""}`;
 
           const linkHtml = creator.link && creator.link !== "#"
             ? `<a class="creator-link" href="${creator.link}" target="_blank" rel="noopener noreferrer">作品リンクへ →</a>`
             : "";
 
           card.innerHTML = `
-            <div class="rank" aria-label="第\( {i + 1}位"># \){i + 1}</div>
+            <div class="rank" aria-label="第${i + 1}位">#${i + 1}</div>
             <div class="name">${creator.creator}</div>
             <div class="creator-meta">
               合計いいね: ❤️ ${creator.totalLikes}<br>
