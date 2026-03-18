@@ -59,8 +59,10 @@ function setTicket(n) {
 
 function updateTicket() {
   const t = getTicket();
-  ticketInfo.textContent =
-    t > 0 ? "ガチャチケット：" + t + "枚" : "投稿するとガチャを1回引けます";
+  if (ticketInfo) {
+    ticketInfo.textContent =
+      t > 0 ? "ガチャチケット：" + t + "枚" : "投稿するとガチャを1回引けます";
+  }
 }
 
 function getWorkId(work) {
@@ -92,6 +94,8 @@ function normalizeRarity(r) {
 
 function setRarityStyle(rarityText) {
   const rarity = document.getElementById("rarity");
+  if (!rarity) return;
+
   const r = normalizeRarity(rarityText);
 
   stage.classList.remove("rare", "ssr");
@@ -112,6 +116,8 @@ function setRarityStyle(rarityText) {
 }
 
 function resetMedia() {
+  if (!resultImage || !resultVideo) return;
+
   resultImage.style.display = "none";
   resultVideo.style.display = "none";
   resultVideo.pause();
@@ -236,8 +242,8 @@ function resetPromptArea() {
 function render(work) {
   currentWork = work;
 
-  placeholder.style.display = "none";
-  meta.style.display = "block";
+  if (placeholder) placeholder.style.display = "none";
+  if (meta) meta.style.display = "block";
 
   resetMedia();
   resetPromptArea();
@@ -271,7 +277,9 @@ function render(work) {
     linkButton.style.display = "none";
   }
 
-  shareButton.href = buildShareUrl(work);
+  if (shareButton) {
+    shareButton.href = buildShareUrl(work);
+  }
 
   setRarityStyle(work.rarity);
 }
@@ -300,87 +308,93 @@ function renderLatestWorks() {
   `;
 }
 
-drawButton.addEventListener("click", () => {
-  if (isDrawing || !works.length) return;
+if (drawButton) {
+  drawButton.addEventListener("click", () => {
+    if (isDrawing || !works.length) return;
 
-  const ticket = getTicket();
+    const ticket = getTicket();
 
-  if (ticket <= 0) {
-    if (confirm("ガチャチケットがありません。\n作品投稿で1枚GETできます。投稿ページへ移動しますか？")) {
-      window.location.href = "upload.html";
+    if (ticket <= 0) {
+      if (confirm("ガチャチケットがありません。\n作品投稿で1枚GETできます。投稿ページへ移動しますか？")) {
+        window.location.href = "upload.html";
+      }
+      return;
     }
-    return;
-  }
 
-  isDrawing = true;
-  drawButton.disabled = true;
+    isDrawing = true;
+    drawButton.disabled = true;
 
-  setTicket(ticket - 1);
-  updateTicket();
+    setTicket(ticket - 1);
+    updateTicket();
 
-  stage.classList.add("animating");
+    stage.classList.add("animating");
 
-  setTimeout(() => {
-    render(weightedDraw());
-  }, 500);
+    setTimeout(() => {
+      render(weightedDraw());
+    }, 500);
 
-  setTimeout(() => {
-    stage.classList.remove("animating");
-    drawButton.disabled = false;
-    isDrawing = false;
-  }, 850);
-});
+    setTimeout(() => {
+      stage.classList.remove("animating");
+      drawButton.disabled = false;
+      isDrawing = false;
+    }, 850);
+  });
+}
 
-likeButton.addEventListener("click", async () => {
-  if (!currentWork) return;
+if (likeButton) {
+  likeButton.addEventListener("click", async () => {
+    if (!currentWork) return;
 
-  likeButton.disabled = true;
+    likeButton.disabled = true;
 
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify({
-        mode: "like",
-        id: getWorkId(currentWork)
-      })
-    });
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify({
+          mode: "like",
+          id: getWorkId(currentWork)
+        })
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.success) {
-      document.getElementById("likeCount").textContent = data.likes || 0;
-      currentWork.likes = data.likes || 0;
-    } else {
+      if (data.success) {
+        document.getElementById("likeCount").textContent = data.likes || 0;
+        currentWork.likes = data.likes || 0;
+      } else {
+        alert("いいねに失敗しました");
+      }
+    } catch (e) {
+      console.error(e);
       alert("いいねに失敗しました");
+    } finally {
+      likeButton.disabled = false;
     }
-  } catch (e) {
-    console.error(e);
-    alert("いいねに失敗しました");
-  } finally {
-    likeButton.disabled = false;
-  }
-});
+  });
+}
 
-shareButton.addEventListener("click", (e) => {
-  if (!currentWork) {
-    e.preventDefault();
-    alert("先にガチャを引いてください");
-    return;
-  }
+if (shareButton) {
+  shareButton.addEventListener("click", (e) => {
+    if (!currentWork) {
+      e.preventDefault();
+      alert("先にガチャを引いてください");
+      return;
+    }
 
-  const rewarded = giveShareRewardOncePerDay();
+    const rewarded = giveShareRewardOncePerDay();
 
-  setTimeout(() => {
-    alert(
-      rewarded
-        ? "シェアありがとう！チケット+1しました。"
-        : "シェアありがとう！報酬は1日1回までです。"
-    );
-  }, 200);
-});
+    setTimeout(() => {
+      alert(
+        rewarded
+          ? "シェアありがとう！チケット+1しました。"
+          : "シェアありがとう！報酬は1日1回までです。"
+      );
+    }, 200);
+  });
+}
 
 if (togglePromptBtn) {
   togglePromptBtn.addEventListener("click", () => {
@@ -453,6 +467,10 @@ if (copyPromptBtn) {
       alert("コピーに失敗しました");
     }
   });
+}
+
+if (shareButton) {
+  shareButton.href = buildShareUrl(null);
 }
 
 loadWorks();
