@@ -4,12 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>無料AIガチャMAX R18</title>
-  
-  <!-- SEO & OGP -->
+
   <meta name="description" content="無料でR18向けAI生成画像・動画をガチャ！あなたの作品も投稿可能。シェアでチケットGET！" />
   <meta property="og:title" content="無料AIガチャMAX R18" />
   <meta property="og:description" content="投稿されたAI作品がランダムで出る無料ガチャ。あなたのR18 AI画像・動画も追加できます。" />
-  <meta property="og:image" content="https://your-domain.com/og-image.jpg" /> <!-- ここに魅力的なOGP画像URLを入れる -->
+  <meta property="og:image" content="https://your-domain.com/og-image.jpg" />
   <meta property="og:url" content="https://your-domain.com/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -17,8 +16,18 @@
   <meta name="twitter:description" content="投稿されたAI作品がランダムで出る無料ガチャ。シェアでチケットGET！" />
   <meta name="twitter:image" content="https://your-domain.com/og-image.jpg" />
 
-  <!-- CSP（XSS対策・GAS許可） -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://script.google.com https://*.googleusercontent.com; frame-src 'none';" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' https: data:;
+      media-src 'self' https: data:;
+      connect-src 'self' https://script.google.com https://*.googleusercontent.com;
+      frame-src 'none';
+    "
+  />
 
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -37,7 +46,7 @@
         利用を続けることで、18歳以上であることに同意したものとみなします。
       </div>
 
-      <p id="ticketInfo" class="mini-note"></p>
+      <p id="ticketInfo" class="mini-note">読み込み中...</p>
       <p class="mini-note">Xでシェアすると1日1回までチケット+1</p>
 
       <div class="buttons">
@@ -55,7 +64,13 @@
           ボタンを押すとランダムで作品が出ます
         </div>
 
-        <img id="resultImage" class="media" alt="ガチャ結果画像" loading="lazy" style="display:none;" />
+        <img
+          id="resultImage"
+          class="media"
+          alt="ガチャ結果画像"
+          loading="lazy"
+          style="display:none;"
+        />
 
         <video
           id="resultVideo"
@@ -65,7 +80,7 @@
           muted
           playsinline
           preload="metadata"
-          poster="https://res.cloudinary.com/dc7oz9roa/image/upload/v1773658391/ai_gacha/grok_image_1770816196541_cxthvd.jpg" <!-- 動画ロード中の代替画像（任意） -->
+          poster="https://res.cloudinary.com/dc7oz9roa/image/upload/v1773658391/ai_gacha/grok_image_1770816196541_cxthvd.jpg"
           style="display:none;"
         ></video>
 
@@ -75,7 +90,7 @@
 
       <button id="drawButton" class="draw-btn" aria-label="ガチャを引く">ガチャを引く</button>
 
-      <div id="meta" class="meta">
+      <div id="meta" class="meta" style="display:none;">
         <div><strong>タイトル:</strong> <span id="title"></span></div>
         <div><strong>作者:</strong> <span id="creator"></span></div>
         <div><strong>ジャンル:</strong> <span id="genre"></span></div>
@@ -112,25 +127,10 @@
       <strong>掲載したい人へ</strong><br>
       画像・動画どちらも1点から投稿できます。<br>
       投稿された作品は順次ガチャに追加されます。
-
-      <!-- 外部アダルトリンクはリスクが高いためコメントアウト（必要なら自サイトのサンプルに変更） -->
-      <!--
-      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <div class="sample_block" style="width:128px; text-align: left; background: #222;">
-          <a href="..." target="_blank" rel="noopener noreferrer">
-            <img src="..." loading="lazy" style="margin-bottom: 6px;">
-            <br>サンプル1
-          </a>
-        </div>
-        ...
-      </div>
-      -->
-
-      <!-- ここに自サイトのサンプル画像を入れると安心 -->
     </div>
 
     <footer class="footer-links">
-      <a href="disclaimer.html">免責事項</a> | 
+      <a href="disclaimer.html">免責事項</a> |
       <a href="terms.html">利用規約</a>
     </footer>
   </div>
