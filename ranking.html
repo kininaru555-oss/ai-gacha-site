@@ -13,7 +13,7 @@
 
     <div class="hero">
       <h1>人気ランキング</h1>
-      <p class="sub">作品のいいね数順に表示しています</p>
+      <p class="sub">上位10作品のみ表示しています</p>
     </div>
 
     <div id="ranking" class="grid"></div>
@@ -90,6 +90,7 @@
           likes: Number(item.likes || 0)
         }));
 
+        // 並び替え
         items.sort((a, b) => b.likes - a.likes);
 
         const rankingDiv = document.getElementById("ranking");
@@ -100,7 +101,8 @@
           return;
         }
 
-        items.forEach((item, index) => {
+        // 🔥 上位10件だけ
+        items.slice(0, 10).forEach((item, index) => {
           const mediaType = getMediaType(item);
           const fileUrl = getMediaUrl(item);
 
