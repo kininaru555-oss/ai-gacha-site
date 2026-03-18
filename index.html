@@ -39,7 +39,8 @@
           ボタンを押すとランダムで作品が出ます
         </div>
 
-        <img id="resultImage" class="media" alt="ガチャ画像" />
+        <!-- 初期非表示 -->
+        <img id="resultImage" class="media" alt="ガチャ画像" style="display:none;" />
 
         <video
           id="resultVideo"
@@ -49,6 +50,7 @@
           muted
           playsinline
           preload="metadata"
+          style="display:none;"
         ></video>
 
         <div class="flash"></div>
@@ -68,13 +70,22 @@
           いいね: <span id="likeCount">0</span>
         </div>
 
-        <div><span id="rarity" class="rarity">NORMAL</span></div>
+        <!-- 初期値修正 -->
+        <div><span id="rarity" class="rarity">N</span></div>
 
         <div class="result-buttons">
           <button id="likeButton" class="btn-like">♡ いいね</button>
           <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
           <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
         </div>
+
+        <!-- ★プロンプトUI追加 -->
+        <div style="margin-top:10px;">
+          <button id="togglePromptBtn" class="btn-like">プロンプトを見る</button>
+          <button id="copyPromptBtn" class="btn-like" style="display:none;">コピー</button>
+        </div>
+
+        <div id="promptBox" class="notice-box" style="display:none;"></div>
       </div>
     </div>
 
@@ -89,21 +100,21 @@
       投稿された作品は順次ガチャに追加されます。
 
       <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-  <div class="sample_block" style="width:128px; text-align: left; background: #fff;">
-    <a href="https://adult.contents.fc2.com/article/2519236/?tag=TXpBNE16ZzVNZz09" target="_blank">
-      <img src="https://contents-thumbnail2.fc2.com/w128/storage61000.contents.fc2.com/file/378/37753126/1639629993.28.jpg" style="margin-bottom: 6px;">
-      <br>「#18」上物です。ハメ撮りしました。洪水まんこ気持ちよすぎ♡両想い♡
-    </a>
-  </div>
 
-  <div class="sample_block" style="width:128px; text-align: left; background: #fff;">
-    <a href="https://adult.contents.fc2.com/article/2905903/?tag=TXpBNE16ZzVNZz09" target="_blank">
-      <img src="https://contents-thumbnail2.fc2.com/w128/storage62000.contents.fc2.com/file/354/35350526/1653063622.33.jpg" style="margin-bottom: 6px;">
-      <br>ショートヘアの長身元バレー部。ネカフェでパンツを買いノーパン露出の後ホテルへ
-    </a>
-  </div>
+        <div class="sample_block" style="width:128px; text-align: left; background: #222;">
+          <a href="https://adult.contents.fc2.com/article/2519236/?tag=TXpBNE16ZzVNZz09" target="_blank" rel="noopener noreferrer">
+            <img src="https://contents-thumbnail2.fc2.com/w128/storage61000.contents.fc2.com/file/378/37753126/1639629993.28.jpg" style="margin-bottom: 6px;">
+            <br>「#18」上物です。ハメ撮りしました。
+          </a>
+        </div>
 
-  <!-- さらに追加したい分だけここに並べる -->
+        <div class="sample_block" style="width:128px; text-align: left; background: #222;">
+          <a href="https://adult.contents.fc2.com/article/2905903/?tag=TXpBNE16ZzVNZz09" target="_blank" rel="noopener noreferrer">
+            <img src="https://contents-thumbnail2.fc2.com/w128/storage62000.contents.fc2.com/file/354/35350526/1653063622.33.jpg" style="margin-bottom: 6px;">
+            <br>ショートヘアの長身元バレー部
+          </a>
+        </div>
+
       </div>
       
       <div class="footer-links">
