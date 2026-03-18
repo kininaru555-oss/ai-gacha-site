@@ -2,7 +2,7 @@ let works = [];
 let currentWork = null;
 let isDrawing = false;
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzWLUWKFwRJjIa6QVN8XPr7xRLFfTxmI34XBYb80yvIaDuxzzDR5caWnWEB8KQTUe4E4Q/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz8CPZk4CpxFPs10axGN9gLorg1Rw3ncS1m3HuqY26-eWIIcKT-6L4noxS3u0TjnAy9_A/exec";
 
 const drawButton = document.getElementById("drawButton");
 const stage = document.getElementById("stage");
