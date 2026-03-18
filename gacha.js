@@ -2,7 +2,6 @@ let works = [];
 let currentWork = null;
 let isDrawing = false;
 
-// 最新GAS URL
 const API_URL = "https://script.google.com/macros/s/AKfycbwLrNDEaGQyPJVwq3ggfOfUpHQe0gIrfCrcoXJTs6SRXbBTX957uSY3ndsi_f_ylV12jw/exec";
 
 const drawButton = document.getElementById("drawButton");
@@ -181,6 +180,16 @@ function buildShareText(work) {
   );
 }
 
+function buildShareUrl(work) {
+  const shareText = buildShareText(work);
+  return (
+    "https://twitter.com/intent/tweet?text=" +
+    encodeURIComponent(shareText) +
+    "&url=" +
+    encodeURIComponent(location.href)
+  );
+}
+
 function getTodayKey() {
   const now = new Date();
   return now.toISOString().slice(0, 10);
@@ -262,12 +271,7 @@ function render(work) {
     linkButton.style.display = "none";
   }
 
-  const shareText = buildShareText(work);
-  shareButton.href =
-    "https://twitter.com/intent/tweet?text=" +
-    encodeURIComponent(shareText) +
-    "&url=" +
-    encodeURIComponent(location.href);
+  shareButton.href = buildShareUrl(work);
 
   setRarityStyle(work.rarity);
 }
@@ -360,7 +364,13 @@ likeButton.addEventListener("click", async () => {
   }
 });
 
-shareButton.addEventListener("click", () => {
+shareButton.addEventListener("click", (e) => {
+  if (!currentWork) {
+    e.preventDefault();
+    alert("先にガチャを引いてください");
+    return;
+  }
+
   const rewarded = giveShareRewardOncePerDay();
 
   setTimeout(() => {
