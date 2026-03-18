@@ -182,4 +182,409 @@
         <select id="type" required>
           <option value="画像">画像</option>
           <option value="動画">動画</option>
+        </select>
+
+        <label>作品ファイル</label>
+        <input id="fileInput" type="file" accept="image/*,video/*" class="hidden" />
+        <button type="button" id="selectFileBtn" class="btn btn-select">端末からファイルを選ぶ</button>
+        <div id="fileName" class="file-name"></div>
+
+        <label for="imageUrl">作品画像URL</label>
+        <input id="imageUrl" type="text" placeholder="アップロード後に自動入力" readonly />
+
+        <label for="videoUrl">作品動画URL（任意）</label>
+        <input id="videoUrl" type="text" placeholder="アップロード後に自動入力" readonly />
+
+        <div id="previewBox" class="preview hidden"></div>
+        <div id="status" class="status"></div>
+
+        <label for="workLink">作品リンク（X / DLsite / pixivなど任意）</label>
+        <input id="workLink" type="text" />
+
+        <label for="xAccount">Xアカウント（任意）</label>
+        <input id="xAccount" type="text" placeholder="@なしでも可" />
+
+        <label for="genre">ジャンル</label>
+        <select id="genre" required>
+          <option value="AI2次元">AI2次元</option>
+          <option value="AI3次元">AI3次元</option>
+        </select>
+
+        <label for="xPromo">Xで紹介しても良いですか？</label>
+        <select id="xPromo" required>
+          <option value="はい">はい</option>
+          <option value="いいえ">いいえ</option>
+        </select>
+
+        <label for="rarity">レアリティ(自己評価)</label>
+        <select id="rarity" required>
+          <option value="SSR">SSR</option>
+          <option value="SR">SR</option>
+          <option value="R">R</option>
+          <option value="N">N</option>
+        </select>
+
+        <label for="comment">宣伝コメント（任意）</label>
+        <textarea id="comment"></textarea>
+
+        <label for="prompt">プロンプト（任意）</label>
+        <textarea id="prompt"></textarea>
+
+        <label for="negativePrompt">ネガティブプロンプト（任意）</label>
+        <textarea id="negativePrompt"></textarea>
+
+        <div class="small">
+          送信すると、Googleフォーム経由で掲載候補に追加されます。
+        </div>
+
+        <button id="submitBtn" type="submit" class="btn btn-submit">投稿する</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const CLOUD_NAME = "dc7oz9roa";
+    const UPLOAD_PRESET = "ai_gacha";
+
+    const GOOGLE_FORM_ACTION =
+      "https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/formResponse";
+
+    const ENTRY = {
+      creator: "entry.29315806",
+      imageUrl: "entry.440407028",
+      videoUrl: "entry.199984987",
+      workLink: "entry.568565445",
+      xAccount: "entry.830490568",
+      genre: "entry.908703590",
+      xPromo: "entry.29845992",
+      rarity: "entry.35815312",
+      comment: "entry.894567656",
+      prompt: "entry.1577278835",
+      negativePrompt: "entry.1251304338",
+      type: "entry.865507487",
+      permission: "entry.1133972974"
+    };
+
+    const typeEl = document.getElementById("type");
+    const fileInput = document.getElementById("fileInput");
+    const selectFileBtn = document.getElementById("selectFileBtn");
+    const fileNameEl = document.getElementById("fileName");
+    const imageUrlEl = document.getElementById("imageUrl");
+    const videoUrlEl = document.getElementById("videoUrl");
+    const previewBox = document.getElementById("previewBox");
+    const statusEl = document.getElementById("status");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function setStatus(message) {
+      statusEl.textContent = message || "";
+    }
+
+    function renderPreview(type, url) {
+      if (!url) {
+        previewBox.classList.add("hidden");
+        previewBox.innerHTML = "";
+        return;
+      }
+
+      previewBox.classList.remove("hidden");
+
+      if (type === "動画") {
+        previewBox.innerHTML = `<video src="${url}" controls playsinline preload="metadata"></video>`;
+      } else {
+        previewBox.innerHTML = `<img src="${url}" alt="preview">`;
+      }
+    }
+
+    function resetUploadedUrls() {
+      imageUrlEl.value = "";
+      videoUrlEl.value = "";
+      renderPreview(typeEl.value, "");
+    }
+
+    selectFileBtn.addEventListener("click", () => {
+      fileInput.click();
+    });
+
+    typeEl.addEventListener("change", () => {
+      resetUploadedUrls();
+      fileInput.value = "";
+      fileNameEl.textContent = "";
+
+      if (typeEl.value === "画像") {
+        fileInput.accept = "image/*";
+      } else {
+        fileInput.accept = "video/*";
+      }
+    });
+
+    async function uploadToCloudinary(file) {
+      const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+      formData.append("folder", "ai_gacha");
+
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error("Cloudinaryアップロード失敗");
+      }
+
+      return await response.json();
+    }
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+
+      if (!file) return;
+
+      fileNameEl.textContent = `選択中: ${file.name}`;
+      setStatus("アップロード中...");
+      submitBtn.disabled = true;
+
+      try {
+        const result = await uploadToCloudinary(file);
+        const secureUrl = result.secure_url || "";
+        const resourceType = result.resource_type || "";
+
+        if (resourceType === "video" || file.type.startsWith("video/")) {
+          typeEl.value = "動画";
+          videoUrlEl.value = secureUrl;
+          imageUrlEl.value = "";
+          renderPreview("動画", secureUrl);
+        } else {
+          typeEl.value = "画像";
+          imageUrlEl.value = secureUrl;
+          videoUrlEl.value = "";
+          renderPreview("画像", secureUrl);
+        }
+
+        setStatus("アップロード完了");
+      } catch (error) {
+        console.error(error);
+        setStatus("アップロードに失敗しました");
+        alert("Cloudinaryアップロードに失敗しました");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    document.getElementById("submitForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const creator = document.getElementById("creator").value.trim();
+      const imageUrl = imageUrlEl.value.trim();
+      const videoUrl = videoUrlEl.value.trim();
+      const workLink = document.getElementById("workLink").value.trim();
+      const xAccount = document.getElementById("xAccount").value.trim();
+      const genre = document.getElementById("genre").value;
+      const xPromo = document.getElementById("xPromo").value;
+      const rarity = document.getElementById("rarity").value;
+      const comment = document.getElementById("comment").value.trim();
+      const prompt = document.getElementById("prompt").value.trim();
+      const negativePrompt = document.getElementById("negativePrompt").value.trim();
+      const type = typeEl.value;
+
+      if (!creator) {
+        alert("クリエイター名を入力してください");
+        return;
+      }
+
+      if (type === "画像" && !imageUrl) {
+        alert("先に画像をアップロードしてください");
+        return;
+      }
+
+      if (type === "動画" && !videoUrl) {
+        alert("先に動画をアップロードしてください");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      setStatus("投稿送信中...");
+
+      const formData = new FormData();
+      formData.append(ENTRY.creator, creator);
+      formData.append(ENTRY.imageUrl, imageUrl);
+      formData.append(ENTRY.videoUrl, videoUrl);
+      formData.append(ENTRY.workLink, workLink);
+      formData.append(ENTRY.xAccount, xAccount);
+      formData.append(ENTRY.genre, genre);
+      formData.append(ENTRY.xPromo, xPromo);
+      formData.append(ENTRY.rarity, rarity);
+      formData.append(ENTRY.comment, comment);
+      formData.append(ENTRY.prompt, prompt);
+      formData.append(ENTRY.negativePrompt, negativePrompt);
+      formData.append(ENTRY.type, type);
+      formData.append(ENTRY.permission, "はい");
+
+      try {
+        await fetch(GOOGLE_FORM_ACTION, {
+          method: "POST",
+          mode: "no-cors",
+          body: formData
+        });
+
+        window.location.href = "thanks.html";
+      } catch (error) {
+        console.error(error);
+        setStatus("投稿送信に失敗しました");
+        alert("投稿送信に失敗しました");
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>    .sub {
+      color: #d8d8d8;
+      font-size: 14px;
+      line-height: 1.7;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    .notice {
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(179, 21, 75, 0.18);
+      border: 1px solid rgba(255, 120, 170, 0.25);
+      color: #ffd7e2;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      background: #2a2a2a;
+      color: #fff;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .btn-select {
+      background: #7b61ff;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #d61f69 0%, #9f1146 100%);
+      width: 100%;
+      margin-top: 18px;
+      font-weight: bold;
+      font-size: 16px;
+      padding: 14px;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .btn-back {
+      display: inline-block;
+      margin-bottom: 14px;
+      background: #444;
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+    }
+
+    .preview {
+      margin-top: 12px;
+      background: #2a2a2a;
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .preview img,
+    .preview video {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    .small {
+      color: #bdbdbd;
+      font-size: 12px;
+      margin-top: 6px;
+      line-height: 1.6;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #ffd7e2;
+      line-height: 1.6;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .file-name {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #d8d8d8;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="btn-back" href="index.html">← ガチャに戻る</a>
+
+    <div class="card">
+      <h1>作品投稿</h1>
+      <p class="sub">
+        端末から画像や動画を選んで、そのまま投稿できます。<br>
+        投稿後はガチャチケットを1枚受け取れます。
+      </p>
+
+      <div class="notice">
+        このページは18歳以上向け作品投稿を想定しています。<br>
+        権利侵害のおそれがある作品や、掲載許可のない作品は投稿しないでください。
+      </div>
+
+      <form id="submitForm">
+        <label for="creator">クリエイター名、ハンドルネーム</label>
+        <input id="creator" type="text" required />
+
+        <label for="type">タイプ</label>
+        <select id="type" required>
+          <option value="画像">画像</option>
+          <option value="動画">動画</option>
         </
