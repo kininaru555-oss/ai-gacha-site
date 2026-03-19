@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 app = FastAPI()
 
-CSV_URL = "ここに公開したCSVのURLを入れる"
+CSV_URL = "https://docs.google.com/spreadsheets/d/1zoZKK83PLQhiQpTUcUPn4iZ91Mx9wmTxeEX3Nba6SIU/edit?usp=drivesdk"
 
 
 @app.get("/health")
