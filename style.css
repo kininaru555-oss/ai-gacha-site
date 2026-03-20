@@ -33,7 +33,6 @@ body {
 h1 {
   margin: 0 0 8px;
   font-size: 26px;
-  letter-spacing: 0.5px;
 }
 
 .sub,
@@ -65,8 +64,7 @@ h1 {
 .btn-like,
 .btn-share,
 .btn-link,
-.draw-btn,
-.card button {
+.draw-btn {
   border: none;
   border-radius: 12px;
   padding: 12px 14px;
@@ -80,32 +78,12 @@ h1 {
   transition: transform 0.08s ease, opacity 0.2s;
 }
 
-.btn:active,
-.btn-like:active,
-.btn-share:active,
-.btn-link:active,
-.draw-btn:active,
-.card button:active {
-  transform: scale(0.96);
-}
-
 .btn:hover,
 .btn-like:hover,
 .btn-share:hover,
 .btn-link:hover,
-.draw-btn:hover,
-.card button:hover {
+.draw-btn:hover {
   opacity: 0.85;
-}
-
-.btn:focus,
-.btn-like:focus,
-.btn-share:focus,
-.btn-link:focus,
-.draw-btn:focus,
-.card button:focus {
-  outline: 3px solid #ff66cc;
-  outline-offset: 2px;
 }
 
 .btn-post {
@@ -152,12 +130,6 @@ h1 {
   height: 100%;
   object-fit: contain;
   background: #111;
-  display: none;
-}
-
-.stage video,
-.stage img {
-  aspect-ratio: 3 / 4;
 }
 
 .placeholder {
@@ -175,12 +147,7 @@ h1 {
 }
 
 .flash {
-  background: radial-gradient(
-    circle,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 255, 255, 0.14) 55%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.14) 55%, rgba(255,255,255,0) 100%);
   opacity: 0;
 }
 
@@ -189,12 +156,7 @@ h1 {
   left: -40%;
   width: 40%;
   height: 140%;
-  background: linear-gradient(
-    110deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.8) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background: linear-gradient(110deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 100%);
   transform: skewX(-20deg);
   opacity: 0;
 }
@@ -208,17 +170,11 @@ h1 {
   width: 100%;
   margin-bottom: 10px;
   font-weight: bold;
-  letter-spacing: 0.3px;
 }
 
 .draw-btn:disabled {
   opacity: 0.6;
   cursor: wait;
-}
-
-.mini-note {
-  margin: 0 0 8px;
-  font-size: 12px;
 }
 
 .meta {
@@ -229,16 +185,11 @@ h1 {
   background: #2a2a2a;
   border-radius: 12px;
   padding: 12px;
-  display: none;
 }
 
 .meta > div {
   margin-bottom: 4px;
   word-break: break-word;
-}
-
-.meta strong {
-  color: #ffd4ea;
 }
 
 .rarity {
@@ -294,35 +245,9 @@ h1 {
   line-height: 1.8;
 }
 
-.notice-box a {
-  color: #8ec2ff;
-  text-decoration: none;
-}
-
 .footer-links {
   margin-top: 10px;
   text-align: center;
-}
-
-.sample_block {
-  border-radius: 10px;
-  overflow: hidden;
-  padding: 6px;
-  box-sizing: border-box;
-}
-
-.sample_block img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-}
-
-.sample_block a {
-  color: #f5f5f5;
-  text-decoration: none;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 #promptBox {
@@ -356,104 +281,15 @@ h1 {
   line-height: 1.6;
 }
 
-.toplink,
-.top-nav a {
-  display: inline-block;
-  margin: 0 8px 20px;
-  color: #fff;
-  text-decoration: none;
-  background: #444;
-  padding: 8px 14px;
-  border-radius: 8px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-@media (min-width: 768px) {
-  .grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  }
-}
-
-.card {
-  background: #222;
-  padding: 15px;
+.listing-full-box {
+  margin-top: 10px;
+  padding: 12px;
   border-radius: 12px;
-  text-align: left;
-  box-sizing: border-box;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-}
-
-.card h3 {
-  margin: 0 0 10px;
-  font-size: 18px;
-  line-height: 1.5;
-  word-break: break-word;
-}
-
-.card img,
-.card video {
-  width: 100%;
-  max-height: 280px;
-  object-fit: contain;
-  border-radius: 10px;
-  margin-bottom: 12px;
-  background: #111;
-}
-
-.rank {
-  display: inline-block;
-  font-size: 20px;
-  font-weight: bold;
-  color: #ffcc66;
-  margin-bottom: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 204, 102, 0.12);
-}
-
-.name {
-  font-size: 18px;
-  margin-bottom: 8px;
-  word-break: break-word;
-}
-
-.likes {
-  margin-top: 8px;
-  color: #ffcc66;
-  font-size: 14px;
-}
-
-.work-link,
-.creator-link {
-  display: inline-block;
-  margin-top: 10px;
-  color: #fff;
-  text-decoration: none;
-  background: #0b57d0;
-  padding: 8px 12px;
-  border-radius: 8px;
-}
-
-.card button {
-  margin-top: 10px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 8px;
-  background: #e91e63;
-  color: #fff;
-  cursor: pointer;
-}
-
-.card button:disabled {
-  opacity: 0.6;
-  cursor: default;
+  background: rgba(255, 120, 120, 0.12);
+  border: 1px solid rgba(255, 120, 120, 0.28);
+  color: #ffd7d7;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .stage.ssr {
@@ -471,12 +307,8 @@ h1 {
 }
 
 @keyframes ssr-glow {
-  0% {
-    box-shadow: 0 0 20px 8px rgba(212, 175, 55, 0.7);
-  }
-  100% {
-    box-shadow: 0 0 40px 15px rgba(212, 175, 55, 0.9);
-  }
+  0% { box-shadow: 0 0 20px 8px rgba(212, 175, 55, 0.7); }
+  100% { box-shadow: 0 0 40px 15px rgba(212, 175, 55, 0.9); }
 }
 
 .stage.animating {
@@ -492,51 +324,23 @@ h1 {
 }
 
 @keyframes shake {
-  0% {
-    transform: translateX(0) scale(1);
-  }
-  20% {
-    transform: translateX(-4px) scale(1.01);
-  }
-  40% {
-    transform: translateX(4px) scale(1.01);
-  }
-  60% {
-    transform: translateX(-3px) scale(1.005);
-  }
-  80% {
-    transform: translateX(3px) scale(1.005);
-  }
-  100% {
-    transform: translateX(0) scale(1);
-  }
+  0% { transform: translateX(0) scale(1); }
+  20% { transform: translateX(-4px) scale(1.01); }
+  40% { transform: translateX(4px) scale(1.01); }
+  60% { transform: translateX(-3px) scale(1.005); }
+  80% { transform: translateX(3px) scale(1.005); }
+  100% { transform: translateX(0) scale(1); }
 }
 
 @keyframes flashAnim {
-  0% {
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  60% {
-    opacity: 0.65;
-  }
-  100% {
-    opacity: 0;
-  }
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  60% { opacity: 0.65; }
+  100% { opacity: 0; }
 }
 
 @keyframes shineAnim {
-  0% {
-    left: -50%;
-    opacity: 0;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    left: 150%;
-    opacity: 0;
-  }
+  0% { left: -50%; opacity: 0; }
+  50% { opacity: 0.7; }
+  100% { left: 150%; opacity: 0; }
   }
