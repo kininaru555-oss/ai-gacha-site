@@ -8,6 +8,9 @@ let currentPointExpireAt = "";
 const API_URL = "https://script.google.com/macros/s/AKfycbzRW9dHBTOaRkM8gibA09i9L8zSiDDdd1YNWikqT4wn7zQWSaJQpo3-5CJx61od6-sNbQ/exec";
 const OWNERSHIP_API = "/api/ownerships";
 const POINT_API_BASE = "/api/points";
+const VENDING_MACHINES_API = "/api/vending-machines";
+const VENDING_AVAILABLE_API = "/api/vending-machines/available/for-listing";
+
 const DRAW_COST = 30;
 const SHARE_REWARD_POINTS = 30;
 
@@ -32,6 +35,7 @@ const featuredTypeEl = document.getElementById("featuredType");
 const listingArea = document.getElementById("listingArea");
 const listToMachineBtn = document.getElementById("listToMachineBtn");
 const listingMessage = document.getElementById("listingMessage");
+const listingFullBox = document.getElementById("listingFullBox");
 
 // 当たり表示
 const jackpotEl = document.createElement("div");
@@ -41,6 +45,7 @@ jackpotEl.style.color = "gold";
 jackpotEl.style.fontWeight = "bold";
 jackpotEl.style.marginTop = "10px";
 jackpotEl.textContent = "🎉 当たり！";
+
 if (meta) {
   meta.appendChild(jackpotEl);
 }
@@ -95,6 +100,7 @@ async function loadWorks() {
     if (drawButton) {
       drawButton.disabled = false;
     }
+
     renderLatestWorks();
   } catch (e) {
     if (placeholder) {
@@ -364,6 +370,70 @@ function isOperatorPick(work) {
   return String(work.featured_type || "").trim() === "operator_pick";
 }
 
+async function getAvailableMachine() {
+  try {
+    const res = await fetch(VENDING_AVAILABLE_API, {
+      cache: "no-store"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return null;
+    }
+
+    if (!data.available) {
+      return null;
+    }
+
+    return data;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function updateListingAreaForCurrentWork(work) {
+  if (!listingArea || !listingMessage || !listToMachineBtn) return;
+
+  listingArea.style.display = "none";
+  listingMessage.textContent = "";
+  listingArea.dataset.machineId = "";
+
+  if (listingFullBox) {
+    listingFullBox.style.display = "none";
+  }
+
+  if (!isNewWork(work)) {
+    return;
+  }
+
+  const available = await getAvailableMachine();
+
+  listingArea.style.display = "block";
+
+  if (!available) {
+    listToMachineBtn.style.display = "none";
+
+    if (listingFullBox) {
+      listingFullBox.style.display = "block";
+    }
+
+    if (jackpotEl) {
+      jackpotEl.style.display = "block";
+      jackpotEl.textContent = "🎉 未出品作品を獲得！ただいま自販機は満杯です";
+    }
+
+    listingMessage.textContent = "未出品作品は獲得済みです。空きが出たら出品できるようになります。";
+    return;
+  }
+
+  listToMachineBtn.style.display = "inline-flex";
+  listingArea.dataset.machineId = String(available.machine.id);
+  listingMessage.textContent =
+    `この作品は100ptスタートで出品できます（空き ${available.remaining_slots} / 30）`;
+}
+
 function render(work) {
   currentWork = work;
 
@@ -380,10 +450,20 @@ function render(work) {
 
   if (listingArea) {
     listingArea.style.display = "none";
+    listingArea.dataset.machineId = "";
   }
 
   if (listingMessage) {
     listingMessage.textContent = "";
+  }
+
+  if (listToMachineBtn) {
+    listToMachineBtn.style.display = "inline-flex";
+    listToMachineBtn.disabled = false;
+  }
+
+  if (listingFullBox) {
+    listingFullBox.style.display = "none";
   }
 
   const mediaType = getMediaType(work);
@@ -452,9 +532,6 @@ function render(work) {
   if (newWork && jackpotEl) {
     jackpotEl.style.display = "block";
     jackpotEl.textContent = "🎉 未出品作品！自販機出品権を獲得！";
-    if (listingArea) {
-      listingArea.style.display = "block";
-    }
   } else if (buybackPrice > 0 && jackpotEl) {
     jackpotEl.style.display = "block";
     jackpotEl.textContent = `🎉 高価還元対象！${buybackPrice}ポイントバック対象です`;
@@ -464,6 +541,7 @@ function render(work) {
   }
 
   setRarityStyle(work.rarity, newWork || buybackPrice > 0);
+  updateListingAreaForCurrentWork(work);
 }
 
 function renderLatestWorks() {
@@ -488,6 +566,66 @@ function renderLatestWorks() {
       })
       .join("<br>")}
   `;
+}
+
+async function renderMachineStatus() {
+  const box = document.getElementById("machineStatusBox");
+  if (!box) return;
+
+  try {
+    const res = await fetch(VENDING_MACHINES_API, {
+      cache: "no-store"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      box.innerHTML = "<strong>有料自販機の空き状況</strong><br>読み込みに失敗しました";
+      return;
+    }
+
+    const machines = Array.isArray(data.items) ? data.items : [];
+
+    if (!machines.length) {
+      box.innerHTML = "<strong>有料自販機の空き状況</strong><br>現在稼働中の自販機はありません";
+      return;
+    }
+
+    const rows = [];
+
+    for (const machine of machines) {
+      const detailRes = await fetch(`/api/vending-machines/${machine.id}`, {
+        cache: "no-store"
+      });
+
+      const detailData = await detailRes.json();
+
+      if (!detailRes.ok) {
+        continue;
+      }
+
+      const currentCount = Number(detailData.current_count || 0);
+      const remainingSlots = Number(detailData.remaining_slots || 0);
+
+      rows.push(
+        `・${machine.name}：${currentCount} / 30` +
+        (remainingSlots > 0 ? `（空き ${remainingSlots}）` : "（満杯）")
+      );
+    }
+
+    if (!rows.length) {
+      box.innerHTML = "<strong>有料自販機の空き状況</strong><br>現在表示できる自販機情報がありません";
+      return;
+    }
+
+    box.innerHTML = `
+      <strong>有料自販機の空き状況</strong><br>
+      ${rows.join("<br>")}
+    `;
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = "<strong>有料自販機の空き状況</strong><br>読み込みに失敗しました";
+  }
 }
 
 async function consumeDrawCostIfNeeded() {
@@ -527,9 +665,56 @@ async function consumeDrawCostIfNeeded() {
 }
 
 async function listCurrentWorkToMachine() {
-  if (!currentWork || !listingMessage) return;
+  if (!currentWork || !listingMessage || !listingArea || !listToMachineBtn) return;
 
-  listingMessage.textContent = "このページの自販機追加機能は後で接続します。";
+  const machineId = listingArea.dataset.machineId;
+
+  if (!machineId) {
+    listingMessage.textContent = "出品先の自販機が見つかりません。";
+    return;
+  }
+
+  listingMessage.textContent = "自販機に追加しています...";
+  listToMachineBtn.disabled = true;
+
+  try {
+    const res = await fetch(
+      `/api/vending-machines/${machineId}/items?content_id=${encodeURIComponent(currentWork.id)}&item_order=0`,
+      {
+        method: "POST"
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      listingMessage.textContent = data.detail || "自販機追加に失敗しました。";
+      listToMachineBtn.disabled = false;
+      return;
+    }
+
+    listingMessage.textContent = "100ptスタートで自販機に出品しました！";
+    listToMachineBtn.style.display = "none";
+
+    ownershipMap[String(currentWork.id)] = {
+      content_id: Number(currentWork.id),
+      status: "listed"
+    };
+
+    if (statusEl) {
+      statusEl.textContent = "出品済み";
+    }
+
+    if (jackpotEl) {
+      jackpotEl.style.display = "none";
+    }
+
+    await renderMachineStatus();
+  } catch (e) {
+    console.error(e);
+    listingMessage.textContent = "通信に失敗しました。";
+    listToMachineBtn.disabled = false;
+  }
 }
 
 if (drawButton) {
@@ -630,7 +815,7 @@ if (shareButton) {
 }
 
 if (togglePromptBtn) {
-  togglePromptBtn.addEventListener("click", () => {
+togglePromptBtn.addEventListener("click", () => {
     if (!currentWork) return;
 
     const prompt = (currentWork.prompt || "").trim();
@@ -711,7 +896,8 @@ if (shareButton) {
   await Promise.all([
     loadWorks(),
     loadOwnerships(),
-    loadUserPoints()
+    loadUserPoints(),
+    renderMachineStatus()
   ]);
   updateTicket();
 })();
