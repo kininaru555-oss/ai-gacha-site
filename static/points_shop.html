@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ポイント購入</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .shop-card {
+      background: #1f1f1f;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      text-align: center;
+    }
+
+    .shop-card h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    .shop-card p {
+      margin: 8px 0;
+      color: #d8d8d8;
+    }
+
+    .buy-pack-btn {
+      margin-top: 14px;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      background: linear-gradient(135deg, #7b61ff 0%, #5636ff 100%);
+      color: #fff;
+    }
+
+    .buy-pack-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .notice-box {
+      margin-top: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="btn-back" href="index.html">← トップへ戻る</a>
+
+    <div class="hero">
+      <h1>ポイント購入</h1>
+      <p class="sub">
+        ポイントを購入して、有料ガチャや今後の機能に使えます。
+      </p>
+      <p id="pointInfo" class="mini-note">読み込み中...</p>
+    </div>
+
+    <div class="shop-grid">
+      <div class="shop-card">
+        <h2>300pt</h2>
+        <p>300円</p>
+        <p>お試し購入</p>
+        <button class="buy-pack-btn" data-pack-id="pack_300">購入する</button>
+      </div>
+
+      <div class="shop-card">
+        <h2>1000pt</h2>
+        <p>1,100円</p>
+        <p>人気の定番</p>
+        <button class="buy-pack-btn" data-pack-id="pack_1000">購入する</button>
+      </div>
+
+      <div class="shop-card">
+        <h2>3000pt</h2>
+        <p>3,300円</p>
+        <p>しっかり使う方向け</p>
+        <button class="buy-pack-btn" data-pack-id="pack_3000">購入する</button>
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <strong>ご案内</strong><br>
+      購入後、ポイント反映まで少し時間がかかる場合があります。
+    </div>
+  </div>
+
+  <script>
+    function getOrCreateUserId() {
+      let userId = localStorage.getItem("gacha_user_id");
+
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
+        } else {
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+        }
+        localStorage.setItem("gacha_user_id", userId);
+      }
+
+      return userId;
+    }
+
+    async function loadPointInfo() {
+      const userId = getOrCreateUserId();
+      const pointInfo = document.getElementById("pointInfo");
+
+      try {
+        const res = await fetch(`/api/points/${encodeURIComponent(userId)}`, {
+          cache: "no-store"
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          pointInfo.textContent = "ポイント情報の取得に失敗しました";
+          return;
+        }
+
+        const points = Number(data.user?.points || 0);
+        const expireAt = data.user?.point_expire_at || "";
+        pointInfo.textContent = expireAt
+          ? `現在の所持ポイント：${points}pt / 有効期限：${expireAt}`
+          : `現在の所持ポイント：${points}pt`;
+      } catch (e) {
+        pointInfo.textContent = "ポイント情報の取得に失敗しました";
+      }
+    }
+
+    async function buyPointPack(packId, buttonEl) {
+      const userId = getOrCreateUserId();
+
+      buttonEl.disabled = true;
+      buttonEl.textContent = "移動中...";
+
+      try {
+        const res = await fetch(
+          `/api/stripe/create-checkout-session?user_id=${encodeURIComponent(userId)}&pack_id=${encodeURIComponent(packId)}`,
+          {
+            method: "POST"
+          }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(data.detail || "決済ページ生成に失敗しました");
+          buttonEl.disabled = false;
+          buttonEl.textContent = "購入する";
+          return;
+        }
+
+        window.location.href = data.url;
+      } catch (e) {
+        alert("通信に失敗しました");
+        buttonEl.disabled = false;
+        buttonEl.textContent = "購入する";
+      }
+    }
+
+    document.querySelectorAll(".buy-pack-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const packId = button.dataset.packId;
+        buyPointPack(packId, button);
+      });
+    });
+
+    loadPointInfo();
+  </script>
+</body>
+</html>
