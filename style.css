@@ -323,6 +323,49 @@ h1 {
   animation: shineAnim 0.8s ease;
 }
 
+.stage.hit-new {
+  box-shadow:
+    0 0 20px 8px rgba(255, 215, 0, 0.75),
+    0 0 60px rgba(255, 180, 0, 0.5),
+    inset 0 0 35px rgba(255, 230, 120, 0.28);
+}
+
+.stage.hit-buyback {
+  box-shadow:
+    0 0 18px 7px rgba(255, 105, 180, 0.6),
+    0 0 50px rgba(255, 182, 193, 0.35),
+    inset 0 0 25px rgba(255, 160, 220, 0.18);
+}
+
+.stage.hit-pickup {
+  box-shadow:
+    0 0 15px 6px rgba(120, 200, 255, 0.55),
+    0 0 40px rgba(120, 200, 255, 0.25);
+}
+
+.stage.reveal-delay {
+  filter: brightness(0.72);
+  transition: filter 0.2s ease;
+}
+
+#jackpot.jackpot-new {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.22), rgba(255, 160, 0, 0.18));
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  color: #ffe89a;
+}
+
+#jackpot.jackpot-buyback {
+  background: linear-gradient(135deg, rgba(255, 105, 180, 0.18), rgba(255, 182, 193, 0.14));
+  border: 1px solid rgba(255, 160, 220, 0.3);
+  color: #ffd7f1;
+}
+
+#jackpot.jackpot-pickup {
+  background: linear-gradient(135deg, rgba(120, 200, 255, 0.16), rgba(160, 220, 255, 0.12));
+  border: 1px solid rgba(120, 200, 255, 0.28);
+  color: #d8f2ff;
+}
+
 @keyframes shake {
   0% { transform: translateX(0) scale(1); }
   20% { transform: translateX(-4px) scale(1.01); }
