@@ -73,6 +73,131 @@ function setPosterFreeUser(value) {
   localStorage.setItem("gacha_is_poster_free", value ? "1" : "0");
 }
 
+function clearStageHitClasses() {
+  if (!stage) return;
+
+  stage.classList.remove(
+    "rare",
+    "ssr",
+    "hit-new",
+    "hit-buyback",
+    "hit-pickup",
+    "reveal-delay"
+  );
+}
+
+function clearJackpotClasses() {
+  if (!jackpotEl) return;
+
+  jackpotEl.classList.remove(
+    "jackpot-new",
+    "jackpot-buyback",
+    "jackpot-pickup"
+  );
+}
+
+function getHitType(work) {
+  const newWork = isNewWork(work);
+  const buybackPrice = Number(work.buyback_price || 0);
+  const operatorPick = isOperatorPick(work);
+  const rarity = normalizeRarity(work.rarity);
+
+  if (newWork) {
+    return "new";
+  }
+
+  if (buybackPrice > 0) {
+    return "buyback";
+  }
+
+  if (operatorPick) {
+    return "pickup";
+  }
+
+  if (rarity === "SSR" || rarity === "SR" || rarity === "R") {
+    return "rare";
+  }
+
+  return "normal";
+}
+
+function getRevealDelayMs(work) {
+  const hitType = getHitType(work);
+
+  if (hitType === "new") return 1400;
+  if (hitType === "buyback") return 1300;
+  if (hitType === "pickup") return 1200;
+  if (hitType === "rare") return 1050;
+  return 850;
+}
+
+function applyHitVisuals(work) {
+  const hitType = getHitType(work);
+
+  clearStageHitClasses();
+  clearJackpotClasses();
+
+  if (!stage) return;
+
+  if (hitType === "new") {
+    stage.classList.add("ssr", "hit-new");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-new");
+    return;
+  }
+
+  if (hitType === "buyback") {
+    stage.classList.add("ssr", "hit-buyback");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-buyback");
+    return;
+  }
+
+  if (hitType === "pickup") {
+    stage.classList.add("rare", "hit-pickup");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-pickup");
+    return;
+  }
+
+  if (hitType === "rare") {
+    setRarityStyle(work.rarity, false);
+    return;
+  }
+
+  setRarityStyle(work.rarity, false);
+}
+
+function getJackpotMessage(work) {
+  const newWork = isNewWork(work);
+  const buybackPrice = Number(work.buyback_price || 0);
+  const operatorPick = isOperatorPick(work);
+  const rarity = normalizeRarity(work.rarity);
+
+  if (newWork) {
+    return "🎉 未出品作品！自販機出品権を獲得！";
+  }
+
+  if (buybackPrice > 0) {
+    return `🎉 高価還元対象！${buybackPrice}ポイントバック対象です`;
+  }
+
+  if (operatorPick) {
+    return "⭐ 運営特選作品を引きました！";
+  }
+
+  if (rarity === "SSR") {
+    return "🌈 特別作品を引きました！";
+  }
+
+  if (rarity === "SR") {
+    return "✨ 注目作品を引きました！";
+  }
+
+  if (rarity === "R") {
+    return "💎 レア作品を引きました！";
+  }
+
+  return "";
+}
+
 async function loadWorks() {
   try {
     const response = await fetch(API_URL + "?t=" + Date.now(), {
@@ -442,10 +567,12 @@ function render(work) {
 
   resetMedia();
   resetPromptArea();
+  clearStageHitClasses();
+  clearJackpotClasses();
 
   if (jackpotEl) {
     jackpotEl.style.display = "none";
-    jackpotEl.textContent = "🎉 当たり！";
+    jackpotEl.textContent = "";
   }
 
   if (listingArea) {
@@ -471,6 +598,7 @@ function render(work) {
   const newWork = isNewWork(work);
   const buybackPrice = Number(work.buyback_price || 0);
   const operatorPick = isOperatorPick(work);
+  const jackpotMessage = getJackpotMessage(work);
 
   if (mediaType === "video") {
     if (resultVideo) {
@@ -529,18 +657,19 @@ function render(work) {
     featuredTypeEl.textContent = operatorPick ? "運営特選" : "-";
   }
 
-  if (newWork && jackpotEl) {
+  if (jackpotEl && jackpotMessage) {
     jackpotEl.style.display = "block";
-    jackpotEl.textContent = "🎉 未出品作品！自販機出品権を獲得！";
-  } else if (buybackPrice > 0 && jackpotEl) {
-    jackpotEl.style.display = "block";
-    jackpotEl.textContent = `🎉 高価還元対象！${buybackPrice}ポイントバック対象です`;
-  } else if (operatorPick && jackpotEl) {
-    jackpotEl.style.display = "block";
-    jackpotEl.textContent = "⭐ 運営特選作品を引きました！";
+    jackpotEl.textContent = jackpotMessage;
   }
 
-  setRarityStyle(work.rarity, newWork || buybackPrice > 0);
+  applyHitVisuals(work);
+
+  if (getHitType(work) === "normal") {
+    setRarityStyle(work.rarity, false);
+  } else if (getHitType(work) === "rare") {
+    setRarityStyle(work.rarity, false);
+  }
+
   updateListingAreaForCurrentWork(work);
 }
 
@@ -732,13 +861,20 @@ if (drawButton) {
       return;
     }
 
+    const selectedWork = drawRandom();
+    const revealDelay = getRevealDelayMs(selectedWork);
+
     if (stage) {
-      stage.classList.add("animating");
+      clearStageHitClasses();
+      stage.classList.add("animating", "reveal-delay");
     }
 
     setTimeout(() => {
-      render(drawRandom());
-    }, 500);
+      render(selectedWork);
+      if (stage) {
+        stage.classList.remove("reveal-delay");
+      }
+    }, Math.max(450, revealDelay - 250));
 
     setTimeout(() => {
       if (stage) {
@@ -746,7 +882,7 @@ if (drawButton) {
       }
       drawButton.disabled = false;
       isDrawing = false;
-    }, 850);
+    }, revealDelay);
   });
 }
 
