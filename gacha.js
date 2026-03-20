@@ -6,10 +6,11 @@ let currentUserPoints = 0;
 let currentPointExpireAt = "";
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzRW9dHBTOaRkM8gibA09i9L8zSiDDdd1YNWikqT4wn7zQWSaJQpo3-5CJx61od6-sNbQ/exec";
-const OWNERSHIP_API = "/api/ownerships";
-const POINT_API_BASE = "/api/points";
-const VENDING_MACHINES_API = "/api/vending-machines";
-const VENDING_AVAILABLE_API = "/api/vending-machines/available/for-listing";
+const API_BASE = "https://aicontents.onrender.com";
+const OWNERSHIP_API = `${API_BASE}/api/ownerships`;
+const POINT_API_BASE = `${API_BASE}/api/points`;
+const VENDING_MACHINES_API = `${API_BASE}/api/vending-machines`;
+const VENDING_AVAILABLE_API = `${API_BASE}/api/vending-machines/available/for-listing`;
 
 const DRAW_COST = 30;
 const SHARE_REWARD_POINTS = 30;
@@ -24,6 +25,7 @@ const likeButton = document.getElementById("likeButton");
 const linkButton = document.getElementById("linkButton");
 const shareButton = document.getElementById("shareButton");
 const ticketInfo = document.getElementById("ticketInfo");
+const sellButton = document.getElementById("sellButton");
 
 const promptBox = document.getElementById("promptBox");
 const togglePromptBtn = document.getElementById("togglePromptBtn");
@@ -36,6 +38,8 @@ const listingArea = document.getElementById("listingArea");
 const listToMachineBtn = document.getElementById("listToMachineBtn");
 const listingMessage = document.getElementById("listingMessage");
 const listingFullBox = document.getElementById("listingFullBox");
+const machineStatusBox = document.getElementById("machineStatusBox");
+const mypageBtn = document.getElementById("mypageBtn");
 
 // 当たり表示
 const jackpotEl = document.createElement("div");
@@ -63,6 +67,14 @@ function getOrCreateUserId() {
   }
 
   return userId;
+}
+
+function initMypageLink() {
+  const userId = getOrCreateUserId();
+
+  if (mypageBtn) {
+    mypageBtn.href = `${API_BASE}/mypage/${encodeURIComponent(userId)}`;
+  }
 }
 
 function isPosterFreeUser() {
@@ -96,6 +108,17 @@ function clearJackpotClasses() {
   );
 }
 
+function normalizeRarity(r) {
+  if (!r) return "N";
+
+  const v = String(r).toUpperCase().trim();
+
+  if (v === "SSR") return "SSR";
+  if (v === "SR") return "SR";
+  if (v === "R" || v === "RARE") return "R";
+  return "N";
+}
+
 function isNewWork(work) {
   const id = String(work.id ?? "");
   return !ownershipMap[id];
@@ -107,17 +130,6 @@ function isBuybackTarget(work) {
 
 function isOperatorPick(work) {
   return String(work.featured_type || "").trim() === "operator_pick";
-}
-
-function normalizeRarity(r) {
-  if (!r) return "N";
-
-  const v = String(r).toUpperCase().trim();
-
-  if (v === "SSR") return "SSR";
-  if (v === "SR") return "SR";
-  if (v === "R" || v === "RARE") return "R";
-  return "N";
 }
 
 function getHitType(work) {
@@ -155,40 +167,6 @@ function getRevealDelayMs(work) {
   return 850;
 }
 
-function applyHitVisuals(work) {
-  const hitType = getHitType(work);
-
-  clearStageHitClasses();
-  clearJackpotClasses();
-
-  if (!stage) return;
-
-  if (hitType === "new") {
-    stage.classList.add("ssr", "hit-new");
-    if (jackpotEl) jackpotEl.classList.add("jackpot-new");
-    return;
-  }
-
-  if (hitType === "buyback") {
-    stage.classList.add("ssr", "hit-buyback");
-    if (jackpotEl) jackpotEl.classList.add("jackpot-buyback");
-    return;
-  }
-
-  if (hitType === "pickup") {
-    stage.classList.add("rare", "hit-pickup");
-    if (jackpotEl) jackpotEl.classList.add("jackpot-pickup");
-    return;
-  }
-
-  if (hitType === "rare") {
-    setRarityStyle(work.rarity, false);
-    return;
-  }
-
-  setRarityStyle(work.rarity, false);
-}
-
 function getJackpotMessage(work) {
   const newWork = isNewWork(work);
   const buybackPrice = Number(work.buyback_price || 0);
@@ -222,9 +200,38 @@ function getJackpotMessage(work) {
   return "";
 }
 
+function applyHitVisuals(work) {
+  const hitType = getHitType(work);
+
+  clearStageHitClasses();
+  clearJackpotClasses();
+
+  if (!stage) return;
+
+  if (hitType === "new") {
+    stage.classList.add("ssr", "hit-new");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-new");
+    return;
+  }
+
+  if (hitType === "buyback") {
+    stage.classList.add("ssr", "hit-buyback");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-buyback");
+    return;
+  }
+
+  if (hitType === "pickup") {
+    stage.classList.add("rare", "hit-pickup");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-pickup");
+    return;
+  }
+
+  setRarityStyle(work.rarity, false);
+}
+
 async function loadWorks() {
   try {
-    const response = await fetch(API_URL + "?t=" + Date.now(), {
+    const response = await fetch(`${API_URL}?t=${Date.now()}`, {
       cache: "no-store"
     });
 
@@ -265,7 +272,7 @@ async function loadWorks() {
 
 async function loadOwnerships() {
   try {
-    const response = await fetch(OWNERSHIP_API + "?t=" + Date.now(), {
+    const response = await fetch(`${OWNERSHIP_API}?t=${Date.now()}`, {
       cache: "no-store"
     });
 
@@ -374,7 +381,6 @@ function setRarityStyle(rarityText, forceSSR = false) {
     rarity.style.color = "#fff";
   }
 }
-
 function resetMedia() {
   if (resultImage) {
     resultImage.style.display = "none";
@@ -561,6 +567,7 @@ async function updateListingAreaForCurrentWork(work) {
 
 function render(work) {
   currentWork = work;
+  window.currentWork = currentWork;
 
   if (placeholder) placeholder.style.display = "none";
   if (meta) meta.style.display = "block";
@@ -664,9 +671,7 @@ function render(work) {
 
   applyHitVisuals(work);
 
-  if (getHitType(work) === "normal") {
-    setRarityStyle(work.rarity, false);
-  } else if (getHitType(work) === "rare") {
+  if (getHitType(work) === "normal" || getHitType(work) === "rare") {
     setRarityStyle(work.rarity, false);
   }
 
@@ -698,8 +703,7 @@ function renderLatestWorks() {
 }
 
 async function renderMachineStatus() {
-  const box = document.getElementById("machineStatusBox");
-  if (!box) return;
+  if (!machineStatusBox) return;
 
   try {
     const res = await fetch(VENDING_MACHINES_API, {
@@ -709,21 +713,21 @@ async function renderMachineStatus() {
     const data = await res.json();
 
     if (!res.ok) {
-      box.innerHTML = "<strong>有料自販機の空き状況</strong><br>読み込みに失敗しました";
+      machineStatusBox.innerHTML = "<strong>有料自販機の空き状況</strong><br>読み込みに失敗しました";
       return;
     }
 
     const machines = Array.isArray(data.items) ? data.items : [];
 
     if (!machines.length) {
-      box.innerHTML = "<strong>有料自販機の空き状況</strong><br>現在稼働中の自販機はありません";
+      machineStatusBox.innerHTML = "<strong>有料自販機の空き状況</strong><br>現在稼働中の自販機はありません";
       return;
     }
 
     const rows = [];
 
     for (const machine of machines) {
-      const detailRes = await fetch(`/api/vending-machines/${machine.id}`, {
+      const detailRes = await fetch(`${API_BASE}/api/vending-machines/${machine.id}`, {
         cache: "no-store"
       });
 
@@ -743,17 +747,17 @@ async function renderMachineStatus() {
     }
 
     if (!rows.length) {
-      box.innerHTML = "<strong>有料自販機の空き状況</strong><br>現在表示できる自販機情報がありません";
+      machineStatusBox.innerHTML = "<strong>有料自販機の空き状況</strong><br>現在表示できる自販機情報がありません";
       return;
     }
 
-    box.innerHTML = `
+    machineStatusBox.innerHTML = `
       <strong>有料自販機の空き状況</strong><br>
       ${rows.join("<br>")}
     `;
   } catch (e) {
     console.error(e);
-    box.innerHTML = "<strong>有料自販機の空き状況</strong><br>読み込みに失敗しました";
+    machineStatusBox.innerHTML = "<strong>有料自販機の空き状況</strong><br>読み込みに失敗しました";
   }
 }
 
@@ -792,7 +796,6 @@ async function consumeDrawCostIfNeeded() {
     return false;
   }
 }
-
 async function listCurrentWorkToMachine() {
   if (!currentWork || !listingMessage || !listingArea || !listToMachineBtn) return;
 
@@ -808,7 +811,7 @@ async function listCurrentWorkToMachine() {
 
   try {
     const res = await fetch(
-      `/api/vending-machines/${machineId}/items?content_id=${encodeURIComponent(currentWork.id)}&item_order=0`,
+      `${API_BASE}/api/vending-machines/${machineId}/items?content_id=${encodeURIComponent(currentWork.id)}&item_order=0`,
       {
         method: "POST"
       }
@@ -832,17 +835,12 @@ async function listCurrentWorkToMachine() {
 
     if (statusEl) {
       statusEl.textContent = "出品済み";
-      }
-
-    if (jackpotEl) {
-      jackpotEl.style.display = "none";
-      jackpotEl.textContent = "";
     }
 
     await renderMachineStatus();
   } catch (e) {
     console.error(e);
-    listingMessage.textContent = "通信に失敗しました。";
+    listingMessage.textContent = "自販機追加に失敗しました。";
     listToMachineBtn.disabled = false;
   }
 }
@@ -916,6 +914,7 @@ if (likeButton) {
           likeCountEl.textContent = data.likes || 0;
         }
         currentWork.likes = data.likes || 0;
+        window.currentWork = currentWork;
       } else {
         alert("いいねに失敗しました");
       }
@@ -945,6 +944,17 @@ if (shareButton) {
           : "シェアありがとう！報酬は1日1回までです。"
       );
     }, 200);
+  });
+}
+
+if (sellButton) {
+  sellButton.addEventListener("click", () => {
+    if (!currentWork) {
+      alert("先にガチャを引いてください");
+      return;
+    }
+
+    window.location.href = `upload.html?sell_from=${encodeURIComponent(currentWork.id || "")}`;
   });
 }
 
@@ -1027,6 +1037,7 @@ if (shareButton) {
 
 (async function init() {
   getOrCreateUserId();
+  initMypageLink();
 
   await Promise.all([
     loadWorks(),
@@ -1037,4 +1048,3 @@ if (shareButton) {
 
   updateTicket();
 })();
-      
