@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>作品投稿 | AIガチャ R18</title>
+  <title>作品投稿 | 無料AI画像ガチャMAX R18</title>
   <link rel="stylesheet" href="style.css" />
   <style>
     .upload-card {
@@ -22,6 +22,12 @@
       color: #ffd7e2;
       font-size: 13px;
       line-height: 1.7;
+    }
+
+    .notice.soft {
+      background: rgba(123, 97, 255, 0.12);
+      border: 1px solid rgba(123, 97, 255, 0.28);
+      color: #e8e1ff;
     }
 
     label {
@@ -145,21 +151,28 @@
     <div class="upload-card">
       <h1>作品投稿</h1>
       <p class="sub">
-        端末から画像や動画を選んで、そのまま投稿できます。<br>
-        投稿後は<strong>投稿者無料モード</strong>が有効になります。<br>
-        さらに投稿報酬ポイントを付与する設定にもできます。
+        画像や動画をアップして、そのまま掲載申請できます。<br>
+        投稿した作品はサイト内で公開候補になり、あとから<strong>自販機ガチャやオークション</strong>につなげられます。<br>
+        投稿後は30pt無料でゲット。
       </p>
 
+      <div class="notice soft">
+        自販機に未出品の画像や動画をガチャで引くと<br>
+        そのまま販売する事が出来ます。投稿は再販売に
+        同意してから投稿してください。
+      </div>
+
       <div class="notice">
-        このページは18歳以上向け作品投稿を想定しています。<br>
-        権利侵害のおそれがある作品や、掲載許可のない作品は投稿しないでください。
+        このページは18歳以上向け作品の投稿を想定しています。<br>
+        ご自身に投稿権限のある作品のみご利用ください。<br>
+        権利侵害のおそれがある画像・動画、掲載許可のない作品は投稿しないでください。
       </div>
 
       <form id="submitForm">
-        <label for="creator">クリエイター名、ハンドルネーム</label>
+        <label for="creator">クリエイター名・ハンドルネーム</label>
         <input id="creator" type="text" required />
 
-        <label for="type">タイプ</label>
+        <label for="type">作品タイプ</label>
         <select id="type" required>
           <option value="画像">画像</option>
           <option value="動画">動画</option>
@@ -171,16 +184,16 @@
         <div id="fileName" class="file-name"></div>
 
         <label for="imageUrl">作品画像URL</label>
-        <input id="imageUrl" type="text" placeholder="アップロード後に自動入力" readonly />
+        <input id="imageUrl" type="text" placeholder="アップロード後に自動入力されます" readonly />
 
         <label for="videoUrl">作品動画URL（任意）</label>
-        <input id="videoUrl" type="text" placeholder="アップロード後に自動入力" readonly />
+        <input id="videoUrl" type="text" placeholder="アップロード後に自動入力されます" readonly />
 
         <div id="previewBox" class="preview hidden"></div>
         <div id="status" class="status"></div>
 
-        <label for="workLink">作品リンク（X / DLsite / pixivなど任意）</label>
-        <input id="workLink" type="text" />
+        <label for="workLink">作品リンク（X / DLsite / pixiv など、任意）</label>
+        <input id="workLink" type="text" placeholder="外部リンクがあれば入力してください" />
 
         <label for="xAccount">Xアカウント（任意）</label>
         <input id="xAccount" type="text" placeholder="@なしでも可" />
@@ -197,7 +210,7 @@
           <option value="いいえ">いいえ</option>
         </select>
 
-        <label for="rarity">レアリティ(自己評価)</label>
+        <label for="rarity">レアリティ（自己評価）</label>
         <select id="rarity" required>
           <option value="SSR">SSR</option>
           <option value="SR">SR</option>
@@ -206,17 +219,17 @@
         </select>
 
         <label for="comment">宣伝コメント（任意）</label>
-        <textarea id="comment"></textarea>
+        <textarea id="comment" placeholder="見てほしいポイント、世界観、こだわりなど"></textarea>
 
         <label for="prompt">プロンプト（任意）</label>
-        <textarea id="prompt"></textarea>
+        <textarea id="prompt" placeholder="公開したい場合のみ入力してください"></textarea>
 
         <label for="negativePrompt">ネガティブプロンプト（任意）</label>
-        <textarea id="negativePrompt"></textarea>
+        <textarea id="negativePrompt" placeholder="公開したい場合のみ入力してください"></textarea>
 
         <div class="small">
-          送信すると、Googleフォーム経由で掲載候補に追加されます。<br>
-          動画はできるだけ軽量なファイルを推奨します。
+          送信後、Googleフォーム経由で掲載候補に追加されます。<br>
+          投稿完了後はマイページへ移動します。
         </div>
 
         <button id="submitBtn" type="submit" class="btn-submit">投稿する</button>
@@ -227,6 +240,7 @@
   <script>
     const CLOUD_NAME = "dc7oz9roa";
     const UPLOAD_PRESET = "ai_gacha";
+    const MYPAGE_BASE_URL = "https://aicontents.onrender.com/mypage";
 
     const GOOGLE_FORM_ACTION =
       "https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/formResponse";
@@ -257,6 +271,21 @@
     const statusEl = document.getElementById("status");
     const submitBtn = document.getElementById("submitBtn");
     const submitForm = document.getElementById("submitForm");
+
+    function getOrCreateUserId() {
+      let userId = localStorage.getItem("gacha_user_id");
+
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
+        } else {
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+        }
+        localStorage.setItem("gacha_user_id", userId);
+      }
+
+      return userId;
+    }
 
     function setStatus(message) {
       statusEl.textContent = message || "";
@@ -329,7 +358,8 @@
       if (!file) return;
 
       fileNameEl.textContent = `選択中: ${file.name}`;
-      setStatus("アップロード中...");
+      setStatus("アップロードしています…");
+
       submitBtn.disabled = true;
 
       try {
@@ -350,10 +380,10 @@
         }
 
         syncAcceptByType();
-        setStatus("アップロード完了");
+        setStatus("アップロードが完了しました。内容を確認して投稿できます。");
       } catch (error) {
         console.error(error);
-        setStatus("アップロードに失敗しました");
+        setStatus("アップロードに失敗しました。時間を置いてもう一度お試しください。");
         alert("Cloudinaryアップロードに失敗しました");
       } finally {
         submitBtn.disabled = false;
@@ -392,7 +422,7 @@
       }
 
       submitBtn.disabled = true;
-      setStatus("投稿送信中...");
+      setStatus("投稿内容を送信しています…");
 
       const formData = new FormData();
       formData.append(ENTRY.creator, creator);
@@ -416,10 +446,15 @@
           body: formData
         });
 
-        window.location.href = "thanks.html?reward=1";
+        localStorage.setItem("gacha_is_poster_free", "1");
+
+        const userId = getOrCreateUserId();
+        setStatus("投稿が完了しました。マイページへ移動します…");
+
+        window.location.href = `${MYPAGE_BASE_URL}/${encodeURIComponent(userId)}?from=upload`;
       } catch (error) {
         console.error(error);
-        setStatus("投稿送信に失敗しました");
+        setStatus("投稿送信に失敗しました。時間を置いてもう一度お試しください。");
         alert("投稿送信に失敗しました");
         submitBtn.disabled = false;
       }
