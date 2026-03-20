@@ -5,37 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>無料AIガチャMAX R18</title>
 
-  <meta name="description" content="無料でR18向けAI生成画像・動画をガチャ！あなたの作品も投稿可能。シェアでチケットGET！" />
+  <meta name="description" content="無料でR18向けAI生成画像・動画をガチャ！あなたの作品も投稿可能。" />
 
   <link rel="stylesheet" href="style.css" />
-
-  <style>
-    .listing-full-box {
-      margin-top: 10px;
-      padding: 12px;
-      border-radius: 12px;
-      background: rgba(255, 120, 120, 0.12);
-      border: 1px solid rgba(255, 120, 120, 0.28);
-      color: #ffd7d7;
-      font-size: 13px;
-      line-height: 1.7;
-    }
-  </style>
 </head>
-
 <body>
   <div class="container">
-
     <div class="hero">
       <h1>無料AIガチャMAX R18</h1>
-
       <p class="sub">
         投稿されたR18向けAI作品がランダムで出る無料ガチャです。<br>
         あなたの作品も1点から追加できます。
       </p>
 
       <div class="adult-warning">
-        このページは18歳以上向けです。
+        このページは18歳以上向けです。18歳未満の方は閲覧・利用できません。<br>
+        利用を続けることで、18歳以上であることに同意したものとみなします。
       </div>
 
       <p id="ticketInfo" class="mini-note">読み込み中...</p>
@@ -43,59 +28,107 @@
       <div class="buttons">
         <a class="btn btn-post" href="upload.html">作品を投稿する</a>
         <a class="btn btn-ranking" href="ranking.html">人気ランキング</a>
+        <a class="btn btn-creator" href="creators.html">作者ランキング</a>
       </div>
     </div>
 
-    <!-- ★ 自販機状況 -->
     <div id="machineStatusBox" class="notice-box">
       <strong>有料自販機の空き状況</strong><br>
       読み込み中...
     </div>
 
     <div class="gacha-card">
+      <p class="mini-note">投稿された作品が順次ガチャに追加されます</p>
 
       <div id="stage" class="stage">
         <div id="placeholder" class="placeholder">
           ボタンを押すとランダムで作品が出ます
         </div>
 
-        <img id="resultImage" class="media" style="display:none;" />
-        <video id="resultVideo" class="media" autoplay loop muted style="display:none;"></video>
+        <img
+          id="resultImage"
+          class="media"
+          alt="ガチャ結果画像"
+          loading="lazy"
+          style="display:none;"
+        />
+
+        <video
+          id="resultVideo"
+          class="media"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="metadata"
+          style="display:none;"
+        ></video>
+
+        <div class="flash"></div>
+        <div class="shine"></div>
       </div>
 
-      <button id="drawButton" class="draw-btn">ガチャを引く</button>
+      <button id="drawButton" class="draw-btn" aria-label="ガチャを引く">ガチャを引く</button>
 
-      <div id="meta" style="display:none;">
-
+      <div id="meta" class="meta" style="display:none;">
         <div><strong>タイトル:</strong> <span id="title"></span></div>
         <div><strong>作者:</strong> <span id="creator"></span></div>
+        <div><strong>ジャンル:</strong> <span id="genre"></span></div>
+        <div><strong>説明:</strong> <span id="description"></span></div>
+        <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
         <div><strong>状態:</strong> <span id="status"></span></div>
+        <div><strong>買取価格:</strong> <span id="buybackPrice">-</span></div>
+        <div><strong>特選種別:</strong> <span id="featuredType">-</span></div>
 
-        <!-- ★ 出品エリア -->
+        <div class="stats">
+          いいね: <span id="likeCount">0</span>
+        </div>
+
+        <div><span id="rarity" class="rarity">N</span></div>
+
+        <div class="result-buttons">
+          <button id="likeButton" class="btn-like" aria-label="いいねする">♡ いいね</button>
+          <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
+          <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+        </div>
+
         <div id="listingArea" style="display:none; margin-top:12px;">
-
-          <button id="listToMachineBtn" class="btn-like">
-            この作品を自販機に出す
-          </button>
+          <button id="listToMachineBtn" class="btn-like">この作品を自販機に出す</button>
 
           <div id="listingFullBox" class="listing-full-box" style="display:none;">
             <strong>現在、自販機が満杯です</strong><br>
             空きが出るまで出品できません。
           </div>
 
-          <p id="listingMessage" class="mini-note"></p>
-
+          <p id="listingMessage" class="mini-note" style="margin-top:8px;"></p>
         </div>
 
+        <div style="margin-top:10px;">
+          <button id="togglePromptBtn" class="btn-like">プロンプトを見る</button>
+          <button id="copyPromptBtn" class="btn-like" style="display:none;">コピー</button>
+        </div>
+
+        <div id="promptBox" class="notice-box" style="display:none;"></div>
       </div>
     </div>
 
     <div id="latestWorks" class="notice-box">
-      新着作品 読み込み中...
+      <strong>新着作品</strong><br>
+      読み込み中...
     </div>
 
+    <div class="notice-box">
+      <strong>掲載したい人へ</strong><br>
+      画像・動画どちらも1点から投稿できます。<br>
+      投稿された作品は順次ガチャに追加されます。
+    </div>
+
+    <footer class="footer-links">
+      <a href="disclaimer.html">免責事項</a> |
+      <a href="terms.html">利用規約</a>
+    </footer>
   </div>
 
-  <script src="gacha.js"></script>
+  <script src="gacha.js" defer></script>
 </body>
 </html>
