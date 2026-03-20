@@ -96,6 +96,30 @@ function clearJackpotClasses() {
   );
 }
 
+function isNewWork(work) {
+  const id = String(work.id ?? "");
+  return !ownershipMap[id];
+}
+
+function isBuybackTarget(work) {
+  return Number(work.buyback_price || 0) > 0;
+}
+
+function isOperatorPick(work) {
+  return String(work.featured_type || "").trim() === "operator_pick";
+}
+
+function normalizeRarity(r) {
+  if (!r) return "N";
+
+  const v = String(r).toUpperCase().trim();
+
+  if (v === "SSR") return "SSR";
+  if (v === "SR") return "SR";
+  if (v === "R" || v === "RARE") return "R";
+  return "N";
+}
+
 function getHitType(work) {
   const newWork = isNewWork(work);
   const buybackPrice = Number(work.buyback_price || 0);
@@ -328,17 +352,6 @@ function optimizeCloudinary(url) {
   return url;
 }
 
-function normalizeRarity(r) {
-  if (!r) return "N";
-
-  const v = String(r).toUpperCase().trim();
-
-  if (v === "SSR") return "SSR";
-  if (v === "SR") return "SR";
-  if (v === "R" || v === "RARE") return "R";
-  return "N";
-}
-
 function setRarityStyle(rarityText, forceSSR = false) {
   const rarity = document.getElementById("rarity");
   if (!rarity || !stage) return;
@@ -480,19 +493,6 @@ function resetPromptArea() {
   togglePromptBtn.textContent = "プロンプトを見る";
   copyPromptBtn.style.display = "none";
   copyPromptBtn.textContent = "コピー";
-}
-
-function isNewWork(work) {
-  const id = String(work.id ?? "");
-  return !ownershipMap[id];
-}
-
-function isBuybackTarget(work) {
-  return Number(work.buyback_price || 0) > 0;
-}
-
-function isOperatorPick(work) {
-  return String(work.featured_type || "").trim() === "operator_pick";
 }
 
 async function getAvailableMachine() {
@@ -832,10 +832,11 @@ async function listCurrentWorkToMachine() {
 
     if (statusEl) {
       statusEl.textContent = "出品済み";
-    }
+      }
 
     if (jackpotEl) {
       jackpotEl.style.display = "none";
+      jackpotEl.textContent = "";
     }
 
     await renderMachineStatus();
@@ -861,8 +862,8 @@ if (drawButton) {
       return;
     }
 
-    const selectedWork = drawRandom();
-    const revealDelay = getRevealDelayMs(selectedWork);
+    const selected = drawRandom();
+    const revealDelay = getRevealDelayMs(selected);
 
     if (stage) {
       clearStageHitClasses();
@@ -870,19 +871,16 @@ if (drawButton) {
     }
 
     setTimeout(() => {
-      render(selectedWork);
-      if (stage) {
-        stage.classList.remove("reveal-delay");
-      }
-    }, Math.max(450, revealDelay - 250));
+      render(selected);
+    }, revealDelay);
 
     setTimeout(() => {
       if (stage) {
-        stage.classList.remove("animating");
+        stage.classList.remove("animating", "reveal-delay");
       }
       drawButton.disabled = false;
       isDrawing = false;
-    }, revealDelay);
+    }, revealDelay + 250);
   });
 }
 
@@ -951,7 +949,7 @@ if (shareButton) {
 }
 
 if (togglePromptBtn) {
-togglePromptBtn.addEventListener("click", () => {
+  togglePromptBtn.addEventListener("click", () => {
     if (!currentWork) return;
 
     const prompt = (currentWork.prompt || "").trim();
@@ -1029,11 +1027,14 @@ if (shareButton) {
 
 (async function init() {
   getOrCreateUserId();
+
   await Promise.all([
     loadWorks(),
     loadOwnerships(),
     loadUserPoints(),
     renderMachineStatus()
   ]);
+
   updateTicket();
 })();
+      
