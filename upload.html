@@ -54,6 +54,7 @@
       background: #7b61ff;
       width: 100%;
       margin-top: 10px;
+      color: #fff;
     }
 
     .btn-submit {
@@ -122,6 +123,7 @@
       font-size: 13px;
       color: #ffd7e2;
       line-height: 1.6;
+      white-space: pre-line;
     }
 
     .hidden {
@@ -144,7 +146,8 @@
       <h1>作品投稿</h1>
       <p class="sub">
         端末から画像や動画を選んで、そのまま投稿できます。<br>
-        投稿後はガチャチケットを1枚受け取れます。
+        投稿後は<strong>投稿者無料モード</strong>が有効になります。<br>
+        さらに投稿報酬ポイントを付与する設定にもできます。
       </p>
 
       <div class="notice">
@@ -163,7 +166,7 @@
         </select>
 
         <label>作品ファイル</label>
-        <input id="fileInput" type="file" accept="image/*,video/*" class="hidden" />
+        <input id="fileInput" type="file" accept="image/*" class="hidden" />
         <button type="button" id="selectFileBtn" class="btn btn-select">端末からファイルを選ぶ</button>
         <div id="fileName" class="file-name"></div>
 
@@ -212,7 +215,8 @@
         <textarea id="negativePrompt"></textarea>
 
         <div class="small">
-          送信すると、Googleフォーム経由で掲載候補に追加されます。
+          送信すると、Googleフォーム経由で掲載候補に追加されます。<br>
+          動画はできるだけ軽量なファイルを推奨します。
         </div>
 
         <button id="submitBtn" type="submit" class="btn-submit">投稿する</button>
@@ -252,6 +256,7 @@
     const previewBox = document.getElementById("previewBox");
     const statusEl = document.getElementById("status");
     const submitBtn = document.getElementById("submitBtn");
+    const submitForm = document.getElementById("submitForm");
 
     function setStatus(message) {
       statusEl.textContent = message || "";
@@ -279,6 +284,14 @@
       renderPreview(typeEl.value, "");
     }
 
+    function syncAcceptByType() {
+      if (typeEl.value === "画像") {
+        fileInput.accept = "image/*";
+      } else {
+        fileInput.accept = "video/*";
+      }
+    }
+
     selectFileBtn.addEventListener("click", () => {
       fileInput.click();
     });
@@ -287,12 +300,7 @@
       resetUploadedUrls();
       fileInput.value = "";
       fileNameEl.textContent = "";
-
-      if (typeEl.value === "画像") {
-        fileInput.accept = "image/*";
-      } else {
-        fileInput.accept = "video/*";
-      }
+      syncAcceptByType();
     });
 
     async function uploadToCloudinary(file) {
@@ -341,6 +349,7 @@
           renderPreview("画像", secureUrl);
         }
 
+        syncAcceptByType();
         setStatus("アップロード完了");
       } catch (error) {
         console.error(error);
@@ -351,7 +360,7 @@
       }
     });
 
-    document.getElementById("submitForm").addEventListener("submit", async (e) => {
+    submitForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const creator = document.getElementById("creator").value.trim();
@@ -415,6 +424,8 @@
         submitBtn.disabled = false;
       }
     });
+
+    syncAcceptByType();
   </script>
 </body>
 </html>
