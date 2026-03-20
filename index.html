@@ -96,6 +96,9 @@
         <div><strong>ジャンル:</strong> <span id="genre"></span></div>
         <div><strong>説明:</strong> <span id="description"></span></div>
         <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
+        <div><strong>状態:</strong> <span id="status"></span></div>
+        <div><strong>買取価格:</strong> <span id="buybackPrice">-</span></div>
+        <div><strong>特選種別:</strong> <span id="featuredType">-</span></div>
 
         <div class="stats">
           いいね: <span id="likeCount">0</span>
@@ -107,6 +110,11 @@
           <button id="likeButton" class="btn-like" aria-label="いいねする">♡ いいね</button>
           <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
           <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+        </div>
+
+        <div id="listingArea" style="display:none; margin-top:12px;">
+          <button id="listToMachineBtn" class="btn-like">この作品を自販機に出す</button>
+          <p id="listingMessage" class="mini-note" style="margin-top:8px;"></p>
         </div>
 
         <div style="margin-top:10px;">
