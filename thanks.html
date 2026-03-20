@@ -52,6 +52,7 @@
       color: #aaa;
       margin-bottom: 28px;
       line-height: 1.7;
+      white-space: pre-line;
     }
 
     .thanks-link {
@@ -149,19 +150,16 @@
 
       const userId = getOrCreateUserId();
 
-      // 投稿者無料フラグON
       localStorage.setItem("gacha_is_poster_free", "1");
 
       let message = "投稿者は無料でガチャを引けます。";
 
-      // reward=1 のときだけ投稿報酬ポイントも付与
       if (reward === "1") {
         const user = await addPostRewardPoints(userId, 30);
 
         if (user) {
           message =
-            `投稿者無料モードを有効化し、投稿報酬として30ポイント付与しました。` +
-            `\n現在の所持ポイント: ${user.points || 0}pt`;
+            `投稿者無料モードを有効化し、投稿報酬として30ポイント付与しました。\n現在の所持ポイント: ${user.points || 0}pt`;
         } else {
           message = "投稿者無料モードを有効化しました。ポイント付与は確認できませんでした。";
         }
