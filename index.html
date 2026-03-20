@@ -15,7 +15,8 @@
       <h1>無料AIガチャMAX R18</h1>
       <p class="sub">
         投稿されたR18向けAI作品がランダムで出る無料ガチャです。<br>
-        あなたの作品も1点から追加できます。
+        あなたの作品も1点から追加できます。<br>
+        <strong>手に入れた作品はあなたの所有資産として保存されます。</strong>
       </p>
 
       <div class="adult-warning">
@@ -29,6 +30,8 @@
         <a class="btn btn-post" href="upload.html">作品を投稿する</a>
         <a class="btn btn-ranking" href="ranking.html">人気ランキング</a>
         <a class="btn btn-creator" href="creators.html">作者ランキング</a>
+        <a class="btn btn-ranking" href="points_shop.html">ポイント購入</a>
+        <a class="btn btn-creator" id="mypageBtn" href="#">マイページ</a>
       </div>
     </div>
 
@@ -90,6 +93,12 @@
           <button id="likeButton" class="btn-like" aria-label="いいねする">♡ いいね</button>
           <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
           <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+          <button id="sellButton" class="btn-like" type="button">これを販売する</button>
+        </div>
+
+        <div class="notice-box" style="margin-top:12px;">
+          この作品はあなたの所有物として扱われます。<br>
+          自販機やオークションで再販売できます。
         </div>
 
         <div id="listingArea" style="display:none; margin-top:12px;">
@@ -120,7 +129,8 @@
     <div class="notice-box">
       <strong>掲載したい人へ</strong><br>
       画像・動画どちらも1点から投稿できます。<br>
-      投稿された作品は順次ガチャに追加されます。
+      投稿された作品は順次ガチャに追加されます。<br>
+      投稿後はマイページから販売導線を作れます。
     </div>
 
     <footer class="footer-links">
@@ -130,5 +140,36 @@
   </div>
 
   <script src="gacha.js" defer></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const mypageBtn = document.getElementById("mypageBtn");
+      let userId = localStorage.getItem("gacha_user_id");
+
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
+        } else {
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+        }
+        localStorage.setItem("gacha_user_id", userId);
+      }
+
+      if (mypageBtn && userId) {
+        mypageBtn.href = `https://aicontents.onrender.com/mypage/${encodeURIComponent(userId)}`;
+      }
+
+      const sellButton = document.getElementById("sellButton");
+      if (sellButton) {
+        sellButton.addEventListener("click", () => {
+          if (!window.currentWork) {
+            alert("先にガチャを引いてください");
+            return;
+          }
+
+          window.location.href = `upload.html?sell_from=${encodeURIComponent(window.currentWork.id || "")}`;
+        });
+      }
+    });
+  </script>
 </body>
 </html>
