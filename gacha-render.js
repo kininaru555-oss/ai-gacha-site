@@ -344,4 +344,4 @@ export function setDrawingAnimation(active) {
   } else {
     stage.classList.remove("animating", "reveal-delay");
   }
-  }
+}
