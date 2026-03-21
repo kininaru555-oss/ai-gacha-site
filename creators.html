@@ -108,7 +108,8 @@
     <header class="ranking-header">
       <h1 class="ranking-title">クリエイターランキング</h1>
       <p class="ranking-subtitle">
-        現在の権利台帳上で、作品の流通実績が高いクリエイターのランキングです。
+        権利台帳上の流通実績にもとづくクリエイターランキングです。<br>
+        いいね数ではなく、移転価格・移転件数・最高移転価格で表示します。
       </p>
 
       <div class="ranking-links">
@@ -150,7 +151,7 @@
         const creator = item.creator || item.author || "不明";
         const totalSales = Number(item.total_sales || 0);
         const soldCount = Number(item.sold_count || 0);
-        const topSale = Number(item.max_sale || 0);
+        const maxSale = Number(item.max_sale || 0);
 
         return `
           <article class="ranking-card">
@@ -160,7 +161,7 @@
               <div class="ranking-meta">
                 累計移転価格: ${totalSales}pt<br>
                 移転件数: ${soldCount}件<br>
-                最高移転価格: ${topSale}pt
+                最高移転価格: ${maxSale}pt
               </div>
             </div>
           </article>
