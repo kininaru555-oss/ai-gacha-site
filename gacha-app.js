@@ -1,3 +1,4 @@
+import { API_BASE } from "./gacha-config.js";
 import {
   consumeDrawCostIfNeeded,
   fetchOwnerships,
@@ -20,6 +21,58 @@ import {
 
 function drawRandom() {
   return state.works[Math.floor(Math.random() * state.works.length)];
+}
+
+async function grantFreeGachaOwnershipIfAllowed(work) {
+  if (!work) return;
+
+  const agreed = String(work.agreed || "").trim();
+  if (agreed !== "はい") {
+    return;
+  }
+
+  const workId = String(work.id ?? "");
+  if (!workId) {
+    return;
+  }
+
+  // すでに流通済みなら付与しない
+  if (state.ownershipMap[workId]) {
+    return;
+  }
+
+  const userId = getOrCreateUserId();
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/free-gacha/grant/${encodeURIComponent(work.id)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          owner_id: userId
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.warn("無料ガチャ権利付与失敗", data.detail || data);
+      return;
+    }
+
+    state.ownershipMap[workId] = {
+      content_id: Number(work.id),
+      owner_id: userId,
+      ownership_type: data.ownership_type || "copyright_transfer",
+      status: "owned"
+    };
+  } catch (e) {
+    console.warn("無料ガチャ権利付与失敗", e);
+  }
 }
 
 async function loadInitialData() {
@@ -77,6 +130,7 @@ async function handleDraw() {
     setDrawingAnimation(true);
 
     setTimeout(async () => {
+      await grantFreeGachaOwnershipIfAllowed(selected);
       await renderWork(selected);
     }, revealDelay);
 
