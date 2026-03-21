@@ -3,7 +3,6 @@ import {
   buybackPriceEl,
   creatorEl,
   descriptionEl,
-  drawButton,
   featuredTypeEl,
   genreEl,
   jackpotEl,
@@ -38,6 +37,70 @@ import {
   resetMedia,
   setRarityStyle
 } from "./gacha-utils.js";
+
+function isRightsAllowed(work) {
+  return String(work?.agreed || "").trim() === "はい";
+}
+
+function getOwnership(work) {
+  const workId = String(work?.id ?? "").trim();
+  if (!workId) return null;
+  return state.ownershipMap[workId] || null;
+}
+
+function getStatusText(work) {
+  const ownership = getOwnership(work);
+
+  if (ownership) {
+    if (ownership.status === "listed") {
+      return "出品済み";
+    }
+    if (ownership.status === "owned") {
+      return "権利取得済み";
+    }
+    return ownership.status || "流通済み";
+  }
+
+  if (isRightsAllowed(work)) {
+    return "🔥未出品（当たり）";
+  }
+
+  return "🔒 権利未開放（購入のみ）";
+}
+
+function getListingGuideText(work, available) {
+  if (!isRightsAllowed(work)) {
+    return "この作品は権利未開放です。購入でのみ取得できます。";
+  }
+
+  if (!isNewWork(work)) {
+    return "";
+  }
+
+  if (!available) {
+    return "未出品作品です。現在自販機は満杯のため、マイページで再販売してください。";
+  }
+
+  return `未出品作品です。自販機ガチャオークションに出品できます（空き ${available.remaining_slots} / 30）。またはマイページで再販売できます。`;
+}
+
+function updateMypageResaleLink(work) {
+  const resaleBtn = document.getElementById("resaleFromMypageBtn");
+  if (!resaleBtn) return;
+
+  const userId = getOrCreateUserId();
+
+  if (!work || !isRightsAllowed(work)) {
+    resaleBtn.style.display = "none";
+    resaleBtn.href = "#";
+    return;
+  }
+
+  resaleBtn.style.display = "inline-flex";
+  resaleBtn.href =
+    `${API_BASE}/mypage/${encodeURIComponent(userId)}` +
+    `?highlight=${encodeURIComponent(work.id || "")}`;
+}
 
 export function initMypageLink() {
   const userId = getOrCreateUserId();
@@ -117,41 +180,69 @@ export async function updateListingAreaForCurrentWork(work) {
 
   if (listingFullBox) {
     listingFullBox.style.display = "none";
+    listingFullBox.textContent = "";
   }
 
-  if (!isNewWork(work)) {
+  updateMypageResaleLink(work);
+
+  if (!work) {
+    return;
+  }
+
+  const ownership = getOwnership(work);
+
+  if (ownership) {
+    if (listToMachineBtn) {
+      listToMachineBtn.style.display = "none";
+      listToMachineBtn.disabled = false;
+    }
+    listingArea.style.display = "block";
+    listingMessage.textContent =
+      ownership.status === "listed"
+        ? "この作品はすでに自販機または市場に出品されています。"
+        : "この作品の権利はすでに取得済みです。マイページから再販売できます。";
+    return;
+  }
+
+  if (!isRightsAllowed(work)) {
+    if (listToMachineBtn) {
+      listToMachineBtn.style.display = "none";
+      listToMachineBtn.disabled = false;
+    }
+    listingArea.style.display = "block";
+    listingMessage.textContent = "この作品は権利未開放です。購入でのみ取得できます。";
     return;
   }
 
   const available = await fetchAvailableMachine();
   listingArea.style.display = "block";
+  listingMessage.textContent = getListingGuideText(work, available);
 
   if (!available) {
     listToMachineBtn.style.display = "none";
 
     if (listingFullBox) {
       listingFullBox.style.display = "block";
+      listingFullBox.textContent = "現在、自販機は満杯です。";
     }
 
     jackpotEl.style.display = "block";
     jackpotEl.textContent = "🎉 未出品作品を獲得！ただいま自販機は満杯です";
-    listingMessage.textContent =
-      "未出品作品は獲得済みです。空きが出たら出品できるようになります。";
     return;
   }
 
   listToMachineBtn.style.display = "inline-flex";
   listToMachineBtn.disabled = false;
   listingArea.dataset.machineId = String(available.machine.id);
-  listingMessage.textContent =
-    `この作品は100ptスタートで出品できます（空き ${available.remaining_slots} / 30）`;
 }
 
 export async function renderWork(work) {
   state.currentWork = work;
   window.currentWork = work;
 
-  if (placeholder) placeholder.style.display = "none";
+  if (placeholder) {
+    placeholder.style.display = "none";
+  }
 
   resetMedia();
 
@@ -169,6 +260,7 @@ export async function renderWork(work) {
 
   if (listingFullBox) {
     listingFullBox.style.display = "none";
+    listingFullBox.textContent = "";
   }
 
   const mediaType = getMediaType(work);
@@ -188,14 +280,28 @@ export async function renderWork(work) {
     }
   }
 
-  if (titleEl) titleEl.textContent = work.title || "";
-  if (creatorEl) creatorEl.textContent = work.author || "";
-  if (genreEl) genreEl.textContent = work.genre || "";
-  if (descriptionEl) descriptionEl.textContent = work.comment || "";
-  if (mediaTypeEl) mediaTypeEl.textContent = mediaType === "video" ? "動画" : "画像";
+  if (titleEl) {
+    titleEl.textContent = work.title || "";
+  }
+
+  if (creatorEl) {
+    creatorEl.textContent = work.author || "";
+  }
+
+  if (genreEl) {
+    genreEl.textContent = work.genre || "";
+  }
+
+  if (descriptionEl) {
+    descriptionEl.textContent = work.comment || "";
+  }
+
+  if (mediaTypeEl) {
+    mediaTypeEl.textContent = mediaType === "video" ? "動画" : "画像";
+  }
 
   if (statusEl) {
-    statusEl.textContent = isNewWork(work) ? "🔥未出品（当たり）" : "出品済み";
+    statusEl.textContent = getStatusText(work);
   }
 
   if (buybackPriceEl) {
@@ -223,8 +329,10 @@ export async function renderWork(work) {
 }
 
 export function setLoadingState(canDraw) {
+  const canUse = Boolean(canDraw);
+
   if (drawButton) {
-    drawButton.disabled = !canDraw;
+    drawButton.disabled = !canUse;
   }
 }
 
@@ -236,4 +344,4 @@ export function setDrawingAnimation(active) {
   } else {
     stage.classList.remove("animating", "reveal-delay");
   }
-}
+  }
