@@ -3,554 +3,192 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>作品投稿 |無料AI画像ガチャ　R18 権利台帳</title>
+  <title>無料AI画像ガチャMAX 権利台帳</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    .upload-card {
-      background: #1f1f1f;
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-    }
-
-    .top-links {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-    }
-
-    .notice {
-      margin-bottom: 16px;
-      padding: 12px;
-      border-radius: 12px;
-      background: rgba(179, 21, 75, 0.18);
-      border: 1px solid rgba(255, 120, 170, 0.25);
-      color: #ffd7e2;
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .notice.soft {
-      background: rgba(123, 97, 255, 0.12);
-      border: 1px solid rgba(123, 97, 255, 0.28);
-      color: #e8e1ff;
-    }
-
-    label {
-      display: block;
-      margin-top: 14px;
-      margin-bottom: 6px;
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border: none;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 14px;
-      background: #2a2a2a;
-      color: #fff;
-    }
-
-    textarea {
-      min-height: 90px;
-      resize: vertical;
-    }
-
-    .btn-select {
-      background: #7b61ff;
-      width: 100%;
-      margin-top: 10px;
-      color: #fff;
-    }
-
-    .btn-submit {
-      border: none;
-      background: linear-gradient(135deg, #d61f69 0%, #9f1146 100%);
-      color: #fff;
-      border-radius: 14px;
-      padding: 15px 20px;
-      font-size: 17px;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 18px;
-      font-weight: bold;
-      letter-spacing: 0.3px;
-      transition: transform 0.08s ease, opacity 0.2s;
-    }
-
-    .btn-submit:hover {
-      opacity: 0.85;
-    }
-
-    .btn-submit:active {
-      transform: scale(0.96);
-    }
-
-    .btn-submit:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-
-    .btn-back {
-      display: inline-block;
-      background: #444;
-      color: #fff;
-      text-decoration: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-    }
-
-    .preview {
-      margin-top: 12px;
-      background: #2a2a2a;
-      border-radius: 12px;
-      padding: 10px;
-      text-align: center;
-    }
-
-    .preview img,
-    .preview video {
-      max-width: 100%;
-      border-radius: 10px;
-      display: block;
-      margin: 0 auto;
-    }
-
-    .small {
-      color: #bdbdbd;
-      font-size: 12px;
-      margin-top: 6px;
-      line-height: 1.6;
-    }
-
-    .status {
-      margin-top: 10px;
-      font-size: 13px;
-      color: #ffd7e2;
-      line-height: 1.6;
-      white-space: pre-line;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .file-name {
-      margin-top: 8px;
-      font-size: 13px;
-      color: #d8d8d8;
-      word-break: break-all;
-    }
-
-    .field-note {
-      margin-top: 6px;
-      color: #c9c9c9;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
-    <div class="top-links">
-      <a class="btn-back" href="index.html">← 無料ガチャに戻る</a>
-      <a class="btn-back" href="machines.html">有料ガチャへ</a>
-      <a class="btn-back" href="points_shop.html">ポイント購入</a>
+    <div class="top-actions">
+      <div class="user-box">
+        user_id: <strong id="userIdText">読み込み中...</strong>
+      </div>
+      <a href="points_shop.html" class="btn-back">ポイント購入</a>
     </div>
 
-    <div class="upload-card">
-      <h1>作品投稿</h1>
+    <div class="hero">
+      <h1>無料AI画像ガチャMAX</h1>
       <p class="sub">
-        画像や動画をアップして、そのまま掲載申請できます。<br>
-        投稿した作品はサイト内で公開候補になり、あとから<strong>自販機ガチャやオークション</strong>につなげられます。<br>
-        投稿後は無料ガチャ1回でゲット。
+        18禁AI画像・動画の無料ガチャ入口。<br />
+        作品を引いて終わりではなく、<strong>サイト内権利を流通させる台帳型マーケット</strong>です。
       </p>
 
-      <div class="notice soft">
-        無料ガチャには作品が表示されます。<br>
-        未出品作品で二次流通承諾がある場合は、自販機ガチャ・オークションで販売対象になります。<br>
-        権利移転および再販売は本サイト内に限られます。
+      <div class="adult-warning">
+        このサイトは成人向け作品を含みます。18歳未満の利用は禁止です。<br />
+        投稿作品は、投稿者の設定により「閲覧のみ」「二次流通可」「サイト内利用権販売」「サイト内権利譲渡販売」に分かれます。<br />
+        権利移転および二次流通は本サイト内に限られます。
       </div>
 
-      <div class="notice">
-        このページは18歳以上向け作品の投稿を想定しています。<br>
-        ご自身に投稿権限のある作品のみご利用ください。<br>
-        権利侵害のおそれがある画像・動画、掲載許可のない作品は投稿しないでください。<br>
-        収益分配のため、ユーザーIDは正確に入力してください。
+      <div class="buttons">
+        <a class="btn btn-post" href="upload.html">無料で投稿する</a>
+        <a class="btn btn-ranking" href="ranking.html">売却実績ランキング</a>
+        <a class="btn btn-creator" href="creators.html">クリエイター売上ランキング</a>
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <strong>このサイトでできること</strong><br />
+      ・画像や動画を無料投稿して、無料ガチャを1回引く<br />
+      ・30ptで無料ガチャを引く<br />
+      ・未出品在庫を引けたら、サイト内で二次流通できる<br />
+      ・サイト内利用権やサイト内権利譲渡をポイントで売買する<br />
+      ・自販機ガチャオークションで現金売上を得る
+    </div>
+
+    <div class="gacha-card">
+      <h2 class="section-title">無料ガチャ</h2>
+
+      <div id="ticketInfo" class="stats"></div>
+
+      <div id="stage" class="stage">
+        <div id="flash" class="flash"></div>
+        <div id="shine" class="shine"></div>
+
+        <img id="resultImage" class="media hidden" alt="ガチャ結果画像" />
+        <video
+          id="resultVideo"
+          class="media hidden"
+          controls
+          playsinline
+          preload="metadata"
+        ></video>
+
+        <div id="placeholder" class="placeholder">
+          投稿者は無料で1回。<br />
+          非投稿者は30ptで1回。<br />
+          ここでは未出品在庫も有料流通中作品も含めてランダムに表示されます。
+        </div>
       </div>
 
-      <form id="submitForm">
-        <label for="creator">クリエイター名・ハンドルネーム</label>
-        <input id="creator" type="text" required />
+      <button id="drawButton" class="draw-btn" type="button">
+        無料ガチャを引く
+      </button>
 
-        <label for="creatorUserId">ユーザーID</label>
-        <input
-          id="creatorUserId"
-          type="text"
-          required
-          pattern="^[a-z0-9_-]+$"
-          placeholder="例: user_001"
-          autocapitalize="off"
-          autocomplete="username"
-          spellcheck="false"
-        />
-        <div class="field-note">
-          収益分配とマイページ確認に使用します。後から変更できません。<br>
-          半角英小文字・数字・_・- のみ使用できます。
-        </div>
+      <div id="jackpot" class="hidden"></div>
 
-        <label for="type">作品タイプ</label>
-        <select id="type" required>
-          <option value="画像">画像</option>
-          <option value="動画">動画</option>
-        </select>
+      <div id="meta" class="meta hidden"></div>
 
-        <label>作品ファイル</label>
-        <input id="fileInput" type="file" accept="image/*" class="hidden" />
-        <button type="button" id="selectFileBtn" class="btn btn-select">端末からファイルを選ぶ</button>
-        <div id="fileName" class="file-name"></div>
+      <div class="result-buttons">
+        <button id="likeButton" class="btn-like hidden" type="button" disabled>
+          いいね停止中
+        </button>
+        <a id="linkButton" class="btn-link hidden" href="#" target="_blank" rel="noopener noreferrer">
+          作者リンクを見る
+        </a>
+        <button id="shareButton" class="btn-share hidden" type="button">
+          共有
+        </button>
+      </div>
 
-        <label for="imageUrl">作品画像URL</label>
-        <input id="imageUrl" type="text" placeholder="アップロード後に自動入力されます" readonly />
+      <div id="listingArea" class="hidden"></div>
+      <div id="listingMessage"></div>
+      <div id="promptBox" class="hidden"></div>
+    </div>
 
-        <label for="videoUrl">作品動画URL（任意）</label>
-        <input id="videoUrl" type="text" placeholder="アップロード後に自動入力されます" readonly />
+    <div class="notice-box">
+      <strong>無料ガチャの仕組み</strong><br />
+      ・投稿者は投稿後に無料で1回引けます<br />
+      ・投稿しない人は30pt必要です<br />
+      ・二次流通に事前同意した作品は、未出品在庫として無料ガチャに登録されます<br />
+      ・同意しない作品は、投稿特典ガチャを引けるだけで流通しません
+    </div>
 
-        <div id="previewBox" class="preview hidden"></div>
-        <div id="status" class="status"></div>
+    <div class="notice-box">
+      <strong>権利と収益の仕組み</strong><br />
+      ・二次流通権を持つ人は、マイページ販売や自販機ガチャオークションに出品できます<br />
+      ・著作権者は、権利を保持している限り二次流通時に10%ロイヤリティを受け取れます<br />
+      ・販売者は、ポイント取引でも現金取引でも60%を受け取ります<br />
+      ・有料ガチャ自販機では、作品が引かれた時点で販売者に15円入ります
+    </div>
 
-        <label for="workLink">作品リンク（X / DLsite / pixiv など、任意）</label>
-        <input id="workLink" type="text" placeholder="外部リンクがあれば入力してください" />
+    <div class="notice-box">
+      <strong>有料ガチャオークション自販機とは？</strong><br />
+      ・1台に最大30作品まで入る、ガチャとオークションが一体化した販売装置です<br />
+      ・1回30ptで回せます<br />
+      ・引いた作品に入札でき、7日後に最高額入札者が落札します<br />
+      ・落札者は次回出品権と二次流通権を得ます
+    </div>
 
-        <label for="xAccount">Xアカウント（任意）</label>
-        <input id="xAccount" type="text" placeholder="@なしでも可" />
+    <div class="buttons">
+      <a class="btn btn-post" href="upload.html">作品を投稿する</a>
+      <a class="btn btn-link" href="points_shop.html">ポイントを買う</a>
+      <a class="btn btn-creator" href="/machines">有料ガチャ自販機を見る</a>
+      <a class="btn btn-ranking" href="/auctions">開催中オークションを見る</a>
+    </div>
 
-        <label for="genre">ジャンル</label>
-        <select id="genre" required>
-          <option value="AI2次元">AI2次元</option>
-          <option value="AI3次元">AI3次元</option>
-        </select>
+    <div class="notice-box">
+      <strong>出金と期限</strong><br />
+      ・ポイントは90日で失効します<br />
+      ・現金は1000円以上で出金申請できます<br />
+      ・現金売上は、ガチャ自販機落札や現金系取引で発生します
+    </div>
 
-        <label for="rarity">レアリティ（自己評価）</label>
-        <select id="rarity" required>
-          <option value="SSR">SSR</option>
-          <option value="SR">SR</option>
-          <option value="R">R</option>
-          <option value="N">N</option>
-        </select>
-
-        <label for="rightsPreset">権利設定</label>
-        <select id="rightsPreset" required>
-          <option value="none">権利は何も売らない</option>
-          <option value="distribution">二次流通承諾（未出品なら自販機・ガチャ・オークション可）</option>
-          <option value="resale">再販売権利（300pt）</option>
-          <option value="copyright">著作ロイヤリティ権（1000pt）</option>
-        </select>
-        <div class="field-note">
-          「権利は何も売らない」を選ぶと、無料ガチャで表示されるだけで終了します。<br>
-          「再販売権利」「著作ロイヤリティ権」は無料ガチャ結果でポイント購入メニューとして表示されます。<br>
-          著作ロイヤリティ権は、売買のたびに運営30% / 販売者60% / 著作権者10%で分配されます。
-        </div>
-
-        <label for="comment">宣伝コメント（任意）</label>
-        <textarea id="comment" placeholder="見てほしいポイント、世界観、こだわりなど"></textarea>
-
-        <label for="prompt">プロンプト（任意）</label>
-        <textarea id="prompt" placeholder="公開したい場合のみ入力してください"></textarea>
-
-        <label for="negativePrompt">ネガティブプロンプト（任意）</label>
-        <textarea id="negativePrompt" placeholder="公開したい場合のみ入力してください"></textarea>
-
-        <div class="small">
-          送信後、データベースへ直接登録されます。<br>
-          投稿完了後はマイページへ移動します。
-        </div>
-
-        <button id="submitBtn" type="submit" class="btn-submit">投稿する</button>
-      </form>
+    <div class="footer-links">
+      <a class="btn-back" id="mypageLink" href="#">マイページを見る</a>
     </div>
   </div>
 
+  <script src="gacha-config.js"></script>
+  <script src="gacha-dom.js"></script>
+  <script src="gacha-state.js"></script>
+  <script src="gacha-utils.js"></script>
+  <script src="gacha-render.js"></script>
   <script>
-    const CLOUD_NAME = "dc7oz9roa";
-    const UPLOAD_PRESET = "ai_gacha";
-    const API_BASE = "https://aicontents.onrender.com";
-    const SUBMIT_API = `${API_BASE}/api/contents/submit`;
-    const MYPAGE_BASE_URL = `${API_BASE}/mypage`;
+    function getOrCreateUserId() {
+      let userId = localStorage.getItem("gacha_user_id");
 
-    const typeEl = document.getElementById("type");
-    const fileInput = document.getElementById("fileInput");
-    const selectFileBtn = document.getElementById("selectFileBtn");
-    const fileNameEl = document.getElementById("fileName");
-    const imageUrlEl = document.getElementById("imageUrl");
-    const videoUrlEl = document.getElementById("videoUrl");
-    const previewBox = document.getElementById("previewBox");
-    const statusEl = document.getElementById("status");
-    const submitBtn = document.getElementById("submitBtn");
-    const submitForm = document.getElementById("submitForm");
-    const creatorUserIdEl = document.getElementById("creatorUserId");
-    const rightsPresetEl = document.getElementById("rightsPreset");
-
-    function setStatus(message) {
-      statusEl.textContent = message || "";
-    }
-
-    function renderPreview(type, url) {
-      if (!url) {
-        previewBox.classList.add("hidden");
-        previewBox.innerHTML = "";
-        return;
-      }
-
-      previewBox.classList.remove("hidden");
-
-      if (type === "動画") {
-        previewBox.innerHTML = `<video src="${url}" controls playsinline preload="metadata"></video>`;
-      } else {
-        previewBox.innerHTML = `<img src="${url}" alt="preview">`;
-      }
-    }
-
-    function resetUploadedUrls() {
-      imageUrlEl.value = "";
-      videoUrlEl.value = "";
-      renderPreview(typeEl.value, "");
-    }
-
-    function syncAcceptByType() {
-      if (typeEl.value === "画像") {
-        fileInput.accept = "image/*";
-      } else {
-        fileInput.accept = "video/*";
-      }
-    }
-
-    function normalizeUserId(value) {
-      return String(value || "").trim().toLowerCase();
-    }
-
-    function isValidUserId(value) {
-      return /^[a-z0-9_-]+$/.test(value);
-    }
-
-    function buildRightsPayload() {
-      const preset = rightsPresetEl.value;
-
-      if (preset === "distribution") {
-        return {
-          right_type: "二次流通承諾",
-          site_license_price: 0,
-          copyright_transfer_price: 0,
-          site_license_enabled: 0,
-          copyright_transfer_enabled: 0
-        };
-      }
-
-      if (preset === "resale") {
-        return {
-          right_type: "再販売権利",
-          site_license_price: 300,
-          copyright_transfer_price: 0,
-          site_license_enabled: 1,
-          copyright_transfer_enabled: 0
-        };
-      }
-
-      if (preset === "copyright") {
-        return {
-          right_type: "著作ロイヤリティ権",
-          site_license_price: 0,
-          copyright_transfer_price: 1000,
-          site_license_enabled: 0,
-          copyright_transfer_enabled: 1
-        };
-      }
-
-      return {
-        right_type: "権利は何も売らない",
-        site_license_price: 0,
-        copyright_transfer_price: 0,
-        site_license_enabled: 0,
-        copyright_transfer_enabled: 0
-      };
-    }
-
-    selectFileBtn.addEventListener("click", () => {
-      fileInput.click();
-    });
-
-    typeEl.addEventListener("change", () => {
-      resetUploadedUrls();
-      fileInput.value = "";
-      fileNameEl.textContent = "";
-      syncAcceptByType();
-    });
-
-    creatorUserIdEl.addEventListener("input", () => {
-      const normalized = normalizeUserId(creatorUserIdEl.value);
-      if (creatorUserIdEl.value !== normalized) {
-        creatorUserIdEl.value = normalized;
-      }
-    });
-
-    async function uploadToCloudinary(file) {
-      const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", UPLOAD_PRESET);
-      formData.append("folder", "ai_gacha");
-
-      const response = await fetch(url, {
-        method: "POST",
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error("Cloudinaryアップロード失敗");
-      }
-
-      return await response.json();
-    }
-
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files[0];
-
-      if (!file) return;
-
-      fileNameEl.textContent = `選択中: ${file.name}`;
-      setStatus("アップロードしています…");
-      submitBtn.disabled = true;
-
-      try {
-        const result = await uploadToCloudinary(file);
-        const secureUrl = result.secure_url || "";
-        const resourceType = result.resource_type || "";
-
-        if (resourceType === "video" || file.type.startsWith("video/")) {
-          typeEl.value = "動画";
-          videoUrlEl.value = secureUrl;
-          imageUrlEl.value = "";
-          renderPreview("動画", secureUrl);
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
         } else {
-          typeEl.value = "画像";
-          imageUrlEl.value = secureUrl;
-          videoUrlEl.value = "";
-          renderPreview("画像", secureUrl);
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
         }
-
-        fileInput.value = "";
-        syncAcceptByType();
-        setStatus("アップロードが完了しました。内容を確認して投稿できます。");
-      } catch (error) {
-        console.error(error);
-        setStatus("アップロードに失敗しました。通信エラーまたはファイル制限の可能性があります。");
-        alert("Cloudinaryアップロードに失敗しました");
-      } finally {
-        submitBtn.disabled = false;
+        localStorage.setItem("gacha_user_id", userId);
       }
+
+      return userId;
+    }
+
+    function renderUserInfo() {
+      const userId = getOrCreateUserId();
+
+      const userIdText = document.getElementById("userIdText");
+      if (userIdText) {
+        userIdText.textContent = userId;
+      }
+
+      const mypageLink = document.getElementById("mypageLink");
+      if (mypageLink) {
+        mypageLink.href = `/mypage/${encodeURIComponent(userId)}`;
+      }
+    }
+
+    function renderTicketInfo() {
+      const ticketInfo = document.getElementById("ticketInfo");
+      if (!ticketInfo) return;
+
+      const freeCount = Number(localStorage.getItem("gacha_free_draw_count") || "0");
+
+      if (freeCount > 0) {
+        ticketInfo.textContent = `無料ガチャ回数: ${freeCount}回`;
+      } else {
+        ticketInfo.textContent = "無料ガチャ回数: 0回（通常は1回30pt）";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderUserInfo();
+      renderTicketInfo();
     });
-
-    submitForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const creator = document.getElementById("creator").value.trim();
-      const creatorUserId = normalizeUserId(creatorUserIdEl.value);
-      const imageUrl = imageUrlEl.value.trim();
-      const videoUrl = videoUrlEl.value.trim();
-      const workLink = document.getElementById("workLink").value.trim();
-      const xAccount = document.getElementById("xAccount").value.trim();
-      const genre = document.getElementById("genre").value;
-      const rarity = document.getElementById("rarity").value;
-      const comment = document.getElementById("comment").value.trim();
-      const prompt = document.getElementById("prompt").value.trim();
-      const negativePrompt = document.getElementById("negativePrompt").value.trim();
-      const type = typeEl.value;
-      const rightsPayload = buildRightsPayload();
-
-      if (!creator) {
-        alert("クリエイター名を入力してください");
-        return;
-      }
-
-      if (!creatorUserId) {
-        alert("ユーザーIDを入力してください");
-        return;
-      }
-
-      if (!isValidUserId(creatorUserId)) {
-        alert("ユーザーIDは半角英小文字・数字・_・- のみ使用できます");
-        return;
-      }
-
-      if (type === "画像" && !imageUrl) {
-        alert("先に画像をアップロードしてください");
-        return;
-      }
-
-      if (type === "動画" && !videoUrl) {
-        alert("先に動画をアップロードしてください");
-        return;
-      }
-
-      submitBtn.disabled = true;
-      setStatus("投稿内容を送信しています…");
-
-      try {
-        const res = await fetch(SUBMIT_API, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            creator: creator,
-            creator_user_id: creatorUserId,
-            type: type,
-            image_url: imageUrl,
-            video_url: videoUrl,
-            work_link: workLink,
-            x_account: xAccount,
-            genre: genre,
-            rarity: rarity,
-            right_type: rightsPayload.right_type,
-            site_license_price: rightsPayload.site_license_price,
-            copyright_transfer_price: rightsPayload.copyright_transfer_price,
-            site_license_enabled: rightsPayload.site_license_enabled,
-            copyright_transfer_enabled: rightsPayload.copyright_transfer_enabled,
-            comment: comment,
-            prompt: prompt,
-            negative_prompt: negativePrompt,
-            permission: "はい"
-          })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.detail || "投稿送信に失敗しました");
-        }
-
-        localStorage.setItem("gacha_user_id", creatorUserId);
-        localStorage.setItem("gacha_is_poster_free", "1");
-
-        setStatus("投稿が完了しました。マイページへ移動します…");
-        window.location.href = `${MYPAGE_BASE_URL}/${encodeURIComponent(creatorUserId)}?from=upload`;
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message || "投稿送信に失敗しました。時間を置いてもう一度お試しください。");
-        alert(error.message || "投稿送信に失敗しました");
-        submitBtn.disabled = false;
-      }
-    });
-
-    syncAcceptByType();
   </script>
 </body>
-</html>
+  </html>
