@@ -1,16 +1,16 @@
 import {
-  API_URL,
   API_BASE,
+  CONTENTS_API,
+  DRAW_COST,
   OWNERSHIP_API,
   POINT_API_BASE,
   VENDING_AVAILABLE_API,
-  VENDING_MACHINES_API,
-  DRAW_COST
+  VENDING_MACHINES_API
 } from "./gacha-config.js";
 import { getOrCreateUserId, isPosterFreeUser, state } from "./gacha-state.js";
 
 export async function fetchWorks() {
-  const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+  const response = await fetch(`${CONTENTS_API}?t=${Date.now()}`, {
     cache: "no-store"
   });
 
@@ -18,8 +18,8 @@ export async function fetchWorks() {
     throw new Error("作品一覧の読み込みに失敗しました");
   }
 
-  const raw = await response.json();
-  return Array.isArray(raw) ? raw : (raw.items || []);
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 export async function fetchOwnerships() {
@@ -103,9 +103,7 @@ export async function fetchAvailableMachine() {
 export async function listWorkToMachine(machineId, contentId) {
   const res = await fetch(
     `${API_BASE}/api/vending-machines/${machineId}/items?content_id=${encodeURIComponent(contentId)}&item_order=0`,
-    {
-      method: "POST"
-    }
+    { method: "POST" }
   );
 
   const data = await res.json();
@@ -142,15 +140,12 @@ export async function fetchMachineStatusRows() {
       continue;
     }
 
-    const currentCount = Number(detailData.current_count || 0);
-    const remainingSlots = Number(detailData.remaining_slots || 0);
-
     rows.push({
       name: machine.name,
-      currentCount,
-      remainingSlots
+      currentCount: Number(detailData.current_count || 0),
+      remainingSlots: Number(detailData.remaining_slots || 0)
     });
   }
 
   return rows;
-  }
+}
