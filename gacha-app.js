@@ -31,12 +31,12 @@ async function grantFreeGachaOwnershipIfAllowed(work) {
     return;
   }
 
-  const workId = String(work.id ?? "");
+  const workId = String(work.id ?? "").trim();
   if (!workId) {
     return;
   }
 
-  // すでに流通済みなら付与しない
+  // すでに流通済みなら無料付与しない
   if (state.ownershipMap[workId]) {
     return;
   }
@@ -117,7 +117,7 @@ async function handleDraw() {
 
     if (!ok) {
       state.isDrawing = false;
-      setLoadingState(true);
+      setLoadingState(state.works.length > 0);
       return;
     }
 
@@ -130,31 +130,41 @@ async function handleDraw() {
     setDrawingAnimation(true);
 
     setTimeout(async () => {
-      await grantFreeGachaOwnershipIfAllowed(selected);
-      await renderWork(selected);
+      try {
+        await grantFreeGachaOwnershipIfAllowed(selected);
+        await renderWork(selected);
+      } catch (e) {
+        console.error("描画処理失敗", e);
+      }
     }, revealDelay);
 
     setTimeout(() => {
       setDrawingAnimation(false);
       state.isDrawing = false;
-      setLoadingState(true);
+      setLoadingState(state.works.length > 0);
     }, revealDelay + 250);
   } catch (e) {
     console.error(e);
     alert("ガチャ処理に失敗しました");
     state.isDrawing = false;
     setDrawingAnimation(false);
-    setLoadingState(true);
+    setLoadingState(state.works.length > 0);
   }
 }
 
 async function handleListToMachine() {
   if (!state.currentWork || !listingArea || !listingMessage || !listToMachineBtn) return;
 
-  const machineId = listingArea.dataset.machineId;
+  const machineId = String(listingArea.dataset.machineId || "").trim();
+  const ownerId = getOrCreateUserId();
 
   if (!machineId) {
     listingMessage.textContent = "出品先の自販機が見つかりません。";
+    return;
+  }
+
+  if (!state.currentWork.id) {
+    listingMessage.textContent = "作品IDが見つかりません。";
     return;
   }
 
@@ -162,17 +172,20 @@ async function handleListToMachine() {
   listToMachineBtn.disabled = true;
 
   try {
-    await listWorkToMachine(machineId, state.currentWork.id);
+    await listWorkToMachine(machineId, state.currentWork.id, ownerId);
 
     listingMessage.textContent = "100ptスタートで自販機に出品しました！";
     listToMachineBtn.style.display = "none";
 
     state.ownershipMap[String(state.currentWork.id)] = {
       content_id: Number(state.currentWork.id),
+      owner_id: ownerId,
+      ownership_type: state.ownershipMap[String(state.currentWork.id)]?.ownership_type || "copyright_transfer",
       status: "listed"
     };
 
     await renderMachineStatus();
+    await renderWork(state.currentWork);
   } catch (e) {
     console.error(e);
     listingMessage.textContent = e.message || "自販機追加に失敗しました。";
