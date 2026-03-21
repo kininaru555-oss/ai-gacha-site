@@ -5,105 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ポイント購入</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    .shop-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-top: 24px;
-    }
-
-    .shop-card {
-      background: #1f1f1f;
-      border-radius: 16px;
-      padding: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-      text-align: center;
-    }
-
-    .shop-card h2 {
-      margin: 0 0 10px;
-      font-size: 22px;
-    }
-
-    .shop-card p {
-      margin: 8px 0;
-      color: #d8d8d8;
-      line-height: 1.6;
-    }
-
-    .shop-price {
-      font-size: 24px;
-      font-weight: bold;
-      margin: 14px 0;
-      color: #ffffff;
-    }
-
-    .buy-pack-btn {
-      display: inline-block;
-      width: 100%;
-      border: none;
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      background: linear-gradient(135deg, #ff4ecd, #7b61ff);
-      color: #ffffff;
-      transition: 0.2s ease;
-    }
-
-    .buy-pack-btn:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
-
-    .buy-pack-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .notice-box {
-      margin-top: 18px;
-    }
-
-    .top-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .user-box {
-      background: #1f1f1f;
-      color: #fff;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-size: 14px;
-    }
-
-    .user-box strong {
-      color: #fff;
-    }
-
-    .status-message {
-      margin-top: 18px;
-      min-height: 22px;
-      font-size: 14px;
-      color: #f0f0f0;
-    }
-
-    .status-message.error {
-      color: #ff8b8b;
-    }
-
-    .status-message.success {
-      color: #9df5b0;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
@@ -116,7 +17,7 @@
 
     <div class="hero">
       <h1>ポイント購入</h1>
-      <p>
+      <p class="sub">
         ポイントを購入して、権利取得・再販売・サイト内権利購入に使えます。
       </p>
     </div>
@@ -130,7 +31,12 @@
         <h2>300pt</h2>
         <p>まず試したい方向けの小パックです。</p>
         <div class="shop-price">300円</div>
-        <button class="buy-pack-btn" data-pack-id="pack_300">
+        <button
+          type="button"
+          class="buy-pack-btn"
+          data-pack-id="pack_300"
+          data-default-label="300pt を購入"
+        >
           300pt を購入
         </button>
       </div>
@@ -139,7 +45,12 @@
         <h2>1000pt</h2>
         <p>いちばん使いやすい標準パックです。</p>
         <div class="shop-price">1000円</div>
-        <button class="buy-pack-btn" data-pack-id="pack_1000">
+        <button
+          type="button"
+          class="buy-pack-btn"
+          data-pack-id="pack_1000"
+          data-default-label="1000pt を購入"
+        >
           1000pt を購入
         </button>
       </div>
@@ -148,7 +59,12 @@
         <h2>3000pt</h2>
         <p>まとめて使いたい方向けの大容量パックです。</p>
         <div class="shop-price">3000円</div>
-        <button class="buy-pack-btn" data-pack-id="pack_3000">
+        <button
+          type="button"
+          class="buy-pack-btn"
+          data-pack-id="pack_3000"
+          data-default-label="3000pt を購入"
+        >
           3000pt を購入
         </button>
       </div>
@@ -177,17 +93,31 @@
       const statusEl = document.getElementById("statusMessage");
       statusEl.textContent = message;
       statusEl.className = "status-message";
+
       if (type) {
         statusEl.classList.add(type);
       }
     }
 
+    function setButtonLoading(buttonEl, isLoading, loadingText = "移動中...") {
+      if (!buttonEl) return;
+
+      const defaultLabel =
+        buttonEl.dataset.defaultLabel || buttonEl.textContent || "購入する";
+
+      if (isLoading) {
+        buttonEl.disabled = true;
+        buttonEl.textContent = loadingText;
+      } else {
+        buttonEl.disabled = false;
+        buttonEl.textContent = defaultLabel;
+      }
+    }
+
     async function buyPointPack(packId, buttonEl) {
       const userId = getOrCreateUserId();
-      const originalText = buttonEl.textContent;
 
-      buttonEl.disabled = true;
-      buttonEl.textContent = "移動中...";
+      setButtonLoading(buttonEl, true, "移動中...");
       setStatus("Stripe決済ページを準備しています...");
 
       try {
@@ -206,15 +136,13 @@
 
         if (!res.ok) {
           setStatus(data.detail || "決済ページの生成に失敗しました。", "error");
-          buttonEl.disabled = false;
-          buttonEl.textContent = originalText;
+          setButtonLoading(buttonEl, false);
           return;
         }
 
         if (!data.url) {
           setStatus("決済URLの取得に失敗しました。", "error");
-          buttonEl.disabled = false;
-          buttonEl.textContent = originalText;
+          setButtonLoading(buttonEl, false);
           return;
         }
 
@@ -222,36 +150,53 @@
         window.location.href = data.url;
       } catch (error) {
         setStatus("通信に失敗しました。", "error");
-        buttonEl.disabled = false;
-        buttonEl.textContent = originalText;
+        setButtonLoading(buttonEl, false);
       }
     }
 
-    function initPointShop() {
-      const userId = getOrCreateUserId();
-      const userIdText = document.getElementById("userIdText");
-      userIdText.textContent = userId;
-
-      const buttons = document.querySelectorAll(".buy-pack-btn");
-      buttons.forEach((button) => {
-        button.addEventListener("click", () => {
-          const packId = button.dataset.packId;
-          if (!packId) {
-            setStatus("pack_id が見つかりません。", "error");
-            return;
-          }
-          buyPointPack(packId, button);
-        });
-      });
-
+    function reflectPaymentStatusFromQuery() {
       const url = new URL(window.location.href);
       const payment = url.searchParams.get("payment");
 
       if (payment === "success") {
-        setStatus("決済が完了しました。ポイント反映まで少し待ってから確認してください。", "success");
+        setStatus(
+          "決済が完了しました。ポイント反映まで少し待ってから確認してください。",
+          "success"
+        );
       } else if (payment === "cancel") {
         setStatus("決済はキャンセルされました。", "error");
       }
+    }
+
+    function bindPackButtons() {
+      const buttons = document.querySelectorAll(".buy-pack-btn");
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const packId = button.dataset.packId;
+
+          if (!packId) {
+            setStatus("pack_id が見つかりません。", "error");
+            return;
+          }
+
+          buyPointPack(packId, button);
+        });
+      });
+    }
+
+    function renderUserId() {
+      const userId = getOrCreateUserId();
+      const userIdText = document.getElementById("userIdText");
+      if (userIdText) {
+        userIdText.textContent = userId;
+      }
+    }
+
+    function initPointShop() {
+      renderUserId();
+      bindPackButtons();
+      reflectPaymentStatusFromQuery();
     }
 
     document.addEventListener("DOMContentLoaded", initPointShop);
