@@ -24,6 +24,24 @@ export function getOrCreateUserId() {
   return userId;
 }
 
-export function isPosterFreeUser() {
-  return localStorage.getItem("gacha_is_poster_free") === "1";
+export function getFreeDrawCount() {
+  return Number(localStorage.getItem("gacha_free_draw_count") || "0");
+}
+
+export function hasFreeDraw() {
+  return getFreeDrawCount() > 0;
+}
+
+export function consumeFreeDraw() {
+  const current = getFreeDrawCount();
+  const next = Math.max(0, current - 1);
+  localStorage.setItem("gacha_free_draw_count", String(next));
+  return next;
+}
+
+export function addFreeDraw(count = 1) {
+  const current = getFreeDrawCount();
+  const next = Math.max(0, current + Number(count || 0));
+  localStorage.setItem("gacha_free_draw_count", String(next));
+  return next;
 }
