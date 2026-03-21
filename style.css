@@ -557,3 +557,147 @@ h1 {
     opacity: 0;
   }
   }
+
+  /* --------------------
+   upload.html
+-------------------- */
+
+.upload-card {
+  background: #1f1f1f;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+
+.top-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.notice {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(179, 21, 75, 0.18);
+  border: 1px solid rgba(255, 120, 170, 0.25);
+  color: #ffd7e2;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.notice-soft {
+  background: rgba(123, 97, 255, 0.12);
+  border: 1px solid rgba(123, 97, 255, 0.28);
+  color: #e8e1ff;
+}
+
+label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  background: #2a2a2a;
+  color: #fff;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.btn-select {
+  background: #7b61ff;
+  width: 100%;
+  margin-top: 10px;
+  color: #fff;
+}
+
+.btn-submit {
+  border: none;
+  background: linear-gradient(135deg, #d61f69 0%, #9f1146 100%);
+  color: #fff;
+  border-radius: 14px;
+  padding: 15px 20px;
+  font-size: 17px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 18px;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+  transition: transform 0.08s ease, opacity 0.2s;
+}
+
+.btn-submit:hover {
+  opacity: 0.85;
+}
+
+.btn-submit:active {
+  transform: scale(0.96);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.preview {
+  margin-top: 12px;
+  background: #2a2a2a;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+
+.preview img,
+.preview video {
+  max-width: 100%;
+  border-radius: 10px;
+  display: block;
+  margin: 0 auto;
+}
+
+.small {
+  color: #bdbdbd;
+  font-size: 12px;
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+.status {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #ffd7e2;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.file-name {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #d8d8d8;
+  word-break: break-all;
+}
+
+.field-note {
+  margin-top: 6px;
+  color: #c9c9c9;
+  font-size: 12px;
+  line-height: 1.6;
+  }
