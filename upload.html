@@ -164,9 +164,8 @@
       </p>
 
       <div class="notice soft">
-        自販機に未出品の画像や動画をガチャで引くと<br>
-        そのまま販売する事が出来ます。投稿は再販売に
-        同意してから投稿してください。
+        自販機に未出品の画像や動画をガチャで引くと、そのまま販売できます。<br>
+        投稿前に、再販売や掲載に同意している作品か確認してください。
       </div>
 
       <div class="notice">
@@ -252,7 +251,7 @@
         <textarea id="negativePrompt" placeholder="公開したい場合のみ入力してください"></textarea>
 
         <div class="small">
-          送信後、Googleフォーム経由で掲載候補に追加されます。<br>
+          送信後、データベースへ直接登録されます。<br>
           投稿完了後はマイページへ移動します。
         </div>
 
@@ -264,27 +263,9 @@
   <script>
     const CLOUD_NAME = "dc7oz9roa";
     const UPLOAD_PRESET = "ai_gacha";
-    const MYPAGE_BASE_URL = "https://aicontents.onrender.com/mypage";
-
-    const GOOGLE_FORM_ACTION =
-      "https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/formResponse";
-
-    const ENTRY = {
-      creator: "entry.29315806",
-      imageUrl: "entry.440407028",
-      videoUrl: "entry.199984987",
-      workLink: "entry.568565445",
-      xAccount: "entry.830490568",
-      genre: "entry.908703590",
-      xPromo: "entry.29845992",
-      rarity: "entry.35815312",
-      comment: "entry.894567656",
-      prompt: "entry.1577278835",
-      negativePrompt: "entry.1251304338",
-      type: "entry.865507487",
-      permission: "entry.1133972974",
-      userId: "entry.XXXXXXX"
-    };
+    const API_BASE = "https://aicontents.onrender.com";
+    const SUBMIT_API = `${API_BASE}/api/contents/submit`;
+    const MYPAGE_BASE_URL = `${API_BASE}/mypage`;
 
     const typeEl = document.getElementById("type");
     const fileInput = document.getElementById("fileInput");
@@ -457,36 +438,38 @@
         return;
       }
 
-      if (ENTRY.userId === "entry.XXXXXXX") {
-        alert("upload.html の ENTRY.userId を実際のGoogleフォームの項目IDに設定してください");
-        return;
-      }
-
       submitBtn.disabled = true;
       setStatus("投稿内容を送信しています…");
 
-      const formData = new FormData();
-      formData.append(ENTRY.creator, creator);
-      formData.append(ENTRY.userId, creatorUserId);
-      formData.append(ENTRY.imageUrl, imageUrl);
-      formData.append(ENTRY.videoUrl, videoUrl);
-      formData.append(ENTRY.workLink, workLink);
-      formData.append(ENTRY.xAccount, xAccount);
-      formData.append(ENTRY.genre, genre);
-      formData.append(ENTRY.xPromo, xPromo);
-      formData.append(ENTRY.rarity, rarity);
-      formData.append(ENTRY.comment, comment);
-      formData.append(ENTRY.prompt, prompt);
-      formData.append(ENTRY.negativePrompt, negativePrompt);
-      formData.append(ENTRY.type, type);
-      formData.append(ENTRY.permission, "はい");
-
       try {
-        await fetch(GOOGLE_FORM_ACTION, {
+        const res = await fetch(SUBMIT_API, {
           method: "POST",
-          mode: "no-cors",
-          body: formData
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            creator: creator,
+            creator_user_id: creatorUserId,
+            type: type,
+            image_url: imageUrl,
+            video_url: videoUrl,
+            work_link: workLink,
+            x_account: xAccount,
+            genre: genre,
+            x_promo: xPromo,
+            rarity: rarity,
+            comment: comment,
+            prompt: prompt,
+            negative_prompt: negativePrompt,
+            permission: "はい"
+          })
         });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "投稿送信に失敗しました");
+        }
 
         localStorage.setItem("gacha_user_id", creatorUserId);
         localStorage.setItem("gacha_is_poster_free", "1");
@@ -495,8 +478,8 @@
         window.location.href = `${MYPAGE_BASE_URL}/${encodeURIComponent(creatorUserId)}?from=upload`;
       } catch (error) {
         console.error(error);
-        setStatus("投稿送信に失敗しました。時間を置いてもう一度お試しください。");
-        alert("投稿送信に失敗しました");
+        setStatus(error.message || "投稿送信に失敗しました。時間を置いてもう一度お試しください。");
+        alert(error.message || "投稿送信に失敗しました");
         submitBtn.disabled = false;
       }
     });
@@ -504,4 +487,4 @@
     syncAcceptByType();
   </script>
 </body>
-</html>
+          </html>
