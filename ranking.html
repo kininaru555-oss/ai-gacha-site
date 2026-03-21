@@ -3,27 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIガチャ 人気ランキング</title>
+  <title>売却実績ランキング | 権利台帳</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
     <header class="top-nav">
-      <a href="index.html">← ガチャに戻る</a>
-      <a href="creators.html">作者ランキング</a>
+      <a href="index.html">← トップへ戻る</a>
+      <a href="creators.html">クリエイター売上ランキング</a>
     </header>
 
     <div class="hero">
-      <h1>人気ランキング</h1>
-      <p class="sub">いいね数上位10作品のみ表示しています</p>
+      <h1>売却実績ランキング</h1>
+      <p class="sub">
+        直近の売却実績を、売却額の高い順に表示しています。<br />
+        「何が高く売れたか」を見て、そのまま作品詳細へ進めます。
+      </p>
+    </div>
+
+    <div id="rankingSummary" class="notice-box">
+      読み込み中...
     </div>
 
     <div id="ranking" class="grid"></div>
   </div>
 
   <script>
-    const API_URL =
-      "https://script.google.com/macros/s/AKfycbzRW9dHBTOaRkM8gibA09i9L8zSiDDdd1YNWikqT4wn7zQWSaJQpo3-5CJx61od6-sNbQ/exec";
+    const API_BASE = "https://aicontents.onrender.com";
+    const SALES_RANKING_API = `${API_BASE}/api/ranking/sales?limit=30`;
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
 
     function optimizeCloudinary(url) {
       if (!url) return "";
@@ -33,150 +49,141 @@
       return url;
     }
 
-    function getWorkId(work) {
-      const creator = (work.creator || "投稿者不明").trim();
-      const file = (work.file || "").trim();
-      return work.id || `AI作品_${creator}_${file}`;
-    }
-
-    function normalizeRarity(r) {
-      if (!r) return "N";
-      const v = String(r).toUpperCase().trim();
-      if (v === "SSR") return "SSR";
-      if (v === "SR") return "SR";
-      if (v === "R" || v === "RARE") return "R";
-      return "N";
-    }
-
-    function getMediaType(work) {
-      const type = String(work.type || "").trim();
-      if (type === "video" || type === "動画") return "video";
-      if (type === "image" || type === "画像") return "image";
-      if (work.videoUrl) return "video";
-      return "image";
-    }
-
-    function getMediaUrl(work) {
-      const mediaType = getMediaType(work);
-      if (mediaType === "video") {
-        return optimizeCloudinary(work.videoUrl || work.file || "");
+    function formatDate(value) {
+      if (!value) return "-";
+      try {
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) return escapeHtml(value);
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, "0");
+        const d = String(dt.getDate()).padStart(2, "0");
+        return `${y}/${m}/${d}`;
+      } catch {
+        return escapeHtml(value);
       }
-      return optimizeCloudinary(work.imageUrl || work.file || "");
     }
 
-    async function sendLike(id) {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify({
-          mode: "like",
-          id: id
-        })
-      });
+    function formatSaleType(item) {
+      const type = String(item.ownership_type || "").trim();
+      if (type === "copyright_transfer") return "サイト内権利譲渡";
+      if (type === "site_license") return "サイト内利用権";
+      return type || "権利";
+    }
 
-      if (!response.ok) {
-        throw new Error("いいね更新失敗");
+    function buildRankClass(index) {
+      if (index === 0) return "gold";
+      if (index === 1) return "silver";
+      if (index === 2) return "bronze";
+      return "";
+    }
+
+    function renderSummary(items) {
+      const summaryEl = document.getElementById("rankingSummary");
+
+      if (!Array.isArray(items) || items.length === 0) {
+        summaryEl.textContent = "まだ売却実績はありません。";
+        return;
       }
 
-      return await response.json();
+      const totalSales = items.reduce((sum, item) => {
+        return sum + Number(item.final_price || 0);
+      }, 0);
+
+      const maxSale = items.reduce((max, item) => {
+        return Math.max(max, Number(item.final_price || 0));
+      }, 0);
+
+      summaryEl.innerHTML = `
+        表示件数: ${items.length}件<br>
+        合計売却額: ${totalSales}円<br>
+        最高売却額: ${maxSale}円
+      `;
+    }
+
+    function renderRanking(items) {
+      const rankingEl = document.getElementById("ranking");
+
+      if (!Array.isArray(items) || items.length === 0) {
+        rankingEl.innerHTML = `
+          <div class="card card-empty">
+            まだ売却実績がありません。
+          </div>
+        `;
+        return;
+      }
+
+      rankingEl.innerHTML = items.map((item, index) => {
+        const rankClass = buildRankClass(index);
+        const contentId = Number(item.content_id || 0);
+        const title = escapeHtml(item.title || "無題");
+        const author = escapeHtml(item.author || "不明");
+        const genre = escapeHtml(item.genre || "-");
+        const rarity = escapeHtml(item.rarity || "-");
+        const rightType = escapeHtml(item.right_type || "-");
+        const ownershipType = escapeHtml(formatSaleType(item));
+        const finalPrice = Number(item.final_price || 0);
+        const saleDate = formatDate(item.created_at);
+        const imageUrl = optimizeCloudinary(
+          item.image_url || "https://via.placeholder.com/600x800?text=No+Image"
+        );
+
+        return `
+          <article class="card ranking-card ${rankClass}">
+            <div class="rank">#${index + 1}</div>
+            <a class="card-link" href="/works/${contentId}">
+              <img
+                class="ranking-media"
+                src="${escapeHtml(imageUrl)}"
+                alt="${title}"
+                loading="lazy"
+              />
+            </a>
+            <h3>${title}</h3>
+            <div class="badge-row">
+              <span class="badge">${genre}</span>
+              <span class="badge">${rarity}</span>
+            </div>
+            <div class="card-meta">作者: ${author}</div>
+            <div class="card-meta">作品権利設定: ${rightType}</div>
+            <div class="card-meta">売却権利種別: ${ownershipType}</div>
+            <div class="likes">売却額: ${finalPrice}円</div>
+            <div class="card-meta">売却日: ${saleDate}</div>
+            <a class="work-link" href="/works/${contentId}">作品詳細を見る →</a>
+          </article>
+        `;
+      }).join("");
     }
 
     async function loadRanking() {
+      const rankingEl = document.getElementById("ranking");
+      rankingEl.innerHTML = `
+        <div class="card card-empty">読み込み中...</div>
+      `;
+
       try {
-        const res = await fetch(API_URL + "?t=" + Date.now(), {
+        const res = await fetch(SALES_RANKING_API, {
           cache: "no-store"
         });
 
+        const data = await res.json();
+
         if (!res.ok) {
-          throw new Error("API取得失敗: " + res.status);
+          throw new Error(data.detail || "売却実績ランキングの取得に失敗しました");
         }
 
-        const raw = await res.json();
-        const data = Array.isArray(raw) ? raw : (raw.items || []);
-
-        const items = data.map((item) => ({
-          ...item,
-          likes: Number(item.likes || 0)
-        }));
-
-        items.sort((a, b) => b.likes - a.likes);
-
-        const rankingDiv = document.getElementById("ranking");
-        rankingDiv.innerHTML = "";
-
-        if (!items.length) {
-          rankingDiv.innerHTML = "<div class='card card-empty'>まだ作品がありません。</div>";
-          return;
-        }
-
-        items.slice(0, 10).forEach((item, index) => {
-          const mediaType = getMediaType(item);
-          const fileUrl = getMediaUrl(item);
-
-          const media =
-            mediaType === "video"
-              ? `<video class="ranking-media" src="${fileUrl}" controls playsinline preload="metadata" muted></video>`
-              : `<img class="ranking-media" src="${fileUrl}" alt="${item.title || "作品画像"}" loading="lazy">`;
-
-          const linkHtml =
-            item.link && item.link !== "#"
-              ? `<a class="work-link" href="${item.link}" target="_blank" rel="noopener noreferrer">作品リンクへ →</a>`
-              : "";
-
-          const card = document.createElement("div");
-          card.className = `card ranking-card ${index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : ""}`;
-
-          card.innerHTML = `
-            <div class="rank" aria-label="第${index + 1}位">#${index + 1}</div>
-            <h3>${item.title || "無題"}</h3>
-            ${media}
-            <div>作者: ${item.creator || "投稿者不明"}</div>
-            <div>ジャンル: ${item.genre || "未指定"}</div>
-            <div>レアリティ: ${normalizeRarity(item.rarity)}</div>
-            <div class="likes">❤️ <span class="like-value">${item.likes}</span></div>
-            <button type="button" data-id="${encodeURIComponent(getWorkId(item))}">いいね</button>
-            ${linkHtml}
-          `;
-
-          const button = card.querySelector("button");
-          const likeValue = card.querySelector(".like-value");
-
-          button.addEventListener("click", async () => {
-            if (button.disabled) return;
-
-            button.disabled = true;
-            button.textContent = "処理中...";
-
-            try {
-              const result = await sendLike(decodeURIComponent(button.dataset.id));
-
-              if (result.success) {
-                likeValue.textContent = result.likes || 0;
-                button.textContent = "いいね済み";
-              } else {
-                alert("いいねに失敗しました");
-                button.textContent = "いいね";
-                button.disabled = false;
-              }
-            } catch (error) {
-              console.error(error);
-              alert("いいねに失敗しました");
-              button.textContent = "いいね";
-              button.disabled = false;
-            }
-          });
-
-          rankingDiv.appendChild(card);
-        });
+        const items = Array.isArray(data.items) ? data.items : [];
+        renderSummary(items);
+        renderRanking(items);
       } catch (error) {
         console.error(error);
-        document.getElementById("ranking").innerHTML = `
+        document.getElementById("rankingSummary").textContent =
+          "ランキングの読み込みに失敗しました。";
+
+        rankingEl.innerHTML = `
           <div class="card card-error">
-            <p>ランキングを読み込めませんでした…</p>
+            <p>売却実績ランキングを読み込めませんでした。</p>
             <p><a href="#" onclick="loadRanking(); return false;">もう一度読み込む</a></p>
-            <p>または <a href="index.html">ガチャに戻る</a></p>
+            <p><a href="index.html">トップへ戻る</a></p>
           </div>
         `;
       }
