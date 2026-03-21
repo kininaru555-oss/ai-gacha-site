@@ -1,11 +1,13 @@
 import {
   jackpotEl,
   rarityEl,
-  resultImage,
-  resultVideo,
   stage
 } from "./gacha-dom.js";
 import { state } from "./gacha-state.js";
+
+function getWorkId(work) {
+  return String(work?.content_id ?? work?.id ?? "").trim();
+}
 
 export function normalizeRarity(r) {
   if (!r) return "N";
@@ -19,7 +21,7 @@ export function normalizeRarity(r) {
 }
 
 export function isNewWork(work) {
-  const id = String(work?.id ?? "").trim();
+  const id = getWorkId(work);
   if (!id) return false;
   return !state.ownershipMap[id];
 }
@@ -33,6 +35,7 @@ export function isOperatorPick(work) {
 }
 
 export function getHitType(work) {
+  if (Boolean(work?.got_distribution_right)) return "new";
   if (isNewWork(work)) return "new";
   if (isBuybackTarget(work)) return "buyback";
   if (isOperatorPick(work)) return "pickup";
@@ -56,8 +59,12 @@ export function getRevealDelayMs(work) {
 }
 
 export function getJackpotMessage(work) {
+  if (Boolean(work?.got_distribution_right)) {
+    return "🎉 二次流通権を獲得しました！";
+  }
+
   if (isNewWork(work)) {
-    return "🎉 未出品作品！自販機出品権を獲得！";
+    return "🎉 未出品作品候補です！";
   }
 
   if (isBuybackTarget(work)) {
@@ -91,7 +98,7 @@ export function getMediaType(work) {
 
   if (type === "video" || type === "動画") return "video";
   if (type === "image" || type === "画像") return "image";
-  if (work?.video_url) return "video";
+  if (work?.video_url || work?.videoUrl || work?.video) return "video";
 
   return "image";
 }
@@ -100,10 +107,14 @@ export function getMediaUrl(work) {
   const mediaType = getMediaType(work);
 
   if (mediaType === "video") {
-    return optimizeCloudinary(work?.video_url || work?.file || "");
+    return optimizeCloudinary(
+      work?.video_url || work?.videoUrl || work?.video || work?.file || ""
+    );
   }
 
-  return optimizeCloudinary(work?.image_url || work?.file || "");
+  return optimizeCloudinary(
+    work?.image_url || work?.imageUrl || work?.image || work?.thumbnail_url || work?.file || ""
+  );
 }
 
 export function clearStageHitClasses() {
@@ -181,17 +192,8 @@ export function applyHitVisuals(work) {
 }
 
 export function resetMedia() {
-  if (resultImage) {
-    resultImage.style.display = "none";
-    resultImage.removeAttribute("src");
-  }
-
-  if (resultVideo) {
-    resultVideo.style.display = "none";
-    resultVideo.pause();
-    resultVideo.removeAttribute("src");
-    resultVideo.load();
-  }
+  // index画面では結果表示を直接持たない設計にしたため、
+  // ここでは何もしない
 }
 
 export function formatExpireDate(isoText) {
