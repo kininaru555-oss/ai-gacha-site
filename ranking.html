@@ -5,30 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIガチャ 人気ランキング</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    .card.gold .rank { background: #ffd700; color: #000; }
-    .card.silver .rank { background: #c0c0c0; color: #000; }
-    .card.bronze .rank { background: #cd7f32; color: #000; }
-
-    .card.error {
-      background: #330000;
-      border: 1px solid #ff4444;
-      padding: 20px;
-      text-align: center;
-    }
-
-    .top-nav {
-      margin: 20px 0;
-      text-align: center;
-    }
-
-    .top-nav a {
-      margin: 0 15px;
-      color: #ff66cc;
-      text-decoration: none;
-      font-weight: bold;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
@@ -46,7 +22,8 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzRW9dHBTOaRkM8gibA09i9L8zSiDDdd1YNWikqT4wn7zQWSaJQpo3-5CJx61od6-sNbQ/exec";
+    const API_URL =
+      "https://script.google.com/macros/s/AKfycbzRW9dHBTOaRkM8gibA09i9L8zSiDDdd1YNWikqT4wn7zQWSaJQpo3-5CJx61od6-sNbQ/exec";
 
     function optimizeCloudinary(url) {
       if (!url) return "";
@@ -130,7 +107,7 @@
         rankingDiv.innerHTML = "";
 
         if (!items.length) {
-          rankingDiv.innerHTML = "<div class='card'>まだ作品がありません。</div>";
+          rankingDiv.innerHTML = "<div class='card card-empty'>まだ作品がありません。</div>";
           return;
         }
 
@@ -140,8 +117,8 @@
 
           const media =
             mediaType === "video"
-              ? `<video src="${fileUrl}" controls playsinline preload="metadata" muted></video>`
-              : `<img src="${fileUrl}" alt="${item.title || "作品画像"}" loading="lazy">`;
+              ? `<video class="ranking-media" src="${fileUrl}" controls playsinline preload="metadata" muted></video>`
+              : `<img class="ranking-media" src="${fileUrl}" alt="${item.title || "作品画像"}" loading="lazy">`;
 
           const linkHtml =
             item.link && item.link !== "#"
@@ -149,7 +126,7 @@
               : "";
 
           const card = document.createElement("div");
-          card.className = `card ${index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : ""}`;
+          card.className = `card ranking-card ${index === 0 ? "gold" : index === 1 ? "silver" : index === 2 ? "bronze" : ""}`;
 
           card.innerHTML = `
             <div class="rank" aria-label="第${index + 1}位">#${index + 1}</div>
@@ -196,7 +173,7 @@
       } catch (error) {
         console.error(error);
         document.getElementById("ranking").innerHTML = `
-          <div class="card error">
+          <div class="card card-error">
             <p>ランキングを読み込めませんでした…</p>
             <p><a href="#" onclick="loadRanking(); return false;">もう一度読み込む</a></p>
             <p>または <a href="index.html">ガチャに戻る</a></p>
