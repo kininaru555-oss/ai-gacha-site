@@ -3,23 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>クリエイターランキング | 権利台帳</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <title>クリエイター売上ランキング | 権利台帳</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="ranking-wrap">
-    <header class="ranking-header">
-      <h1 class="ranking-title">クリエイターランキング</h1>
-      <p class="ranking-subtitle">
-        権利台帳上の流通実績にもとづくクリエイターランキングです。<br>
-        いいね数ではなく、移転価格・移転件数・最高移転価格で表示します。
-      </p>
-
-      <div class="ranking-links">
-        <a href="/">トップへ戻る</a>
-        <a class="secondary" href="/ranking">売上ランキングへ</a>
-      </div>
+    <header class="top-nav">
+      <a href="index.html">← トップへ戻る</a>
+      <a href="ranking.html">売却実績ランキング</a>
     </header>
+
+    <div class="hero">
+      <h1>クリエイター売上ランキング</h1>
+      <p class="sub">
+        権利台帳上の売却実績をもとに、クリエイターごとの信用を表示しています。<br />
+        累計売上・売却件数・最高売却額で比較できます。
+      </p>
+    </div>
+
+    <div id="creatorSummary" class="notice-box">
+      読み込み中...
+    </div>
 
     <main id="rankingList" class="ranking-list">
       <div class="ranking-empty">読み込み中...</div>
@@ -28,17 +32,54 @@
 
   <script>
     const API_BASE = "https://aicontents.onrender.com";
+    const CREATOR_RANKING_API = `${API_BASE}/api/ranking/creators?limit=50`;
 
     function escapeHtml(str) {
       return String(str ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
 
     function renderEmpty(message) {
       const list = document.getElementById("rankingList");
       list.innerHTML = `<div class="ranking-empty">${escapeHtml(message)}</div>`;
+    }
+
+    function renderSummary(items) {
+      const summaryEl = document.getElementById("creatorSummary");
+
+      if (!Array.isArray(items) || items.length === 0) {
+        summaryEl.textContent = "まだクリエイター売上実績はありません。";
+        return;
+      }
+
+      const totalCreators = items.length;
+      const totalSales = items.reduce((sum, item) => {
+        return sum + Number(item.total_sales || 0);
+      }, 0);
+      const totalSoldCount = items.reduce((sum, item) => {
+        return sum + Number(item.sold_count || 0);
+      }, 0);
+      const maxSale = items.reduce((max, item) => {
+        return Math.max(max, Number(item.max_sale || 0));
+      }, 0);
+
+      summaryEl.innerHTML = `
+        表示クリエイター数: ${totalCreators}人<br>
+        累計売上合計: ${totalSales}円<br>
+        売却件数合計: ${totalSoldCount}件<br>
+        全体最高売却額: ${maxSale}円
+      `;
+    }
+
+    function buildRankClass(index) {
+      if (index === 0) return "gold";
+      if (index === 1) return "silver";
+      if (index === 2) return "bronze";
+      return "";
     }
 
     function renderRanking(items) {
@@ -50,22 +91,29 @@
       }
 
       list.innerHTML = items.map((item, index) => {
+        const rankClass = buildRankClass(index);
         const rank = index + 1;
-        const creator = item.creator || item.author || "不明";
+        const creator = item.creator || "不明";
+        const creatorUserId = item.creator_user_id || "";
         const totalSales = Number(item.total_sales || 0);
         const soldCount = Number(item.sold_count || 0);
         const maxSale = Number(item.max_sale || 0);
 
+        const mypageLink = creatorUserId
+          ? `<a class="work-link" href="/mypage/${encodeURIComponent(creatorUserId)}">この人の営業ページを見る →</a>`
+          : "";
+
         return `
-          <article class="ranking-card ranking-card-creator">
+          <article class="card ranking-card ranking-card-creator ${rankClass}">
             <div class="ranking-rank">#${rank}</div>
             <div class="ranking-body">
               <div class="ranking-name">${escapeHtml(creator)}</div>
               <div class="ranking-meta">
-                累計移転価格: ${totalSales}pt<br>
-                移転件数: ${soldCount}件<br>
-                最高移転価格: ${maxSale}pt
+                累計売上: ${totalSales}円<br>
+                売却件数: ${soldCount}件<br>
+                最高売却額: ${maxSale}円
               </div>
+              ${mypageLink}
             </div>
           </article>
         `;
@@ -74,7 +122,7 @@
 
     async function loadCreatorRanking() {
       try {
-        const res = await fetch(`${API_BASE}/api/ranking/creators`, {
+        const res = await fetch(CREATOR_RANKING_API, {
           cache: "no-store"
         });
 
@@ -84,9 +132,13 @@
           throw new Error(data.detail || "クリエイターランキングの取得に失敗しました");
         }
 
-        renderRanking(data.items || []);
+        const items = Array.isArray(data.items) ? data.items : [];
+        renderSummary(items);
+        renderRanking(items);
       } catch (error) {
         console.error(error);
+        document.getElementById("creatorSummary").textContent =
+          "クリエイターランキングの読み込みに失敗しました。";
         renderEmpty("クリエイターランキングの読み込みに失敗しました。");
       }
     }
