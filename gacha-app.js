@@ -1,6 +1,6 @@
-import { API_BASE } from "./gacha-config.js";
 import {
-  consumeDrawCostIfNeeded,
+  drawFreeGacha,
+  fetchMachineStatusRows,
   fetchOwnerships,
   fetchUserPoints,
   fetchWorks,
@@ -18,62 +18,6 @@ import {
   setLoadingState,
   updateTicket
 } from "./gacha-render.js";
-
-function drawRandom() {
-  return state.works[Math.floor(Math.random() * state.works.length)];
-}
-
-async function grantFreeGachaOwnershipIfAllowed(work) {
-  if (!work) return;
-
-  const agreed = String(work.agreed || "").trim();
-  if (agreed !== "はい") {
-    return;
-  }
-
-  const workId = String(work.id ?? "").trim();
-  if (!workId) {
-    return;
-  }
-
-  // すでに流通済みなら無料付与しない
-  if (state.ownershipMap[workId]) {
-    return;
-  }
-
-  const userId = getOrCreateUserId();
-
-  try {
-    const res = await fetch(
-      `${API_BASE}/api/free-gacha/grant/${encodeURIComponent(work.id)}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          owner_id: userId
-        })
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.warn("無料ガチャ権利付与失敗", data.detail || data);
-      return;
-    }
-
-    state.ownershipMap[workId] = {
-      content_id: Number(work.id),
-      owner_id: userId,
-      ownership_type: data.ownership_type || "copyright_transfer",
-      status: "owned"
-    };
-  } catch (e) {
-    console.warn("無料ガチャ権利付与失敗", e);
-  }
-}
 
 async function loadInitialData() {
   try {
@@ -100,6 +44,13 @@ async function loadInitialData() {
     state.currentPointExpireAt = "";
   }
 
+  try {
+    state.machineStatusRows = await fetchMachineStatusRows();
+  } catch (e) {
+    console.warn("自販機状況取得失敗", e);
+    state.machineStatusRows = [];
+  }
+
   await renderMachineStatus();
   renderLatestWorks();
   updateTicket();
@@ -107,45 +58,47 @@ async function loadInitialData() {
 }
 
 async function handleDraw() {
-  if (state.isDrawing || !state.works.length) return;
+  if (state.isDrawing) return;
 
   state.isDrawing = true;
   setLoadingState(false);
 
   try {
-    const ok = await consumeDrawCostIfNeeded();
+    clearStageHitClasses();
+    setDrawingAnimation(true);
 
-    if (!ok) {
+    const result = await drawFreeGacha();
+
+    if (!result) {
       state.isDrawing = false;
+      setDrawingAnimation(false);
       setLoadingState(state.works.length > 0);
       return;
     }
 
-    updateTicket();
+    state.currentWork = result;
 
-    const selected = drawRandom();
-    const revealDelay = getRevealDelayMs(selected);
-
-    clearStageHitClasses();
-    setDrawingAnimation(true);
+    const revealDelay = getRevealDelayMs(result);
 
     setTimeout(async () => {
       try {
-        await grantFreeGachaOwnershipIfAllowed(selected);
-        await renderWork(selected);
+        // index 上でも軽く見せたい場合のために残す
+        await renderWork(result);
       } catch (e) {
         console.error("描画処理失敗", e);
       }
-    }, revealDelay);
+    }, Math.max(0, revealDelay - 150));
 
     setTimeout(() => {
       setDrawingAnimation(false);
       state.isDrawing = false;
       setLoadingState(state.works.length > 0);
+
+      window.location.href = "result.html";
     }, revealDelay + 250);
   } catch (e) {
     console.error(e);
-    alert("ガチャ処理に失敗しました");
+    alert(e.message || "ガチャ処理に失敗しました");
     state.isDrawing = false;
     setDrawingAnimation(false);
     setLoadingState(state.works.length > 0);
@@ -163,7 +116,8 @@ async function handleListToMachine() {
     return;
   }
 
-  if (!state.currentWork.id) {
+  const contentId = Number(state.currentWork.content_id || state.currentWork.id || 0);
+  if (!contentId) {
     listingMessage.textContent = "作品IDが見つかりません。";
     return;
   }
@@ -172,18 +126,20 @@ async function handleListToMachine() {
   listToMachineBtn.disabled = true;
 
   try {
-    await listWorkToMachine(machineId, state.currentWork.id, ownerId);
+    await listWorkToMachine(machineId, contentId, ownerId);
 
     listingMessage.textContent = "100ptスタートで自販機に出品しました！";
     listToMachineBtn.style.display = "none";
 
-    state.ownershipMap[String(state.currentWork.id)] = {
-      content_id: Number(state.currentWork.id),
+    state.ownershipMap[String(contentId)] = {
+      content_id: contentId,
       owner_id: ownerId,
-      ownership_type: state.ownershipMap[String(state.currentWork.id)]?.ownership_type || "copyright_transfer",
+      ownership_type:
+        state.ownershipMap[String(contentId)]?.ownership_type || "copyright_transfer",
       status: "listed"
     };
 
+    state.machineStatusRows = await fetchMachineStatusRows();
     await renderMachineStatus();
     await renderWork(state.currentWork);
   } catch (e) {
