@@ -29,70 +29,132 @@
     .shop-card p {
       margin: 8px 0;
       color: #d8d8d8;
+      line-height: 1.6;
+    }
+
+    .shop-price {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 14px 0;
+      color: #ffffff;
     }
 
     .buy-pack-btn {
-      margin-top: 14px;
+      display: inline-block;
       width: 100%;
       border: none;
       border-radius: 12px;
-      padding: 14px;
-      font-size: 16px;
+      padding: 12px 14px;
+      font-size: 15px;
       font-weight: bold;
       cursor: pointer;
-      background: linear-gradient(135deg, #7b61ff 0%, #5636ff 100%);
-      color: #fff;
+      background: linear-gradient(135deg, #ff4ecd, #7b61ff);
+      color: #ffffff;
+      transition: 0.2s ease;
+    }
+
+    .buy-pack-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
 
     .buy-pack-btn:disabled {
       opacity: 0.6;
-      cursor: wait;
+      cursor: not-allowed;
+      transform: none;
     }
 
     .notice-box {
       margin-top: 18px;
     }
+
+    .top-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .user-box {
+      background: #1f1f1f;
+      color: #fff;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+
+    .user-box strong {
+      color: #fff;
+    }
+
+    .status-message {
+      margin-top: 18px;
+      min-height: 22px;
+      font-size: 14px;
+      color: #f0f0f0;
+    }
+
+    .status-message.error {
+      color: #ff8b8b;
+    }
+
+    .status-message.success {
+      color: #9df5b0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <a class="btn-back" href="index.html">← トップへ戻る</a>
+    <div class="top-actions">
+      <a href="index.html" class="btn-back">← トップへ戻る</a>
+      <div class="user-box">
+        user_id: <strong id="userIdText">読み込み中...</strong>
+      </div>
+    </div>
 
     <div class="hero">
       <h1>ポイント購入</h1>
-      <p class="sub">
-        ポイントを購入して、有料ガチャや今後の機能に使えます。
+      <p>
+        ポイントを購入して、権利取得・再販売・サイト内権利購入に使えます。
       </p>
-      <p id="pointInfo" class="mini-note">読み込み中...</p>
+    </div>
+
+    <div class="notice-box">
+      決済は Stripe を利用します。購入後、ポイントは自動で反映されます。
     </div>
 
     <div class="shop-grid">
       <div class="shop-card">
         <h2>300pt</h2>
-        <p>300円</p>
-        <p>お試し購入</p>
-        <button class="buy-pack-btn" data-pack-id="pack_300">購入する</button>
+        <p>まず試したい方向けの小パックです。</p>
+        <div class="shop-price">300円</div>
+        <button class="buy-pack-btn" data-pack-id="pack_300">
+          300pt を購入
+        </button>
       </div>
 
       <div class="shop-card">
         <h2>1000pt</h2>
-        <p>900円</p>
-        <p>人気の定番</p>
-        <button class="buy-pack-btn" data-pack-id="pack_1000">購入する</button>
+        <p>いちばん使いやすい標準パックです。</p>
+        <div class="shop-price">1000円</div>
+        <button class="buy-pack-btn" data-pack-id="pack_1000">
+          1000pt を購入
+        </button>
       </div>
 
       <div class="shop-card">
         <h2>3000pt</h2>
-        <p>2800円</p>
-        <p>しっかり使う方向け</p>
-        <button class="buy-pack-btn" data-pack-id="pack_3000">購入する</button>
+        <p>まとめて使いたい方向けの大容量パックです。</p>
+        <div class="shop-price">3000円</div>
+        <button class="buy-pack-btn" data-pack-id="pack_3000">
+          3000pt を購入
+        </button>
       </div>
     </div>
 
-    <div class="notice-box">
-      <strong>ご案内</strong><br>
-      購入後、ポイント反映まで少し時間がかかる場合があります。
-    </div>
+    <p id="statusMessage" class="status-message"></p>
   </div>
 
   <script>
@@ -111,70 +173,88 @@
       return userId;
     }
 
-    async function loadPointInfo() {
-      const userId = getOrCreateUserId();
-      const pointInfo = document.getElementById("pointInfo");
-
-      try {
-        const res = await fetch(`/api/points/${encodeURIComponent(userId)}`, {
-          cache: "no-store"
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          pointInfo.textContent = "ポイント情報の取得に失敗しました";
-          return;
-        }
-
-        const points = Number(data.user?.points || 0);
-        const expireAt = data.user?.point_expire_at || "";
-        pointInfo.textContent = expireAt
-          ? `現在の所持ポイント：${points}pt / 有効期限：${expireAt}`
-          : `現在の所持ポイント：${points}pt`;
-      } catch (e) {
-        pointInfo.textContent = "ポイント情報の取得に失敗しました";
+    function setStatus(message, type = "") {
+      const statusEl = document.getElementById("statusMessage");
+      statusEl.textContent = message;
+      statusEl.className = "status-message";
+      if (type) {
+        statusEl.classList.add(type);
       }
     }
 
     async function buyPointPack(packId, buttonEl) {
       const userId = getOrCreateUserId();
+      const originalText = buttonEl.textContent;
 
       buttonEl.disabled = true;
       buttonEl.textContent = "移動中...";
+      setStatus("Stripe決済ページを準備しています...");
 
       try {
-        const res = await fetch(
-          `/api/stripe/create-checkout-session?user_id=${encodeURIComponent(userId)}&pack_id=${encodeURIComponent(packId)}`,
-          {
-            method: "POST"
-          }
-        );
+        const res = await fetch("/api/stripe/create-checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            pack_id: packId
+          })
+        });
 
         const data = await res.json();
 
         if (!res.ok) {
-          alert(data.detail || "決済ページ生成に失敗しました");
+          setStatus(data.detail || "決済ページの生成に失敗しました。", "error");
           buttonEl.disabled = false;
-          buttonEl.textContent = "購入する";
+          buttonEl.textContent = originalText;
           return;
         }
 
+        if (!data.url) {
+          setStatus("決済URLの取得に失敗しました。", "error");
+          buttonEl.disabled = false;
+          buttonEl.textContent = originalText;
+          return;
+        }
+
+        setStatus("Stripeへ移動します...");
         window.location.href = data.url;
-      } catch (e) {
-        alert("通信に失敗しました");
+      } catch (error) {
+        setStatus("通信に失敗しました。", "error");
         buttonEl.disabled = false;
-        buttonEl.textContent = "購入する";
+        buttonEl.textContent = originalText;
       }
     }
 
-    document.querySelectorAll(".buy-pack-btn").forEach((button) => {
-      button.addEventListener("click", () => {
-        const packId = button.dataset.packId;
-        buyPointPack(packId, button);
-      });
-    });
+    function initPointShop() {
+      const userId = getOrCreateUserId();
+      const userIdText = document.getElementById("userIdText");
+      userIdText.textContent = userId;
 
-    loadPointInfo();
+      const buttons = document.querySelectorAll(".buy-pack-btn");
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const packId = button.dataset.packId;
+          if (!packId) {
+            setStatus("pack_id が見つかりません。", "error");
+            return;
+          }
+          buyPointPack(packId, button);
+        });
+      });
+
+      const url = new URL(window.location.href);
+      const payment = url.searchParams.get("payment");
+
+      if (payment === "success") {
+        setStatus("決済が完了しました。ポイント反映まで少し待ってから確認してください。", "success");
+      } else if (payment === "cancel") {
+        setStatus("決済はキャンセルされました。", "error");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", initPointShop);
   </script>
 </body>
 </html>
