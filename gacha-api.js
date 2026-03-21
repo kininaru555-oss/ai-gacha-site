@@ -2,7 +2,6 @@ import {
   API_BASE,
   CONTENTS_API,
   DRAW_COST,
-  OWNERSHIP_API,
   POINT_API_BASE,
   VENDING_AVAILABLE_API,
   VENDING_MACHINES_API
@@ -13,6 +12,103 @@ import {
   hasFreeDraw,
   state
 } from "./gacha-state.js";
+
+const OWNERSHIP_LATEST_MAP_API = `${API_BASE}/api/ownership/latest-map`;
+const FREE_GACHA_API = `${API_BASE}/api/gacha/free`;
+
+function normalizeResultData(raw, drawMode) {
+  const src =
+    raw?.result ||
+    raw?.item ||
+    raw?.work ||
+    raw?.data ||
+    raw ||
+    {};
+
+  const typeRaw = String(src.type || src.media_type || "").trim();
+  const inferredType =
+    typeRaw ||
+    (src.video_url || src.videoUrl || src.video ? "動画" : "画像");
+
+  const imageUrl =
+    src.image_url ||
+    src.imageUrl ||
+    src.image ||
+    src.thumbnail_url ||
+    (
+      (typeRaw === "画像" || typeRaw === "image" || (!src.video_url && !src.videoUrl && !src.video))
+        ? (src.file || "")
+        : ""
+    ) ||
+    "";
+
+  const videoUrl =
+    src.video_url ||
+    src.videoUrl ||
+    src.video ||
+    (
+      (typeRaw === "動画" || typeRaw === "video")
+        ? (src.file || "")
+        : ""
+    ) ||
+    "";
+
+  const permissionValue =
+    src.agreed ??
+    src.permission ??
+    src.allow_distribution ??
+    src.allow_resale ??
+    "";
+
+  const title =
+    src.title ||
+    src.name ||
+    "無題";
+
+  const creator =
+    src.creator ||
+    src.author ||
+    src.creator_name ||
+    "不明";
+
+  return {
+    content_id: Number(src.content_id || src.id || src.work_id || 0),
+    title,
+    image_url: imageUrl,
+    video_url: videoUrl,
+    creator,
+    author: creator,
+    rarity: src.rarity || src.rank || "N",
+    genre: src.genre || src.category || "-",
+    type: inferredType,
+    right_type: src.right_type || src.rightType || "",
+    agreed: permissionValue,
+    permission: permissionValue,
+    got_distribution_right: Boolean(
+      src.got_distribution_right ||
+      src.granted_distribution_right ||
+      src.has_distribution_right ||
+      false
+    ),
+    is_unlisted_stock: Boolean(
+      src.is_unlisted_stock ||
+      src.unlisted_stock ||
+      src.is_stock ||
+      false
+    ),
+    site_license_enabled: Number(src.site_license_enabled || 0),
+    copyright_transfer_enabled: Number(src.copyright_transfer_enabled || 0),
+    site_license_price: Number(src.site_license_price || 0),
+    copyright_transfer_price: Number(src.copyright_transfer_price || 0),
+    comment: src.comment || "",
+    prompt: src.prompt || "",
+    negative_prompt: src.negative_prompt || "",
+    work_link: src.work_link || src.link || "",
+    x_account: src.x_account || "",
+    draw_mode: drawMode,
+    _raw: raw
+  };
+}
 
 export async function fetchWorks() {
   const response = await fetch(`${CONTENTS_API}?t=${Date.now()}`, {
@@ -28,7 +124,7 @@ export async function fetchWorks() {
 }
 
 export async function fetchOwnerships() {
-  const response = await fetch(`${OWNERSHIP_API}?t=${Date.now()}`, {
+  const response = await fetch(`${OWNERSHIP_LATEST_MAP_API}?t=${Date.now()}`, {
     cache: "no-store"
   });
 
@@ -37,16 +133,7 @@ export async function fetchOwnerships() {
   }
 
   const data = await response.json();
-  const items = Array.isArray(data.items) ? data.items : [];
-  const map = {};
-
-  items.forEach((item) => {
-    const key = String(item.content_id ?? "").trim();
-    if (!key) return;
-    map[key] = item;
-  });
-
-  return map;
+  return data.items || {};
 }
 
 export async function fetchUserPoints() {
@@ -68,19 +155,34 @@ export async function fetchUserPoints() {
 export async function consumeDrawCostIfNeeded() {
   if (hasFreeDraw()) {
     consumeFreeDraw();
-    return true;
+    return {
+      ok: true,
+      drawMode: "free"
+    };
   }
 
   const userId = getOrCreateUserId();
 
   if (state.currentUserPoints < DRAW_COST) {
     alert(`ポイントが足りません。ガチャ1回 ${DRAW_COST}pt 必要です。`);
-    return false;
+    return {
+      ok: false,
+      drawMode: "points"
+    };
   }
 
   const response = await fetch(
-    `${POINT_API_BASE}/${encodeURIComponent(userId)}/use?amount=${DRAW_COST}&note=${encodeURIComponent("有料自販機ガチャ")}`,
-    { method: "POST" }
+    `${POINT_API_BASE}/${encodeURIComponent(userId)}/use`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        amount: DRAW_COST,
+        note: "無料ガチャ実行"
+      })
+    }
   );
 
   const data = await response.json();
@@ -92,7 +194,46 @@ export async function consumeDrawCostIfNeeded() {
   state.currentUserPoints = Number(data.user?.points || 0);
   state.currentPointExpireAt = data.user?.point_expire_at || "";
 
-  return true;
+  return {
+    ok: true,
+    drawMode: "points"
+  };
+}
+
+export async function drawFreeGacha() {
+  const userId = getOrCreateUserId();
+
+  const costResult = await consumeDrawCostIfNeeded();
+  if (!costResult.ok) {
+    return null;
+  }
+
+  const response = await fetch(FREE_GACHA_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      owner_id: userId
+    })
+  });
+
+  const data = await response.json();
+
+  localStorage.setItem("last_gacha_raw_response", JSON.stringify(data, null, 2));
+
+  if (!response.ok) {
+    throw new Error(data.detail || "ガチャに失敗しました");
+  }
+
+  const result = normalizeResultData(data, costResult.drawMode);
+
+  if (!result.content_id && !result.image_url && !result.video_url) {
+    throw new Error("ガチャ結果の形式が不正です");
+  }
+
+  localStorage.setItem("last_gacha_result", JSON.stringify(result));
+  return result;
 }
 
 export async function fetchAvailableMachine() {
@@ -110,15 +251,20 @@ export async function fetchAvailableMachine() {
 }
 
 export async function listWorkToMachine(machineId, contentId, ownerId) {
-  const url =
-    `${API_BASE}/api/vending-machines/${encodeURIComponent(machineId)}/items` +
-    `?content_id=${encodeURIComponent(contentId)}` +
-    `&owner_id=${encodeURIComponent(ownerId)}` +
-    `&item_order=0`;
-
-  const res = await fetch(url, {
-    method: "POST"
-  });
+  const res = await fetch(
+    `${API_BASE}/api/vending-machines/${encodeURIComponent(machineId)}/items`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        content_id: contentId,
+        owner_id: ownerId,
+        item_order: 0
+      })
+    }
+  );
 
   const data = await res.json();
 
