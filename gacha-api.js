@@ -7,7 +7,12 @@ import {
   VENDING_AVAILABLE_API,
   VENDING_MACHINES_API
 } from "./gacha-config.js";
-import { getOrCreateUserId, isPosterFreeUser, state } from "./gacha-state.js";
+import {
+  consumeFreeDraw,
+  getOrCreateUserId,
+  hasFreeDraw,
+  state
+} from "./gacha-state.js";
 
 export async function fetchWorks() {
   const response = await fetch(`${CONTENTS_API}?t=${Date.now()}`, {
@@ -61,7 +66,8 @@ export async function fetchUserPoints() {
 }
 
 export async function consumeDrawCostIfNeeded() {
-  if (isPosterFreeUser()) {
+  if (hasFreeDraw()) {
+    consumeFreeDraw();
     return true;
   }
 
@@ -158,4 +164,4 @@ export async function fetchMachineStatusRows() {
   }
 
   return rows;
-}
+    }
