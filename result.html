@@ -43,19 +43,27 @@
     <div id="nextActionBox" class="notice-box hidden"></div>
     <div id="saleOptionBox" class="notice-box hidden"></div>
 
-    <div class="buttons result-page-actions">
+    <div id="resultActionHero" class="notice-box hidden"></div>
+
+    <div class="buttons result-page-actions" id="primaryActionButtons">
       <a id="detailLink" class="btn btn-link hidden" href="#">作品詳細を見る</a>
       <a id="mypageLink" class="btn btn-creator hidden" href="#">マイページへ</a>
-      <a id="machinesLink" class="btn btn-ranking" href="/machines">有料ガチャ自販機を見る</a>
-      <a id="auctionsLink" class="btn btn-post" href="/auctions">開催中オークションを見る</a>
+      <a id="sellFromMypageLink" class="btn btn-post hidden" href="#">この作品を売りに出す</a>
+      <a id="putMachineLink" class="btn btn-ranking hidden" href="/machines">自販機に入れる</a>
+    </div>
+
+    <div class="buttons result-page-actions">
+      <a id="machinesLink" class="btn btn-creator" href="/machines">有料ガチャ自販機を見る</a>
+      <a id="auctionsLink" class="btn btn-ranking" href="/auctions">開催中オークションを見る</a>
+      <a id="pointsShopLink" class="btn btn-link" href="points_shop.html">ポイント購入</a>
     </div>
 
     <div class="notice-box">
       <strong>このページで分かること</strong><br />
       ・未出品在庫を引いたかどうか<br />
       ・二次流通権を取得したかどうか<br />
-      ・そのまま販売できるかどうか<br />
-      ・次に進むべき導線（マイページ / 自販機 / オークション）
+      ・次に販売へ進めるかどうか<br />
+      ・マイページ / 自販機 / オークションへどう進むか
     </div>
   </div>
 
@@ -101,6 +109,10 @@
       return "N";
     }
 
+    function getContentId(result) {
+      return Number(result.content_id || result.id || 0);
+    }
+
     function renderMedia(result) {
       const imageEl = document.getElementById("resultImage");
       const videoEl = document.getElementById("resultVideo");
@@ -138,7 +150,7 @@
       const creator = escapeHtml(result.creator || result.author || "不明");
       const genre = escapeHtml(result.genre || "-");
       const rarity = escapeHtml(normalizeRarity(result.rarity));
-      const contentId = Number(result.content_id || result.id || 0);
+      const contentId = getContentId(result);
 
       box.innerHTML = `
         <div><strong>タイトル:</strong> ${title}</div>
@@ -171,9 +183,9 @@
       if (isUnlistedStock && gotFreeDistributionRight) {
         html += "この作品は未出品在庫でした。あなたは無料ガチャで二次流通権を取得しました。";
       } else if (isUnlistedStock) {
-        html += "この作品は未出品在庫ですが、まだ二次流通権取得状態が未確定です。";
+        html += "この作品は未出品在庫ですが、二次流通権の状態が未確定です。";
       } else {
-        html += "この作品はすでに流通中、または販売権メニューが設定された作品です。";
+        html += "この作品はすでに流通中、または販売メニュー付き作品です。";
       }
 
       html += "<br />";
@@ -193,30 +205,30 @@
 
       const agreed = String(result.agreed || result.permission || "").trim() === "はい";
       const gotFreeDistributionRight = Boolean(result.got_distribution_right || false);
-      const contentId = Number(result.content_id || result.id || 0);
+      const contentId = getContentId(result);
 
       let html = "<strong>次にできること</strong><br />";
 
       if (agreed && gotFreeDistributionRight) {
         html += `
-          ・マイページで販売設定を出す<br />
-          ・有料ガチャオークション自販機へ出品する<br />
-          ・将来の再流通売上の販売者60%を狙う
+          ・この作品を自分の販売在庫として扱えます<br />
+          ・マイページで販売導線を確認できます<br />
+          ・自販機ガチャオークションへ回す導線に進めます
         `;
       } else if (agreed) {
         html += `
-          ・作品詳細ページで購入可能な権利メニューを確認する<br />
-          ・すでに流通中なら再販売・オークション状況を見る
+          ・作品詳細ページで追加購入可能な権利を確認できます<br />
+          ・すでに流通中なら再販売・オークション状況を見られます
         `;
       } else {
         html += `
           ・この作品は閲覧中心です<br />
-          ・別の作品を引くか、ポイントで販売権付き作品を探せます
+          ・別作品を引くか、ポイントで販売権付き作品を探せます
         `;
       }
 
       if (contentId > 0) {
-        html += `<br />・作品詳細ページから直接確認できます`;
+        html += `<br />・作品詳細ページから現在の販売状態を確認できます`;
       }
 
       box.innerHTML = html;
@@ -257,22 +269,69 @@
       box.innerHTML = html;
     }
 
-    function renderLinks(result) {
-      const userId = getOrCreateUserId();
-      const contentId = Number(result.content_id || result.id || 0);
-
+    function renderPrimarySalesCTA(result) {
+      const hero = document.getElementById("resultActionHero");
+      const sellFromMypageLink = document.getElementById("sellFromMypageLink");
+      const putMachineLink = document.getElementById("putMachineLink");
       const mypageLink = document.getElementById("mypageLink");
       const mypageLinkTop = document.getElementById("mypageLinkTop");
       const detailLink = document.getElementById("detailLink");
 
-      mypageLink.href = `/mypage/${encodeURIComponent(userId)}`;
-      mypageLinkTop.href = `/mypage/${encodeURIComponent(userId)}`;
+      const userId = getOrCreateUserId();
+      const contentId = getContentId(result);
+      const agreed = String(result.agreed || result.permission || "").trim() === "はい";
+      const gotFreeDistributionRight = Boolean(result.got_distribution_right || false);
+
+      const mypageUrl = `/mypage/${encodeURIComponent(userId)}`;
+      mypageLink.href = mypageUrl;
+      mypageLinkTop.href = mypageUrl;
       mypageLink.classList.remove("hidden");
 
       if (contentId > 0) {
         detailLink.href = `/works/${contentId}`;
         detailLink.classList.remove("hidden");
       }
+
+      if (agreed && gotFreeDistributionRight && contentId > 0) {
+        hero.classList.remove("hidden");
+        hero.innerHTML = `
+          <strong>販売可能な作品を引きました</strong><br />
+          この作品は未出品在庫から出ています。あなたはサイト内で販売導線へ進めます。<br />
+          まずはマイページで在庫を確認し、作品詳細から出品・自販機投入へ進んでください。
+        `;
+
+        sellFromMypageLink.href = `/works/${contentId}`;
+        sellFromMypageLink.classList.remove("hidden");
+
+        putMachineLink.href = `/machines`;
+        putMachineLink.classList.remove("hidden");
+        return;
+      }
+
+      if (agreed && contentId > 0) {
+        hero.classList.remove("hidden");
+        hero.innerHTML = `
+          <strong>この作品は権利導線つき作品です</strong><br />
+          作品詳細ページで、サイト内利用権やサイト内権利譲渡などのメニューを確認できます。
+        `;
+        return;
+      }
+
+      hero.classList.remove("hidden");
+      hero.innerHTML = `
+        <strong>閲覧中心の結果です</strong><br />
+        今回は直接の販売導線はありません。別作品を引くか、市場ページから流通中作品を探せます。
+      `;
+    }
+
+    function renderLinks(result) {
+      const userId = getOrCreateUserId();
+      const mypageLink = document.getElementById("mypageLink");
+      const mypageLinkTop = document.getElementById("mypageLinkTop");
+
+      const mypageUrl = `/mypage/${encodeURIComponent(userId)}`;
+      mypageLink.href = mypageUrl;
+      mypageLinkTop.href = mypageUrl;
     }
 
     function renderEmpty() {
@@ -281,6 +340,7 @@
       const nextActionBox = document.getElementById("nextActionBox");
       const saleOptionBox = document.getElementById("saleOptionBox");
       const metaBox = document.getElementById("resultMeta");
+      const actionHero = document.getElementById("resultActionHero");
 
       placeholderEl.classList.remove("hidden");
       placeholderEl.innerHTML = "まだガチャ結果がありません。<br />先に無料ガチャを引いてください。";
@@ -289,6 +349,7 @@
       nextActionBox.classList.add("hidden");
       saleOptionBox.classList.add("hidden");
       metaBox.classList.add("hidden");
+      actionHero.classList.add("hidden");
     }
 
     function initResultPage() {
@@ -304,6 +365,7 @@
       renderRightsStatus(result);
       renderNextActions(result);
       renderSaleOptions(result);
+      renderPrimarySalesCTA(result);
       renderLinks(result);
     }
 
