@@ -3,122 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>免責事項 | AIガチャ</title>
+  <title>免責事項 | 権利台帳</title>
+  <link rel="stylesheet" href="/static/style.css" />
   <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: linear-gradient(180deg, #120812 0%, #1a0d1a 100%);
-      color: #f5f5f5;
-      line-height: 1.8;
-      min-height: 100vh;
-    }
-
-    .container {
-      max-width: 760px;
+    .doc-wrap {
+      max-width: 900px;
       margin: 0 auto;
-      padding: 24px 16px 48px;
-      box-sizing: border-box;
+      padding: 24px 16px 60px;
+      line-height: 1.9;
     }
 
-    .card {
+    .doc-title {
+      font-size: 30px;
+      font-weight: bold;
+      margin-bottom: 18px;
+    }
+
+    .doc-lead {
+      color: #d0d0d0;
+      margin-bottom: 24px;
+    }
+
+    .doc-section {
+      margin-top: 28px;
       background: #1f1f1f;
-      border-radius: 18px;
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
     }
 
-    h1,
-    h2 {
-      margin-top: 0;
+    .doc-section h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
     }
 
-    h1 {
-      margin-bottom: 20px;
-      font-size: 28px;
+    .doc-links {
+      margin-top: 18px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
-    h2 {
-      margin-top: 24px;
-      margin-bottom: 8px;
-      font-size: 18px;
-      color: #ffd7e2;
-    }
-
-    p {
-      margin: 0 0 12px;
-      color: #e2e2e2;
+    .doc-links a {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #7b61ff;
+      color: #fff;
+      text-decoration: none;
       font-size: 14px;
     }
 
-    a {
-      color: #8ec2ff;
-      text-decoration: none;
-    }
-
-    .toplink {
-      display: inline-block;
-      margin-bottom: 16px;
+    .doc-links a.secondary {
       background: #444;
-      color: #fff;
-      padding: 8px 14px;
-      border-radius: 8px;
-      text-decoration: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <a class="toplink" href="index.html">← トップに戻る</a>
+  <div class="doc-wrap">
+    <h1 class="doc-title">免責事項</h1>
+    <p class="doc-lead">
+      権利台帳は、ユーザーが投稿した作品およびその権利情報の表示・流通を支援するためのサービスです。
+      本ページでは、本サービスの利用に関する免責事項を定めます。
+    </p>
 
-    <div class="card">
-      <h1>免責事項</h1>
-
-      <h2>1. サイト内容について</h2>
-      <p>
-        本サイトは、ユーザー投稿型のAI作品紹介・発見サイトです。掲載されている画像、動画、文章、リンク先の内容について、運営者は完全性、正確性、安全性、合法性を保証するものではありません。
-      </p>
-
-      <h2>2. 投稿作品の権利について</h2>
-      <p>
-        本サイトに投稿された作品に関する著作権その他の権利は、各投稿者または正当な権利者に帰属します。投稿者は、自らが投稿する作品について必要な権利または掲載権限を有しているものとします。
-      </p>
-
-      <h2>3. 権利侵害等への対応</h2>
-      <p>
-        権利侵害、違法性、公序良俗違反、その他問題があると判断される作品については、運営者の判断により事前の通知なく掲載停止、削除、リンク非表示等の対応を行う場合があります。
-      </p>
-
-      <h2>4. 外部リンクについて</h2>
-      <p>
-        本サイトには外部サイトへのリンクが含まれる場合があります。リンク先サイトの内容、商品、サービス、取引、損害等について、運営者は責任を負いません。
-      </p>
-
-      <h2>5. 成人向けコンテンツについて</h2>
-      <p>
-        成人向けコンテンツを含むページは、18歳未満の方は閲覧および利用できません。利用者は、本サイトを利用した時点で、閲覧可能な年齢要件を満たしているものとみなされます。
-      </p>
-
-      <h2>6. 利用者の責任</h2>
-      <p>
-        利用者は、自らの責任において本サイトを利用するものとします。投稿、閲覧、外部リンク先の利用、ダウンロード、保存、共有等に関して生じたトラブルについて、運営者は責任を負いません。
-      </p>
-
-      <h2>7. サービス停止・変更について</h2>
-      <p>
-        運営者は、保守、障害対応、仕様変更、その他の事情により、本サイトの全部または一部を予告なく変更、停止、終了することがあります。
-      </p>
-
-      <h2>8. 免責</h2>
-      <p>
-        本サイトの利用または利用不能により生じたいかなる損害についても、運営者は故意または重過失がある場合を除き、責任を負いません。
-      </p>
-
-      <h2>9. お問い合わせ</h2>
-      <p>
-        問題のある掲載物、削除依頼、権利に関する申立て、その他のお問い合わせについては、運営者が別途指定する連絡先からご連絡ください。
-      </p>
+    <div class="doc-links">
+      <a href="/">トップへ戻る</a>
+      <a class="secondary" href="/terms">利用規約</a>
     </div>
+
+    <section class="doc-section">
+      <h2>1. 投稿作品について</h2>
+      <p>
+        本サービス上に表示・流通される作品、画像、動画、テキストその他の投稿物は、各投稿者または権利者の責任において登録されるものです。
+        当サービス運営者は、投稿内容の正確性、適法性、完全性、最新性、有用性を保証するものではありません。
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>2. 権利関係について</h2>
+      <p>
+        投稿者は、自らが投稿・流通させる作品について、必要な権利を有していること、または適切な許諾を得ていることを保証するものとします。
+        権利関係に関する紛争、第三者からの請求、損害等が発生した場合、原則として当該投稿者または関係当事者がこれを解決するものとし、
+        当サービス運営者は故意または重大な過失がある場合を除き責任を負いません。
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>3. 流通価格・売買について</h2>
+      <p>
+        本サービス上に表示される価格、ポイント、移転履歴、ランキング等は、システム上の記録に基づく参考情報です。
+        運営者は、それらの数値が将来の価格、価値、収益性を保証するものではないことを明示します。
+        ユーザーは自己の判断と責任において権利取得・再販売・オークション参加等を行うものとします。
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>4. システム停止・障害について</h2>
+      <p>
+        当サービス運営者は、システム保守、通信障害、サーバ障害、外部サービス障害、災害その他の事由により、
+        サービスの全部または一部が停止・中断・遅延する場合があります。
+        これによりユーザーに生じた損害について、運営者は故意または重大な過失がある場合を除き責任を負いません。
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>5. 外部サービスについて</h2>
+      <p>
+        本サービスは、Cloudinary、Stripe、ホスティング基盤その他の外部サービスを利用する場合があります。
+        これら外部サービスに起因する障害、仕様変更、停止、制限、データ消失等について、運営者は保証を行いません。
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>6. 免責の範囲</h2>
+      <p>
+        当サービス運営者は、本サービスの利用または利用不能により生じた直接的・間接的損害、逸失利益、機会損失、データ損失等について、
+        故意または重大な過失がある場合を除き責任を負いません。
+      </p>
+    </section>
+
+    <section class="doc-section">
+      <h2>7. 変更</h2>
+      <p>
+        本免責事項は、必要に応じて予告なく変更されることがあります。
+        変更後の内容は、本サービス上に掲載した時点から効力を生じるものとします。
+      </p>
+    </section>
   </div>
 </body>
 </html>
