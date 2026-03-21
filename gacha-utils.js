@@ -1,10 +1,17 @@
-import { stage, rarityEl, jackpotEl, resultImage, resultVideo } from "./gacha-dom.js";
+import {
+  jackpotEl,
+  rarityEl,
+  resultImage,
+  resultVideo,
+  stage
+} from "./gacha-dom.js";
 import { state } from "./gacha-state.js";
 
 export function normalizeRarity(r) {
   if (!r) return "N";
 
   const v = String(r).toUpperCase().trim();
+
   if (v === "SSR") return "SSR";
   if (v === "SR") return "SR";
   if (v === "R" || v === "RARE") return "R";
@@ -12,16 +19,17 @@ export function normalizeRarity(r) {
 }
 
 export function isNewWork(work) {
-  const id = String(work.id ?? "");
+  const id = String(work?.id ?? "").trim();
+  if (!id) return false;
   return !state.ownershipMap[id];
 }
 
 export function isBuybackTarget(work) {
-  return Number(work.buyback_price || 0) > 0;
+  return Number(work?.buyback_price || 0) > 0;
 }
 
 export function isOperatorPick(work) {
-  return String(work.featured_type || "").trim() === "operator_pick";
+  return String(work?.featured_type || "").trim() === "operator_pick";
 }
 
 export function getHitType(work) {
@@ -29,14 +37,17 @@ export function getHitType(work) {
   if (isBuybackTarget(work)) return "buyback";
   if (isOperatorPick(work)) return "pickup";
 
-  const rarity = normalizeRarity(work.rarity);
-  if (rarity === "SSR" || rarity === "SR" || rarity === "R") return "rare";
+  const rarity = normalizeRarity(work?.rarity);
+  if (rarity === "SSR" || rarity === "SR" || rarity === "R") {
+    return "rare";
+  }
 
   return "normal";
 }
 
 export function getRevealDelayMs(work) {
   const hitType = getHitType(work);
+
   if (hitType === "new") return 1400;
   if (hitType === "buyback") return 1300;
   if (hitType === "pickup") return 1200;
@@ -50,14 +61,15 @@ export function getJackpotMessage(work) {
   }
 
   if (isBuybackTarget(work)) {
-    return `🎉 高価還元対象！${Number(work.buyback_price || 0)}ポイントバック対象です`;
+    return `🎉 高価還元対象！${Number(work?.buyback_price || 0)}ポイントバック対象です`;
   }
 
   if (isOperatorPick(work)) {
     return "⭐ 運営特選作品を引きました！";
   }
 
-  const rarity = normalizeRarity(work.rarity);
+  const rarity = normalizeRarity(work?.rarity);
+
   if (rarity === "SSR") return "🌈 特別作品を引きました！";
   if (rarity === "SR") return "✨ 注目作品を引きました！";
   if (rarity === "R") return "💎 レア作品を引きました！";
@@ -66,18 +78,20 @@ export function getJackpotMessage(work) {
 
 export function optimizeCloudinary(url) {
   if (!url) return "";
+
   if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
     return url.replace("/upload/", "/upload/f_auto,q_auto/");
   }
+
   return url;
 }
 
 export function getMediaType(work) {
-  const type = String(work.type || "").trim();
+  const type = String(work?.type || "").trim();
 
   if (type === "video" || type === "動画") return "video";
   if (type === "image" || type === "画像") return "image";
-  if (work.video_url) return "video";
+  if (work?.video_url) return "video";
 
   return "image";
 }
@@ -86,10 +100,10 @@ export function getMediaUrl(work) {
   const mediaType = getMediaType(work);
 
   if (mediaType === "video") {
-    return optimizeCloudinary(work.video_url || work.file || "");
+    return optimizeCloudinary(work?.video_url || work?.file || "");
   }
 
-  return optimizeCloudinary(work.image_url || work.file || "");
+  return optimizeCloudinary(work?.image_url || work?.file || "");
 }
 
 export function clearStageHitClasses() {
@@ -106,6 +120,8 @@ export function clearStageHitClasses() {
 }
 
 export function clearJackpotClasses() {
+  if (!jackpotEl) return;
+
   jackpotEl.classList.remove(
     "jackpot-new",
     "jackpot-buyback",
@@ -145,23 +161,23 @@ export function applyHitVisuals(work) {
 
   if (hitType === "new") {
     stage.classList.add("ssr", "hit-new");
-    jackpotEl.classList.add("jackpot-new");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-new");
     return;
   }
 
   if (hitType === "buyback") {
     stage.classList.add("ssr", "hit-buyback");
-    jackpotEl.classList.add("jackpot-buyback");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-buyback");
     return;
   }
 
   if (hitType === "pickup") {
     stage.classList.add("rare", "hit-pickup");
-    jackpotEl.classList.add("jackpot-pickup");
+    if (jackpotEl) jackpotEl.classList.add("jackpot-pickup");
     return;
   }
 
-  setRarityStyle(work.rarity);
+  setRarityStyle(work?.rarity);
 }
 
 export function resetMedia() {
