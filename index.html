@@ -246,19 +246,22 @@
         raw?.result ||
         raw?.item ||
         raw?.work ||
+        raw?.data ||
         raw ||
         {};
 
-      const typeRaw = String(src.type || "").trim();
+      const typeRaw = String(src.type || src.media_type || "").trim();
       const inferredType =
         typeRaw ||
-        (src.video_url || src.videoUrl ? "動画" : "画像");
+        (src.video_url || src.videoUrl || src.video ? "動画" : "画像");
 
       const imageUrl =
         src.image_url ||
         src.imageUrl ||
+        src.image ||
+        src.thumbnail_url ||
         (
-          (typeRaw === "画像" || typeRaw === "image" || (!src.video_url && !src.videoUrl))
+          (typeRaw === "画像" || typeRaw === "image" || (!src.video_url && !src.videoUrl && !src.video))
             ? (src.file || "")
             : ""
         ) ||
@@ -267,6 +270,7 @@
       const videoUrl =
         src.video_url ||
         src.videoUrl ||
+        src.video ||
         (
           (typeRaw === "動画" || typeRaw === "video")
             ? (src.file || "")
@@ -278,17 +282,29 @@
         src.agreed ??
         src.permission ??
         src.allow_distribution ??
+        src.allow_resale ??
         "";
 
+      const title =
+        src.title ||
+        src.name ||
+        "無題";
+
+      const creator =
+        src.creator ||
+        src.author ||
+        src.creator_name ||
+        "不明";
+
       return {
-        content_id: Number(src.content_id || src.id || 0),
-        title: src.title || "無題",
+        content_id: Number(src.content_id || src.id || src.work_id || 0),
+        title,
         image_url: imageUrl,
         video_url: videoUrl,
-        creator: src.creator || src.author || "不明",
-        author: src.author || src.creator || "不明",
-        rarity: src.rarity || "N",
-        genre: src.genre || "-",
+        creator,
+        author: creator,
+        rarity: src.rarity || src.rank || "N",
+        genre: src.genre || src.category || "-",
         type: inferredType,
         right_type: src.right_type || src.rightType || "",
         agreed: permissionValue,
@@ -297,11 +313,13 @@
         got_distribution_right: Boolean(
           src.got_distribution_right ||
           src.granted_distribution_right ||
+          src.has_distribution_right ||
           false
         ),
         is_unlisted_stock: Boolean(
           src.is_unlisted_stock ||
           src.unlisted_stock ||
+          src.is_stock ||
           false
         ),
 
