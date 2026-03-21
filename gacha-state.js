@@ -14,8 +14,10 @@ export function getOrCreateUserId() {
     if (window.crypto && typeof window.crypto.randomUUID === "function") {
       userId = "user_" + window.crypto.randomUUID();
     } else {
-      userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+      userId =
+        "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
     }
+
     localStorage.setItem("gacha_user_id", userId);
   }
 
