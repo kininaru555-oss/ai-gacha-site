@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>無料ガチャ結果 | 権利台帳</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="top-actions">
+      <a href="index.html" class="btn-back">← 無料ガチャへ戻る</a>
+      <a id="mypageLinkTop" href="#" class="btn-back">マイページ</a>
+    </div>
+
+    <div class="hero">
+      <h1>ガチャ結果</h1>
+      <p class="sub">
+        引いた作品の状態と、次にできる行動をまとめて表示します。
+      </p>
+    </div>
+
+    <div class="result-page-card">
+      <div class="result-page-stage" id="resultStage">
+        <img id="resultImage" class="result-page-media hidden" alt="ガチャ結果画像" />
+        <video
+          id="resultVideo"
+          class="result-page-media hidden"
+          controls
+          playsinline
+          preload="metadata"
+        ></video>
+        <div id="resultPlaceholder" class="placeholder">
+          ガチャ結果がありません。<br />
+          先に無料ガチャを引いてください。
+        </div>
+      </div>
+
+      <div id="resultMeta" class="result-meta-box hidden"></div>
+    </div>
+
+    <div id="rightsStatusBox" class="notice-box hidden"></div>
+    <div id="nextActionBox" class="notice-box hidden"></div>
+    <div id="saleOptionBox" class="notice-box hidden"></div>
+
+    <div class="buttons result-page-actions">
+      <a id="detailLink" class="btn btn-link hidden" href="#">作品詳細を見る</a>
+      <a id="mypageLink" class="btn btn-creator hidden" href="#">マイページへ</a>
+      <a id="machinesLink" class="btn btn-ranking" href="/machines">有料ガチャ自販機を見る</a>
+      <a id="auctionsLink" class="btn btn-post" href="/auctions">開催中オークションを見る</a>
+    </div>
+
+    <div class="notice-box">
+      <strong>このページで分かること</strong><br />
+      ・未出品在庫を引いたかどうか<br />
+      ・二次流通権を取得したかどうか<br />
+      ・そのまま販売できるかどうか<br />
+      ・次に進むべき導線（マイページ / 自販機 / オークション）
+    </div>
+  </div>
+
+  <script>
+    function getOrCreateUserId() {
+      let userId = localStorage.getItem("gacha_user_id");
+
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
+        } else {
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+        }
+        localStorage.setItem("gacha_user_id", userId);
+      }
+
+      return userId;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function getLastGachaResult() {
+      try {
+        const raw = localStorage.getItem("last_gacha_result");
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function normalizeRarity(r) {
+      const v = String(r || "").toUpperCase().trim();
+      if (v === "SSR") return "SSR";
+      if (v === "SR") return "SR";
+      if (v === "R") return "R";
+      return "N";
+    }
+
+    function renderMedia(result) {
+      const imageEl = document.getElementById("resultImage");
+      const videoEl = document.getElementById("resultVideo");
+      const placeholderEl = document.getElementById("resultPlaceholder");
+
+      const type = String(result.type || "").trim();
+      const imageUrl = result.image_url || result.imageUrl || "";
+      const videoUrl = result.video_url || result.videoUrl || "";
+
+      imageEl.classList.add("hidden");
+      videoEl.classList.add("hidden");
+      placeholderEl.classList.add("hidden");
+
+      if ((type === "動画" || type === "video") && videoUrl) {
+        videoEl.src = videoUrl;
+        videoEl.classList.remove("hidden");
+        return;
+      }
+
+      if (imageUrl) {
+        imageEl.src = imageUrl;
+        imageEl.classList.remove("hidden");
+        return;
+      }
+
+      placeholderEl.classList.remove("hidden");
+      placeholderEl.innerHTML = "表示できる作品がありません。";
+    }
+
+    function renderMeta(result) {
+      const box = document.getElementById("resultMeta");
+      box.classList.remove("hidden");
+
+      const title = escapeHtml(result.title || "無題");
+      const creator = escapeHtml(result.creator || result.author || "不明");
+      const genre = escapeHtml(result.genre || "-");
+      const rarity = escapeHtml(normalizeRarity(result.rarity));
+      const contentId = Number(result.content_id || result.id || 0);
+
+      box.innerHTML = `
+        <div><strong>タイトル:</strong> ${title}</div>
+        <div><strong>作者:</strong> ${creator}</div>
+        <div><strong>ジャンル:</strong> ${genre}</div>
+        <div><strong>レアリティ:</strong> ${rarity}</div>
+        <div><strong>作品ID:</strong> ${contentId || "-"}</div>
+      `;
+    }
+
+    function renderRightsStatus(result) {
+      const box = document.getElementById("rightsStatusBox");
+      box.classList.remove("hidden");
+
+      const agreed = String(result.agreed || result.permission || "").trim() === "はい";
+      const rightType = String(result.right_type || "").trim();
+      const siteLicenseEnabled = Number(result.site_license_enabled || 0) === 1;
+      const copyrightTransferEnabled = Number(result.copyright_transfer_enabled || 0) === 1;
+      const gotFreeDistributionRight = Boolean(result.got_distribution_right || false);
+      const isUnlistedStock = Boolean(result.is_unlisted_stock || false);
+
+      let html = "<strong>権利状態</strong><br />";
+
+      if (!agreed) {
+        html += "この作品は二次流通に事前同意していません。閲覧のみで、流通権は発生しません。";
+        box.innerHTML = html;
+        return;
+      }
+
+      if (isUnlistedStock && gotFreeDistributionRight) {
+        html += "この作品は未出品在庫でした。あなたは無料ガチャで二次流通権を取得しました。";
+      } else if (isUnlistedStock) {
+        html += "この作品は未出品在庫ですが、まだ二次流通権取得状態が未確定です。";
+      } else {
+        html += "この作品はすでに流通中、または販売権メニューが設定された作品です。";
+      }
+
+      html += "<br />";
+
+      if (siteLicenseEnabled || copyrightTransferEnabled) {
+        html += "この作品には追加で購入可能な権利メニューがあります。";
+      } else if (rightType) {
+        html += `作品権利設定: ${escapeHtml(rightType)}`;
+      }
+
+      box.innerHTML = html;
+    }
+
+    function renderNextActions(result) {
+      const box = document.getElementById("nextActionBox");
+      box.classList.remove("hidden");
+
+      const agreed = String(result.agreed || result.permission || "").trim() === "はい";
+      const gotFreeDistributionRight = Boolean(result.got_distribution_right || false);
+      const contentId = Number(result.content_id || result.id || 0);
+
+      let html = "<strong>次にできること</strong><br />";
+
+      if (agreed && gotFreeDistributionRight) {
+        html += `
+          ・マイページで販売設定を出す<br />
+          ・有料ガチャオークション自販機へ出品する<br />
+          ・将来の再流通売上の販売者60%を狙う
+        `;
+      } else if (agreed) {
+        html += `
+          ・作品詳細ページで購入可能な権利メニューを確認する<br />
+          ・すでに流通中なら再販売・オークション状況を見る
+        `;
+      } else {
+        html += `
+          ・この作品は閲覧中心です<br />
+          ・別の作品を引くか、ポイントで販売権付き作品を探せます
+        `;
+      }
+
+      if (contentId > 0) {
+        html += `<br />・作品詳細ページから直接確認できます`;
+      }
+
+      box.innerHTML = html;
+    }
+
+    function renderSaleOptions(result) {
+      const box = document.getElementById("saleOptionBox");
+      box.classList.remove("hidden");
+
+      const siteLicenseEnabled = Number(result.site_license_enabled || 0) === 1;
+      const copyrightTransferEnabled = Number(result.copyright_transfer_enabled || 0) === 1;
+      const siteLicensePrice = Number(result.site_license_price || 0);
+      const copyrightTransferPrice = Number(result.copyright_transfer_price || 0);
+      const gotFreeDistributionRight = Boolean(result.got_distribution_right || false);
+
+      let html = "<strong>販売・購入メニュー</strong><br />";
+
+      if (gotFreeDistributionRight) {
+        html += "あなたは無料で二次流通権を取得しています。マイページや自販機で販売を始められます。";
+      } else {
+        const menus = [];
+
+        if (siteLicenseEnabled) {
+          menus.push(`サイト内利用権: ${siteLicensePrice}pt`);
+        }
+
+        if (copyrightTransferEnabled) {
+          menus.push(`サイト内権利譲渡: ${copyrightTransferPrice}pt`);
+        }
+
+        if (menus.length > 0) {
+          html += menus.join("<br />");
+        } else {
+          html += "現在、この作品に表示可能な追加販売メニューはありません。";
+        }
+      }
+
+      box.innerHTML = html;
+    }
+
+    function renderLinks(result) {
+      const userId = getOrCreateUserId();
+      const contentId = Number(result.content_id || result.id || 0);
+
+      const mypageLink = document.getElementById("mypageLink");
+      const mypageLinkTop = document.getElementById("mypageLinkTop");
+      const detailLink = document.getElementById("detailLink");
+
+      mypageLink.href = `/mypage/${encodeURIComponent(userId)}`;
+      mypageLinkTop.href = `/mypage/${encodeURIComponent(userId)}`;
+      mypageLink.classList.remove("hidden");
+
+      if (contentId > 0) {
+        detailLink.href = `/works/${contentId}`;
+        detailLink.classList.remove("hidden");
+      }
+    }
+
+    function renderEmpty() {
+      const placeholderEl = document.getElementById("resultPlaceholder");
+      const rightsStatusBox = document.getElementById("rightsStatusBox");
+      const nextActionBox = document.getElementById("nextActionBox");
+      const saleOptionBox = document.getElementById("saleOptionBox");
+      const metaBox = document.getElementById("resultMeta");
+
+      placeholderEl.classList.remove("hidden");
+      placeholderEl.innerHTML = "まだガチャ結果がありません。<br />先に無料ガチャを引いてください。";
+
+      rightsStatusBox.classList.add("hidden");
+      nextActionBox.classList.add("hidden");
+      saleOptionBox.classList.add("hidden");
+      metaBox.classList.add("hidden");
+    }
+
+    function initResultPage() {
+      const result = getLastGachaResult();
+
+      if (!result) {
+        renderEmpty();
+        return;
+      }
+
+      renderMedia(result);
+      renderMeta(result);
+      renderRightsStatus(result);
+      renderNextActions(result);
+      renderSaleOptions(result);
+      renderLinks(result);
+    }
+
+    document.addEventListener("DOMContentLoaded", initResultPage);
+  </script>
+</body>
+</html>
