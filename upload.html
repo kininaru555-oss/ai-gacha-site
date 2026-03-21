@@ -142,6 +142,13 @@
       color: #d8d8d8;
       word-break: break-all;
     }
+
+    .field-note {
+      margin-top: 6px;
+      color: #c9c9c9;
+      font-size: 12px;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -165,12 +172,29 @@
       <div class="notice">
         このページは18歳以上向け作品の投稿を想定しています。<br>
         ご自身に投稿権限のある作品のみご利用ください。<br>
-        権利侵害のおそれがある画像・動画、掲載許可のない作品は投稿しないでください。
+        権利侵害のおそれがある画像・動画、掲載許可のない作品は投稿しないでください。<br>
+        収益分配のため、ユーザーIDは正確に入力してください。
       </div>
 
       <form id="submitForm">
         <label for="creator">クリエイター名・ハンドルネーム</label>
         <input id="creator" type="text" required />
+
+        <label for="creatorUserId">ユーザーID</label>
+        <input
+          id="creatorUserId"
+          type="text"
+          required
+          pattern="^[a-z0-9_-]+$"
+          placeholder="例: user_001"
+          autocapitalize="off"
+          autocomplete="username"
+          spellcheck="false"
+        />
+        <div class="field-note">
+          収益分配とマイページ確認に使用します。後から変更できません。<br>
+          半角英小文字・数字・_・- のみ使用できます。
+        </div>
 
         <label for="type">作品タイプ</label>
         <select id="type" required>
@@ -258,7 +282,8 @@
       prompt: "entry.1577278835",
       negativePrompt: "entry.1251304338",
       type: "entry.865507487",
-      permission: "entry.1133972974"
+      permission: "entry.1133972974",
+      userId: "entry.XXXXXXX"
     };
 
     const typeEl = document.getElementById("type");
@@ -271,21 +296,7 @@
     const statusEl = document.getElementById("status");
     const submitBtn = document.getElementById("submitBtn");
     const submitForm = document.getElementById("submitForm");
-
-    function getOrCreateUserId() {
-      let userId = localStorage.getItem("gacha_user_id");
-
-      if (!userId) {
-        if (window.crypto && typeof window.crypto.randomUUID === "function") {
-          userId = "user_" + window.crypto.randomUUID();
-        } else {
-          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-        }
-        localStorage.setItem("gacha_user_id", userId);
-      }
-
-      return userId;
-    }
+    const creatorUserIdEl = document.getElementById("creatorUserId");
 
     function setStatus(message) {
       statusEl.textContent = message || "";
@@ -321,6 +332,14 @@
       }
     }
 
+    function normalizeUserId(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function isValidUserId(value) {
+      return /^[a-z0-9_-]+$/.test(value);
+    }
+
     selectFileBtn.addEventListener("click", () => {
       fileInput.click();
     });
@@ -330,6 +349,13 @@
       fileInput.value = "";
       fileNameEl.textContent = "";
       syncAcceptByType();
+    });
+
+    creatorUserIdEl.addEventListener("input", () => {
+      const normalized = normalizeUserId(creatorUserIdEl.value);
+      if (creatorUserIdEl.value !== normalized) {
+        creatorUserIdEl.value = normalized;
+      }
     });
 
     async function uploadToCloudinary(file) {
@@ -359,7 +385,6 @@
 
       fileNameEl.textContent = `選択中: ${file.name}`;
       setStatus("アップロードしています…");
-
       submitBtn.disabled = true;
 
       try {
@@ -394,6 +419,7 @@
       e.preventDefault();
 
       const creator = document.getElementById("creator").value.trim();
+      const creatorUserId = normalizeUserId(creatorUserIdEl.value);
       const imageUrl = imageUrlEl.value.trim();
       const videoUrl = videoUrlEl.value.trim();
       const workLink = document.getElementById("workLink").value.trim();
@@ -411,6 +437,16 @@
         return;
       }
 
+      if (!creatorUserId) {
+        alert("ユーザーIDを入力してください");
+        return;
+      }
+
+      if (!isValidUserId(creatorUserId)) {
+        alert("ユーザーIDは半角英小文字・数字・_・- のみ使用できます");
+        return;
+      }
+
       if (type === "画像" && !imageUrl) {
         alert("先に画像をアップロードしてください");
         return;
@@ -421,11 +457,17 @@
         return;
       }
 
+      if (ENTRY.userId === "entry.XXXXXXX") {
+        alert("upload.html の ENTRY.userId を実際のGoogleフォームの項目IDに設定してください");
+        return;
+      }
+
       submitBtn.disabled = true;
       setStatus("投稿内容を送信しています…");
 
       const formData = new FormData();
       formData.append(ENTRY.creator, creator);
+      formData.append(ENTRY.userId, creatorUserId);
       formData.append(ENTRY.imageUrl, imageUrl);
       formData.append(ENTRY.videoUrl, videoUrl);
       formData.append(ENTRY.workLink, workLink);
@@ -446,12 +488,11 @@
           body: formData
         });
 
+        localStorage.setItem("gacha_user_id", creatorUserId);
         localStorage.setItem("gacha_is_poster_free", "1");
 
-        const userId = getOrCreateUserId();
         setStatus("投稿が完了しました。マイページへ移動します…");
-
-        window.location.href = `${MYPAGE_BASE_URL}/${encodeURIComponent(userId)}?from=upload`;
+        window.location.href = `${MYPAGE_BASE_URL}/${encodeURIComponent(creatorUserId)}?from=upload`;
       } catch (error) {
         console.error(error);
         setStatus("投稿送信に失敗しました。時間を置いてもう一度お試しください。");
