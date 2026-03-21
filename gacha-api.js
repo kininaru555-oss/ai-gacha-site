@@ -36,7 +36,9 @@ export async function fetchOwnerships() {
   const map = {};
 
   items.forEach((item) => {
-    map[String(item.content_id)] = item;
+    const key = String(item.content_id ?? "").trim();
+    if (!key) return;
+    map[key] = item;
   });
 
   return map;
@@ -45,9 +47,10 @@ export async function fetchOwnerships() {
 export async function fetchUserPoints() {
   const userId = getOrCreateUserId();
 
-  const response = await fetch(`${POINT_API_BASE}/${encodeURIComponent(userId)}`, {
-    cache: "no-store"
-  });
+  const response = await fetch(
+    `${POINT_API_BASE}/${encodeURIComponent(userId)}`,
+    { cache: "no-store" }
+  );
 
   if (!response.ok) {
     throw new Error("ポイント取得に失敗しました");
@@ -100,11 +103,16 @@ export async function fetchAvailableMachine() {
   return data;
 }
 
-export async function listWorkToMachine(machineId, contentId) {
-  const res = await fetch(
-    `${API_BASE}/api/vending-machines/${machineId}/items?content_id=${encodeURIComponent(contentId)}&item_order=0`,
-    { method: "POST" }
-  );
+export async function listWorkToMachine(machineId, contentId, ownerId) {
+  const url =
+    `${API_BASE}/api/vending-machines/${encodeURIComponent(machineId)}/items` +
+    `?content_id=${encodeURIComponent(contentId)}` +
+    `&owner_id=${encodeURIComponent(ownerId)}` +
+    `&item_order=0`;
+
+  const res = await fetch(url, {
+    method: "POST"
+  });
 
   const data = await res.json();
 
@@ -130,9 +138,10 @@ export async function fetchMachineStatusRows() {
   const rows = [];
 
   for (const machine of machines) {
-    const detailRes = await fetch(`${API_BASE}/api/vending-machines/${machine.id}`, {
-      cache: "no-store"
-    });
+    const detailRes = await fetch(
+      `${API_BASE}/api/vending-machines/${machine.id}`,
+      { cache: "no-store" }
+    );
 
     const detailData = await detailRes.json();
 
@@ -141,6 +150,7 @@ export async function fetchMachineStatusRows() {
     }
 
     rows.push({
+      id: machine.id,
       name: machine.name,
       currentCount: Number(detailData.current_count || 0),
       remainingSlots: Number(detailData.remaining_slots || 0)
