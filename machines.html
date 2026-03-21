@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>有料ガチャオークション一覧 | 権利台帳</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="top-actions">
+      <a href="index.html" class="btn-back">← 無料ガチャTOPへ戻る</a>
+      <a href="points_shop.html" class="btn-back">ポイント購入</a>
+    </div>
+
+    <div class="hero">
+      <h1>有料ガチャオークション</h1>
+      <p class="sub">
+        1回30ptで回せる、ガチャとオークションが一体化した自販機一覧です。<br />
+        引いた作品には入札でき、基本7日後に最高額入札者が落札します。
+      </p>
+    </div>
+
+    <div class="notice-box">
+      <strong>有料ガチャオークションの仕組み</strong><br />
+      ・1台につき最大30作品<br />
+      ・1回30ptでガチャ<br />
+      ・引かれた時点で販売者に15円<br />
+      ・引いた作品に入札可能<br />
+      ・基本7日後に最高額入札者が落札<br />
+      ・落札者は次回出品権と二次流通権を取得
+    </div>
+
+    <div id="machineSummary" class="notice-box">
+      読み込み中...
+    </div>
+
+    <div id="machineGrid" class="machine-grid"></div>
+  </div>
+
+  <script>
+    const API_BASE = "https://aicontents.onrender.com";
+    const MACHINES_API = `${API_BASE}/api/vending-machines`;
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function buildDefaultMachines() {
+      const defaults = [];
+
+      for (let i = 1; i <= 10; i += 1) {
+        defaults.push({
+          id: i,
+          name: `有料ガチャオークション ${i}`,
+          description: "30ptで回せるガチャオークション自販機",
+          current_count: 0,
+          remaining_slots: 30,
+          is_active: 1
+        });
+      }
+
+      return defaults;
+    }
+
+    function mergeMachines(defaults, apiItems) {
+      const apiMap = new Map();
+
+      (apiItems || []).forEach((item) => {
+        apiMap.set(Number(item.id), item);
+      });
+
+      return defaults.map((base) => {
+        const fromApi = apiMap.get(Number(base.id));
+        return {
+          ...base,
+          ...(fromApi || {})
+        };
+      });
+    }
+
+    function renderSummary(items) {
+      const summaryEl = document.getElementById("machineSummary");
+
+      const activeCount = items.filter((item) => Number(item.is_active ?? 1) === 1).length;
+      const totalCount = items.reduce((sum, item) => {
+        return sum + Number(item.current_count || 0);
+      }, 0);
+
+      summaryEl.innerHTML = `
+        表示台数: ${items.length}台<br />
+        稼働中: ${activeCount}台<br />
+        収録作品数合計: ${totalCount}件
+      `;
+    }
+
+    function renderMachines(items) {
+      const grid = document.getElementById("machineGrid");
+
+      grid.innerHTML = items.map((machine) => {
+        const id = Number(machine.id || 0);
+        const name = escapeHtml(machine.name || `有料ガチャオークション ${id}`);
+        const description = escapeHtml(machine.description || "30ptで回せるガチャオークション自販機");
+        const currentCount = Number(machine.current_count || 0);
+        const remainingSlots = Number(machine.remaining_slots ?? Math.max(0, 30 - currentCount));
+        const isActive = Number(machine.is_active ?? 1) === 1;
+
+        return `
+          <article class="machine-card">
+            <div class="machine-card-head">
+              <div class="machine-badge">#${id}</div>
+              <div class="machine-status ${isActive ? "active" : "inactive"}">
+                ${isActive ? "稼働中" : "停止中"}
+              </div>
+            </div>
+
+            <h2 class="machine-title">${name}</h2>
+            <p class="machine-desc">${description}</p>
+
+            <div class="machine-meta">
+              <div>収録数: ${currentCount} / 30</div>
+              <div>空き: ${remainingSlots}</div>
+              <div>価格: 1回30pt</div>
+              <div>形式: 7日オークション</div>
+            </div>
+
+            <div class="machine-actions">
+              <a class="btn btn-creator" href="/machines/${id}">この自販機を見る</a>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    async function loadMachines() {
+      const defaults = buildDefaultMachines();
+
+      try {
+        const res = await fetch(MACHINES_API, {
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "自販機一覧の取得に失敗しました");
+        }
+
+        const apiItems = Array.isArray(data.items) ? data.items : [];
+        const merged = mergeMachines(defaults, apiItems);
+
+        renderSummary(merged);
+        renderMachines(merged);
+      } catch (error) {
+        console.error(error);
+        renderSummary(defaults);
+        renderMachines(defaults);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadMachines);
+  </script>
+</body>
+</html>
