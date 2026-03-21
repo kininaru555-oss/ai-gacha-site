@@ -1,4 +1,5 @@
 export const API_BASE = "https://aicontents.onrender.com";
+
 export const CONTENTS_API = `${API_BASE}/api/contents`;
 export const OWNERSHIP_API = `${API_BASE}/api/ownerships`;
 export const POINT_API_BASE = `${API_BASE}/api/points`;
