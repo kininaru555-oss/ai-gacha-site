@@ -1,25 +1,28 @@
+// ===== 基本UI =====
 export const drawButton = document.getElementById("drawButton");
 export const stage = document.getElementById("stage");
 export const placeholder = document.getElementById("placeholder");
 
-export const resultImage = document.getElementById("resultImage");
-export const resultVideo = document.getElementById("resultVideo");
-
-export const meta = document.getElementById("meta");
 export const ticketInfo = document.getElementById("ticketInfo");
-export const statusEl = document.getElementById("status");
-export const buybackPriceEl = document.getElementById("buybackPrice");
-export const featuredTypeEl = document.getElementById("featuredType");
+export const statusEl = document.getElementById("statusBox");
 
+// ===== 表示エリア =====
+export const meta = document.getElementById("meta");
+
+// ===== 自販機関連 =====
 export const listingArea = document.getElementById("listingArea");
 export const listToMachineBtn = document.getElementById("listToMachineBtn");
 export const listingMessage = document.getElementById("listingMessage");
-export const listingFullBox = document.getElementById("listingFullBox");
 
 export const machineStatusBox = document.getElementById("machineStatusBox");
+
+// ===== ナビ =====
 export const mypageBtn = document.getElementById("mypageBtn");
+
+// ===== 最新作品 =====
 export const latestWorksBox = document.getElementById("latestWorks");
 
+// ===== メタ情報 =====
 export const titleEl = document.getElementById("title");
 export const creatorEl = document.getElementById("creator");
 export const genreEl = document.getElementById("genre");
@@ -27,17 +30,19 @@ export const descriptionEl = document.getElementById("description");
 export const mediaTypeEl = document.getElementById("mediaType");
 export const rarityEl = document.getElementById("rarity");
 
-export const resaleFromMypageBtn =
-  document.getElementById("resaleFromMypageBtn");
+// ===== 演出 =====
+export const jackpotEl = (() => {
+  const el = document.createElement("div");
+  el.id = "jackpot";
+  el.style.display = "none";
+  el.style.color = "gold";
+  el.style.fontWeight = "bold";
+  el.style.marginTop = "10px";
+  el.textContent = "🎉 当たり！";
+  return el;
+})();
 
-export const jackpotEl = document.createElement("div");
-jackpotEl.id = "jackpot";
-jackpotEl.style.display = "none";
-jackpotEl.style.color = "gold";
-jackpotEl.style.fontWeight = "bold";
-jackpotEl.style.marginTop = "10px";
-jackpotEl.textContent = "🎉 当たり！";
-
+// metaがあるページだけ追加
 if (meta) {
   meta.appendChild(jackpotEl);
 }
