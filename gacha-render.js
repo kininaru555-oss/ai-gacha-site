@@ -1,8 +1,9 @@
-import { API_BASE, DRAW_COST } from "./gacha-config.js";
+import { DRAW_COST } from "./gacha-config.js";
 import {
   buybackPriceEl,
   creatorEl,
   descriptionEl,
+  drawButton,
   featuredTypeEl,
   genreEl,
   jackpotEl,
@@ -15,6 +16,7 @@ import {
   mediaTypeEl,
   mypageBtn,
   placeholder,
+  rarityEl,
   resultImage,
   resultVideo,
   stage,
@@ -23,7 +25,7 @@ import {
   titleEl
 } from "./gacha-dom.js";
 import { fetchAvailableMachine, fetchMachineStatusRows } from "./gacha-api.js";
-import { getOrCreateUserId, isPosterFreeUser, state } from "./gacha-state.js";
+import { getFreeDrawCount, getOrCreateUserId, state } from "./gacha-state.js";
 import {
   applyHitVisuals,
   formatExpireDate,
@@ -98,7 +100,7 @@ function updateMypageResaleLink(work) {
 
   resaleBtn.style.display = "inline-flex";
   resaleBtn.href =
-    `${API_BASE}/mypage/${encodeURIComponent(userId)}` +
+    `/mypage/${encodeURIComponent(userId)}` +
     `?highlight=${encodeURIComponent(work.id || "")}`;
 }
 
@@ -106,15 +108,18 @@ export function initMypageLink() {
   const userId = getOrCreateUserId();
 
   if (mypageBtn) {
-    mypageBtn.href = `${API_BASE}/mypage/${encodeURIComponent(userId)}`;
+    mypageBtn.href = `/mypage/${encodeURIComponent(userId)}`;
   }
 }
 
 export function updateTicket() {
   if (!ticketInfo) return;
 
-  if (isPosterFreeUser()) {
-    ticketInfo.textContent = "投稿者モード：無料でガチャを引けます";
+  const freeDrawCount = getFreeDrawCount();
+
+  if (freeDrawCount > 0) {
+    ticketInfo.textContent =
+      `所持ポイント：${state.currentUserPoints}pt / 無料ガチャ ${freeDrawCount}回 / 通常1回 ${DRAW_COST}pt`;
     return;
   }
 
@@ -313,6 +318,10 @@ export async function renderWork(work) {
     featuredTypeEl.textContent = isOperatorPick(work) ? "運営特選" : "-";
   }
 
+  if (rarityEl) {
+    rarityEl.textContent = normalizeRarity(work.rarity);
+  }
+
   const jackpotMessage = getJackpotMessage(work);
   if (jackpotMessage) {
     jackpotEl.style.display = "block";
@@ -329,11 +338,8 @@ export async function renderWork(work) {
 }
 
 export function setLoadingState(canDraw) {
-  const canUse = Boolean(canDraw);
-
-  if (drawButton) {
-    drawButton.disabled = !canUse;
-  }
+  if (!drawButton) return;
+  drawButton.disabled = !Boolean(canDraw);
 }
 
 export function setDrawingAnimation(active) {
@@ -344,4 +350,4 @@ export function setDrawingAnimation(active) {
   } else {
     stage.classList.remove("animating", "reveal-delay");
   }
-}
+      }
