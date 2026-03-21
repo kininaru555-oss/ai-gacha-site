@@ -226,12 +226,7 @@
           <option value="AI2次元">AI2次元</option>
           <option value="AI3次元">AI3次元</option>
         </select>
-
-        <label for="xPromo">Xで紹介しても良いですか？</label>
-        <select id="xPromo" required>
-          <option value="はい">はい</option>
-          <option value="いいえ">いいえ</option>
-        </select>
+   
 
         <label for="rarity">レアリティ（自己評価）</label>
         <select id="rarity" required>
@@ -400,19 +395,21 @@
       e.preventDefault();
 
       const creator = document.getElementById("creator").value.trim();
-      const creatorUserId = normalizeUserId(creatorUserIdEl.value);
-      const imageUrl = imageUrlEl.value.trim();
-      const videoUrl = videoUrlEl.value.trim();
-      const workLink = document.getElementById("workLink").value.trim();
-      const xAccount = document.getElementById("xAccount").value.trim();
-      const genre = document.getElementById("genre").value;
-      const xPromo = document.getElementById("xPromo").value;
-      const rarity = document.getElementById("rarity").value;
-      const comment = document.getElementById("comment").value.trim();
-      const prompt = document.getElementById("prompt").value.trim();
-      const negativePrompt = document.getElementById("negativePrompt").value.trim();
-      const type = typeEl.value;
-
+const creatorUserId = normalizeUserId(creatorUserIdEl.value);
+const imageUrl = imageUrlEl.value.trim();
+const videoUrl = videoUrlEl.value.trim();
+const workLink = document.getElementById("workLink").value.trim();
+const xAccount = document.getElementById("xAccount").value.trim();
+const genre = document.getElementById("genre").value;
+const rarity = document.getElementById("rarity").value;
+const rightType = rightTypeEl.value;
+const siteLicensePrice = normalizePrice(siteLicensePriceEl.value);
+const copyrightTransferPrice = normalizePrice(copyrightTransferPriceEl.value);
+const comment = document.getElementById("comment").value.trim();
+const prompt = document.getElementById("prompt").value.trim();
+const negativePrompt = document.getElementById("negativePrompt").value.trim();
+const type = typeEl.value;
+      
       if (!creator) {
         alert("クリエイター名を入力してください");
         return;
@@ -448,21 +445,23 @@
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            creator: creator,
-            creator_user_id: creatorUserId,
-            type: type,
-            image_url: imageUrl,
-            video_url: videoUrl,
-            work_link: workLink,
-            x_account: xAccount,
-            genre: genre,
-            x_promo: xPromo,
-            rarity: rarity,
-            comment: comment,
-            prompt: prompt,
-            negative_prompt: negativePrompt,
-            permission: "はい"
-          })
+  creator: creator,
+  creator_user_id: creatorUserId,
+  type: type,
+  image_url: imageUrl,
+  video_url: videoUrl,
+  work_link: workLink,
+  x_account: xAccount,
+  genre: genre,
+  rarity: rarity,
+  right_type: rightType,
+  site_license_price: siteLicensePrice,
+  copyright_transfer_price: copyrightTransferPrice,
+  comment: comment,
+  prompt: prompt,
+  negative_prompt: negativePrompt,
+  permission: "はい"
+})
         });
 
         const data = await res.json();
