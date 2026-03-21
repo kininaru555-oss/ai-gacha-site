@@ -53,15 +53,6 @@
         <div id="flash" class="flash"></div>
         <div id="shine" class="shine"></div>
 
-        <img id="resultImage" class="media hidden" alt="ガチャ結果画像" />
-        <video
-          id="resultVideo"
-          class="media hidden"
-          controls
-          playsinline
-          preload="metadata"
-        ></video>
-
         <div id="placeholder" class="placeholder">
           投稿者は無料で1回。<br />
           非投稿者は30ptで1回。<br />
@@ -73,25 +64,9 @@
         無料ガチャを引く
       </button>
 
-      <div id="jackpot" class="hidden"></div>
-
-      <div id="meta" class="meta hidden"></div>
-
-      <div class="result-buttons">
-        <button id="likeButton" class="btn-like hidden" type="button" disabled>
-          いいね停止中
-        </button>
-        <a id="linkButton" class="btn-link hidden" href="#" target="_blank" rel="noopener noreferrer">
-          作者リンクを見る
-        </a>
-        <button id="shareButton" class="btn-share hidden" type="button">
-          共有
-        </button>
+      <div id="statusBox" class="notice-box">
+        ガチャを引くと、結果ページで「販売可能か」「権利が取れたか」「次に何を売れるか」を表示します。
       </div>
-
-      <div id="listingArea" class="hidden"></div>
-      <div id="listingMessage"></div>
-      <div id="promptBox" class="hidden"></div>
     </div>
 
     <div class="notice-box">
@@ -137,12 +112,20 @@
     </div>
   </div>
 
-  <script src="gacha-config.js"></script>
-  <script src="gacha-dom.js"></script>
-  <script src="gacha-state.js"></script>
-  <script src="gacha-utils.js"></script>
-  <script src="gacha-render.js"></script>
   <script>
+    const API_BASE = "https://aicontents.onrender.com";
+    const FREE_GACHA_API = `${API_BASE}/api/gacha/free`;
+    const POINT_BALANCE_API_BASE = `${API_BASE}/api/points`;
+
+    const drawButton = document.getElementById("drawButton");
+    const ticketInfo = document.getElementById("ticketInfo");
+    const statusBox = document.getElementById("statusBox");
+    const userIdText = document.getElementById("userIdText");
+    const mypageLink = document.getElementById("mypageLink");
+    const stage = document.getElementById("stage");
+
+    let isDrawing = false;
+
     function getOrCreateUserId() {
       let userId = localStorage.getItem("gacha_user_id");
 
@@ -158,25 +141,26 @@
       return userId;
     }
 
-    function renderUserInfo() {
-      const userId = getOrCreateUserId();
+    function getFreeDrawCount() {
+      return Number(localStorage.getItem("gacha_free_draw_count") || "0");
+    }
 
-      const userIdText = document.getElementById("userIdText");
-      if (userIdText) {
-        userIdText.textContent = userId;
-      }
+    function setFreeDrawCount(value) {
+      localStorage.setItem(
+        "gacha_free_draw_count",
+        String(Math.max(0, Number(value || 0)))
+      );
+    }
 
-      const mypageLink = document.getElementById("mypageLink");
-      if (mypageLink) {
-        mypageLink.href = `/mypage/${encodeURIComponent(userId)}`;
+    function consumeFreeDrawTicket() {
+      const current = getFreeDrawCount();
+      if (current > 0) {
+        setFreeDrawCount(current - 1);
       }
     }
 
     function renderTicketInfo() {
-      const ticketInfo = document.getElementById("ticketInfo");
-      if (!ticketInfo) return;
-
-      const freeCount = Number(localStorage.getItem("gacha_free_draw_count") || "0");
+      const freeCount = getFreeDrawCount();
 
       if (freeCount > 0) {
         ticketInfo.textContent = `無料ガチャ回数: ${freeCount}回`;
@@ -185,10 +169,240 @@
       }
     }
 
+    function renderUserInfo() {
+      const userId = getOrCreateUserId();
+
+      if (userIdText) {
+        userIdText.textContent = userId;
+      }
+
+      if (mypageLink) {
+        mypageLink.href = `/mypage/${encodeURIComponent(userId)}`;
+      }
+    }
+
+    function setStatus(message) {
+      if (statusBox) {
+        statusBox.innerHTML = message || "";
+      }
+    }
+
+    function setDrawButtonLoading(isLoading) {
+      if (!drawButton) return;
+
+      drawButton.disabled = isLoading;
+      drawButton.textContent = isLoading ? "ガチャ中..." : "無料ガチャを引く";
+    }
+
+    function runDrawAnimation() {
+      if (!stage) return;
+
+      stage.classList.remove("animating");
+      void stage.offsetWidth;
+      stage.classList.add("animating");
+
+      setTimeout(() => {
+        stage.classList.remove("animating");
+      }, 900);
+    }
+
+    async function fetchPointBalance(userId) {
+      const res = await fetch(`${POINT_BALANCE_API_BASE}/${encodeURIComponent(userId)}`, {
+        cache: "no-store"
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "ポイント残高の取得に失敗しました");
+      }
+
+      return Number(data.user?.points || 0);
+    }
+
+    async function useThirtyPoints(userId) {
+      const res = await fetch(`${POINT_BALANCE_API_BASE}/${encodeURIComponent(userId)}/use`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          amount: 30,
+          note: "無料ガチャ実行"
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "ポイント消費に失敗しました");
+      }
+
+      return data;
+    }
+
+    function normalizeResultData(raw, drawMode) {
+      const src =
+        raw?.result ||
+        raw?.item ||
+        raw?.work ||
+        raw ||
+        {};
+
+      const typeRaw = String(src.type || "").trim();
+      const inferredType =
+        typeRaw ||
+        (src.video_url || src.videoUrl ? "動画" : "画像");
+
+      const imageUrl =
+        src.image_url ||
+        src.imageUrl ||
+        (
+          (typeRaw === "画像" || typeRaw === "image" || (!src.video_url && !src.videoUrl))
+            ? (src.file || "")
+            : ""
+        ) ||
+        "";
+
+      const videoUrl =
+        src.video_url ||
+        src.videoUrl ||
+        (
+          (typeRaw === "動画" || typeRaw === "video")
+            ? (src.file || "")
+            : ""
+        ) ||
+        "";
+
+      const permissionValue =
+        src.agreed ??
+        src.permission ??
+        src.allow_distribution ??
+        "";
+
+      return {
+        content_id: Number(src.content_id || src.id || 0),
+        title: src.title || "無題",
+        image_url: imageUrl,
+        video_url: videoUrl,
+        creator: src.creator || src.author || "不明",
+        author: src.author || src.creator || "不明",
+        rarity: src.rarity || "N",
+        genre: src.genre || "-",
+        type: inferredType,
+        right_type: src.right_type || src.rightType || "",
+        agreed: permissionValue,
+        permission: permissionValue,
+
+        got_distribution_right: Boolean(
+          src.got_distribution_right ||
+          src.granted_distribution_right ||
+          false
+        ),
+        is_unlisted_stock: Boolean(
+          src.is_unlisted_stock ||
+          src.unlisted_stock ||
+          false
+        ),
+
+        site_license_enabled: Number(src.site_license_enabled || 0),
+        copyright_transfer_enabled: Number(src.copyright_transfer_enabled || 0),
+        site_license_price: Number(src.site_license_price || 0),
+        copyright_transfer_price: Number(src.copyright_transfer_price || 0),
+
+        comment: src.comment || "",
+        prompt: src.prompt || "",
+        negative_prompt: src.negative_prompt || "",
+        work_link: src.work_link || src.link || "",
+        x_account: src.x_account || "",
+        draw_mode: drawMode,
+
+        _raw: raw
+      };
+    }
+
+    async function drawFreeGacha() {
+      if (isDrawing) return;
+
+      const userId = getOrCreateUserId();
+      const freeCount = getFreeDrawCount();
+
+      isDrawing = true;
+      setDrawButtonLoading(true);
+      runDrawAnimation();
+
+      try {
+        let drawMode = "free";
+
+        if (freeCount > 0) {
+          setStatus("無料ガチャを実行しています...");
+        } else {
+          setStatus("30pt消費ガチャを実行しています...");
+
+          const currentPoints = await fetchPointBalance(userId);
+          if (currentPoints < 30) {
+            throw new Error("ポイントが不足しています。ポイント購入ページから30pt以上を用意してください。");
+          }
+
+          await useThirtyPoints(userId);
+          drawMode = "points";
+        }
+
+        const res = await fetch(FREE_GACHA_API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            owner_id: userId
+          })
+        });
+
+        const data = await res.json();
+
+        console.log("FREE_GACHA_API raw response:", data);
+        localStorage.setItem("last_gacha_raw_response", JSON.stringify(data, null, 2));
+
+        if (!res.ok) {
+          throw new Error(data.detail || "ガチャに失敗しました");
+        }
+
+        const result = normalizeResultData(data, drawMode);
+
+        if (!result.content_id && !result.image_url && !result.video_url) {
+          throw new Error("ガチャ結果の形式が不正です");
+        }
+
+        if (drawMode === "free") {
+          consumeFreeDrawTicket();
+        }
+
+        renderTicketInfo();
+
+        localStorage.setItem("last_gacha_result", JSON.stringify(result));
+
+        setStatus("結果ページへ移動します...");
+
+        setTimeout(() => {
+          window.location.href = "result.html";
+        }, 500);
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || "ガチャに失敗しました。");
+      } finally {
+        isDrawing = false;
+        setDrawButtonLoading(false);
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       renderUserInfo();
       renderTicketInfo();
+
+      if (drawButton) {
+        drawButton.addEventListener("click", drawFreeGacha);
+      }
     });
   </script>
 </body>
-  </html>
+</html>
