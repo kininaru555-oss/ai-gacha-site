@@ -5,103 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>クリエイターランキング | 権利台帳</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <style>
-    .ranking-wrap {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 20px 16px 60px;
-    }
-
-    .ranking-header {
-      margin-bottom: 24px;
-    }
-
-    .ranking-title {
-      font-size: 28px;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-
-    .ranking-subtitle {
-      color: #bdbdbd;
-      line-height: 1.7;
-      font-size: 14px;
-    }
-
-    .ranking-list {
-      display: grid;
-      gap: 14px;
-    }
-
-    .ranking-card {
-      background: #1f1f1f;
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-      display: grid;
-      grid-template-columns: 72px 1fr;
-      gap: 14px;
-      align-items: center;
-    }
-
-    .ranking-rank {
-      width: 72px;
-      height: 72px;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #2a2a2a;
-      color: #fff;
-      font-size: 24px;
-      font-weight: bold;
-    }
-
-    .ranking-body {
-      min-width: 0;
-    }
-
-    .ranking-name {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      word-break: break-word;
-    }
-
-    .ranking-meta {
-      color: #d0d0d0;
-      font-size: 14px;
-      line-height: 1.8;
-    }
-
-    .ranking-empty {
-      background: #1f1f1f;
-      border-radius: 16px;
-      padding: 18px;
-      color: #bdbdbd;
-    }
-
-    .ranking-links {
-      margin-top: 14px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .ranking-links a {
-      display: inline-block;
-      padding: 10px 14px;
-      border-radius: 10px;
-      background: #7b61ff;
-      color: #fff;
-      text-decoration: none;
-      font-size: 14px;
-    }
-
-    .ranking-links a.secondary {
-      background: #444;
-    }
-  </style>
 </head>
 <body>
   <div class="ranking-wrap">
@@ -154,7 +57,7 @@
         const maxSale = Number(item.max_sale || 0);
 
         return `
-          <article class="ranking-card">
+          <article class="ranking-card ranking-card-creator">
             <div class="ranking-rank">#${rank}</div>
             <div class="ranking-body">
               <div class="ranking-name">${escapeHtml(creator)}</div>
