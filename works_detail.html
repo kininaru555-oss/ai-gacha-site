@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>作品詳細 | ライセンス台帳</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="top-actions">
+      <a href="index.html" class="btn-back">← トップへ戻る</a>
+      <a href="machines.html" class="btn-back">有料ガチャ一覧</a>
+    </div>
+
+    <div id="workDetailArea">
+      <div class="notice-box">読み込み中...</div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "https://aicontents.onrender.com";
+
+    function getOrCreateUserId() {
+      let userId = localStorage.getItem("gacha_user_id");
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
+        } else {
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+        }
+        localStorage.setItem("gacha_user_id", userId);
+      }
+      return userId;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function optimizeCloudinary(url) {
+      if (!url) return "";
+      if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
+        return url.replace("/upload/", "/upload/f_auto,q_auto/");
+      }
+      return url;
+    }
+
+    function makeLightMosaicImage(url) {
+      if (!url) return "";
+      if (url.includes("res.cloudinary.com")) {
+        return url.replace("/upload/", "/upload/f_auto,q_50,e_pixelate:8/");
+      }
+      return url;
+    }
+
+    function makeMosaicVideoPoster(url) {
+      if (!url) return "";
+      if (url.includes("res.cloudinary.com")) {
+        return url.replace("/video/upload/", "/video/upload/so_0,e_pixelate:8,f_jpg/");
+      }
+      return "";
+    }
+
+    function getMediaHtml(item) {
+      const hasViewAccess = Boolean(item.has_view_access);
+      const type = String(item.type || "").trim();
+      const isVideo = type === "動画" || type === "video" || Boolean(item.video_url);
+
+      if (isVideo) {
+        const videoUrl = optimizeCloudinary(item.video_url || "");
+        const poster = makeMosaicVideoPoster(videoUrl);
+
+        if (hasViewAccess) {
+          return `
+            <video class="detail-media" src="${escapeHtml(videoUrl)}" controls playsinline preload="metadata" poster="${escapeHtml(poster)}"></video>
+          `;
+        }
+
+        return `
+          <div class="locked-media-wrap">
+            <img class="detail-media" src="${escapeHtml(poster)}" alt="動画プレビュー" />
+            <div class="locked-overlay">🔒 ガチャで動画再生を解放</div>
+          </div>
+        `;
+      }
+
+      const imageUrl = optimizeCloudinary(item.image_url || "");
+      if (hasViewAccess) {
+        return `
+          <img class="detail-media" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.title || "作品")}" />
+        `;
+      }
+
+      return `
+        <div class="locked-media-wrap">
+          <img class="detail-media" src="${escapeHtml(makeLightMosaicImage(imageUrl))}" alt="${escapeHtml(item.title || "作品")}" />
+          <div class="locked-overlay">🔒 ガチャで高画質表示を解放</div>
+        </div>
+      `;
+    }
+
+    function getOwnershipStatusText(ownership) {
+      if (!ownership) return "未流通";
+      if (ownership.status === "owned") return "権利取得済み";
+      if (ownership.status === "listed") return "出品中";
+      if (ownership.status === "sold") return "売却済み";
+      return ownership.status || "不明";
+    }
+
+    function getRightsHtml(item) {
+      const rows = [];
+
+      rows.push(`<div>作品権利設定: ${escapeHtml(item.right_type || "-")}</div>`);
+
+      if (Number(item.site_license_enabled || 0) === 1) {
+        rows.push(`<div>サイト内利用権: ${Number(item.site_license_price || 0)}pt</div>`);
+      }
+
+      if (Number(item.copyright_transfer_enabled || 0) === 1) {
+        rows.push(`<div>サイト内権利譲渡: ${Number(item.copyright_transfer_price || 0)}pt</div>`);
+      }
+
+      if (rows.length === 1) {
+        rows.push(`<div>追加ライセンス販売メニューなし</div>`);
+      }
+
+      return rows.join("");
+    }
+
+    function renderWorkDetail(payload) {
+      const area = document.getElementById("workDetailArea");
+      const item = payload.item;
+      const ownership = payload.latest_ownership;
+
+      area.innerHTML = `
+        <div class="hero">
+          <h1>${escapeHtml(item.title || "無題")}</h1>
+          <p class="sub">
+            ${escapeHtml(item.author || item.creator || "不明")} / ${escapeHtml(item.genre || "-")} / ${escapeHtml(item.rarity || "N")}
+          </p>
+        </div>
+
+        <div class="work-detail-card">
+          <div class="work-detail-media-wrap">
+            ${getMediaHtml(item)}
+          </div>
+
+          <div class="work-detail-meta">
+            <div><strong>作者:</strong> ${escapeHtml(item.author || item.creator || "不明")}</div>
+            <div><strong>ジャンル:</strong> ${escapeHtml(item.genre || "-")}</div>
+            <div><strong>レアリティ:</strong> ${escapeHtml(item.rarity || "N")}</div>
+            <div><strong>タイプ:</strong> ${escapeHtml(item.type || "画像")}</div>
+            <div><strong>閲覧状態:</strong> ${item.has_view_access ? "解放済み" : "未解放"}</div>
+            <div><strong>現在状態:</strong> ${escapeHtml(getOwnershipStatusText(ownership))}</div>
+          </div>
+        </div>
+
+        <div class="notice-box">
+          <strong>ライセンス情報</strong><br />
+          ${getRightsHtml(item)}
+        </div>
+
+        <div class="notice-box">
+          <strong>説明</strong><br />
+          ${escapeHtml(item.comment || "説明はありません")}
+        </div>
+
+        <div class="buttons">
+          <a class="btn btn-post" href="index.html">ガチャへ戻る</a>
+          <a class="btn btn-creator" href="machines.html">有料ガチャ一覧</a>
+          <a class="btn btn-link" href="points_shop.html">ポイント購入</a>
+        </div>
+      `;
+    }
+
+    async function loadWorkDetail() {
+      const contentId = Number(getQueryParam("id") || 0);
+      const area = document.getElementById("workDetailArea");
+
+      if (!contentId) {
+        area.innerHTML = `<div class="notice-box">作品IDが不正です。</div>`;
+        return;
+      }
+
+      const userId = getOrCreateUserId();
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/works/${contentId}?user_id=${encodeURIComponent(userId)}`,
+          { cache: "no-store" }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "作品詳細の取得に失敗しました");
+        }
+
+        renderWorkDetail(data);
+      } catch (error) {
+        console.error(error);
+        area.innerHTML = `
+          <div class="notice-box">
+            作品詳細の読み込みに失敗しました。<br />
+            ${escapeHtml(error.message || "")}
+          </div>
+        `;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadWorkDetail);
+  </script>
+</body>
+</html>
