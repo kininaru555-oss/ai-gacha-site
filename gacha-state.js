@@ -12,13 +12,9 @@ export function getOrCreateUserId() {
   let userId = localStorage.getItem("gacha_user_id");
 
   if (!userId) {
-    if (window.crypto && typeof window.crypto.randomUUID === "function") {
-      userId = "user_" + window.crypto.randomUUID();
-    } else {
-      userId =
-        "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-    }
-
+    userId = window.crypto?.randomUUID
+      ? "user_" + window.crypto.randomUUID()
+      : "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
     localStorage.setItem("gacha_user_id", userId);
   }
 
@@ -34,15 +30,13 @@ export function hasFreeDraw() {
 }
 
 export function consumeFreeDraw() {
-  const current = getFreeDrawCount();
-  const next = Math.max(0, current - 1);
+  const next = Math.max(0, getFreeDrawCount() - 1);
   localStorage.setItem("gacha_free_draw_count", String(next));
   return next;
 }
 
 export function addFreeDraw(count = 1) {
-  const current = getFreeDrawCount();
-  const next = Math.max(0, current + Number(count || 0));
+  const next = Math.max(0, getFreeDrawCount() + Number(count || 0));
   localStorage.setItem("gacha_free_draw_count", String(next));
   return next;
 }
@@ -56,7 +50,7 @@ export function getLastGachaResult() {
   try {
     const raw = localStorage.getItem("last_gacha_result");
     return raw ? JSON.parse(raw) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -78,7 +72,7 @@ export function setLastGachaRawResponse(rawResponse) {
 export function getLastGachaRawResponse() {
   try {
     return localStorage.getItem("last_gacha_raw_response") || "";
-  } catch (e) {
+  } catch {
     return "";
   }
 }
