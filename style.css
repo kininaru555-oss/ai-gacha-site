@@ -1,0 +1,179 @@
+/* style.css - 美女ガチャクエスト 共通スタイル */
+
+/* 全体リセット & ベース */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #0a0c12;
+  --bg-secondary: #151821;
+  --card-bg: #171a21;
+  --input-bg: #101218;
+  --border: rgba(255,255,255,0.08);
+  --text-primary: #ffffff;
+  --text-secondary: #aeb5c2;
+  --accent-blue: #2563eb;
+  --accent-green: #16a34a;
+  --accent-pink: #db2777;
+  --accent-gold: #d4af37;
+  --accent-purple: #7b61ff;
+  --glow-blue: 0 0 20px rgba(37,99,235,0.5);
+  --glow-gold: 0 0 25px rgba(212,175,55,0.6);
+}
+
+body {
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 1200px;          /* market/mypage用に広め */
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* 共通カード */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);   /* 軽いガラス感 */
+}
+
+/* 見出し */
+h1, h2, h3 {
+  margin-bottom: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: 2.2rem; }
+h2 { font-size: 1.6rem; }
+
+/* ボタン共通 */
+button, a.btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button:hover, a.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+/* ボタンカラー */
+.btn-primary   { background: var(--accent-blue); }
+.btn-success   { background: var(--accent-green); }
+.btn-danger    { background: #dc2626; }
+.btn-pink      { background: var(--accent-pink); }
+.btn-nav       { background: #374151; }
+.btn-outline   { 
+  background: transparent; 
+  border: 1px solid var(--border); 
+  color: var(--text-secondary); 
+}
+
+/* 入力欄統一 */
+input, textarea, select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+}
+
+/* メッセージ */
+.message {
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin: 12px 0;
+}
+
+.message.success { background: rgba(22,163,74,0.15); border: 1px solid var(--accent-green); }
+.message.error   { background: rgba(220,38,38,0.15); border: 1px solid #dc2626; }
+
+/* グリッドカード（market / mypage / コレクション用） */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card-item {
+  background: var(--card-bg);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.card-item:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+/* レア度別エフェクト */
+.rarity-n    { border-color: #4b5563; }
+.rarity-r    { border-color: var(--accent-purple); box-shadow: 0 0 15px rgba(123,97,255,0.4); }
+.rarity-sr   { border-color: var(--accent-pink);  box-shadow: 0 0 18px rgba(219,39,119,0.5); }
+.rarity-ssr  { border-color: var(--accent-gold);  box-shadow: var(--glow-gold); }
+.rarity-legend { 
+  border: 2px solid var(--accent-gold); 
+  box-shadow: 0 0 30px rgba(212,175,55,0.7); 
+  background: linear-gradient(135deg, #171a21, #2d1b47); 
+}
+
+/* ホバー時の光エフェクト（SSR以上） */
+.card-item:hover .rarity-ssr,
+.card-item:hover .rarity-legend {
+  animation: pulse-glow 2s infinite alternate;
+}
+
+@keyframes pulse-glow {
+  0%   { box-shadow: var(--glow-gold); }
+  100% { box-shadow: 0 0 40px rgba(212,175,55,0.9); }
+}
+
+/* ステージ（ガチャ結果 / プレビュー） */
+.stage {
+  position: relative;
+  aspect-ratio: 3/4;
+  background: #090b10;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* レスポンシブ調整 */
+@media (max-width: 768px) {
+  .container { padding: 12px; }
+  .grid { grid-template-columns: 1fr; }
+}
