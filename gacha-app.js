@@ -6,8 +6,8 @@ import {
   fetchWorks,
   listWorkToMachine
 } from "./gacha-api.js";
-import { drawButton, listingArea, listingMessage, listToMachineBtn } from "./gacha-dom.js";
-import { state, getOrCreateUserId } from "./gacha-state.js";
+import { drawButton, initDom, listingArea, listingMessage, listToMachineBtn } from "./gacha-dom.js";
+import { getOrCreateUserId, state } from "./gacha-state.js";
 import { clearStageHitClasses, getRevealDelayMs } from "./gacha-utils.js";
 import {
   initMypageLink,
@@ -36,11 +36,11 @@ async function loadInitialData() {
 
   try {
     const user = await fetchUserPoints();
-    state.currentUserPoints = Number(user.points || 0);
-    state.currentPointExpireAt = user.point_expire_at || "";
+    state.currentUserPoints    = Number(user.points         || 0);
+    state.currentPointExpireAt = user.point_expire_at       || "";
   } catch (e) {
     console.warn("ポイント取得失敗", e);
-    state.currentUserPoints = 0;
+    state.currentUserPoints    = 0;
     state.currentPointExpireAt = "";
   }
 
@@ -82,7 +82,6 @@ async function handleDraw() {
 
     setTimeout(async () => {
       try {
-        // index 上でも軽く見せたい場合のために残す
         await renderWork(result);
       } catch (e) {
         console.error("描画処理失敗", e);
@@ -93,7 +92,6 @@ async function handleDraw() {
       setDrawingAnimation(false);
       state.isDrawing = false;
       setLoadingState(state.works.length > 0);
-
       window.location.href = "result.html";
     }, revealDelay + 250);
   } catch (e) {
@@ -109,7 +107,7 @@ async function handleListToMachine() {
   if (!state.currentWork || !listingArea || !listingMessage || !listToMachineBtn) return;
 
   const machineId = String(listingArea.dataset.machineId || "").trim();
-  const ownerId = getOrCreateUserId();
+  const ownerId   = getOrCreateUserId();
 
   if (!machineId) {
     listingMessage.textContent = "出品先の自販機が見つかりません。";
@@ -123,20 +121,19 @@ async function handleListToMachine() {
   }
 
   listingMessage.textContent = "自販機に追加しています...";
-  listToMachineBtn.disabled = true;
+  listToMachineBtn.disabled  = true;
 
   try {
     await listWorkToMachine(machineId, contentId, ownerId);
 
-    listingMessage.textContent = "100ptスタートで自販機に出品しました！";
+    listingMessage.textContent     = "100ptスタートで自販機に出品しました！";
     listToMachineBtn.style.display = "none";
 
     state.ownershipMap[String(contentId)] = {
-      content_id: contentId,
-      owner_id: ownerId,
-      ownership_type:
-        state.ownershipMap[String(contentId)]?.ownership_type || "copyright_transfer",
-      status: "listed"
+      content_id:     contentId,
+      owner_id:       ownerId,
+      ownership_type: state.ownershipMap[String(contentId)]?.ownership_type || "copyright_transfer",
+      status:         "listed"
     };
 
     state.machineStatusRows = await fetchMachineStatusRows();
@@ -145,22 +142,19 @@ async function handleListToMachine() {
   } catch (e) {
     console.error(e);
     listingMessage.textContent = e.message || "自販機追加に失敗しました。";
-    listToMachineBtn.disabled = false;
+    listToMachineBtn.disabled  = false;
   }
 }
 
 function bindEvents() {
-  if (drawButton) {
-    drawButton.addEventListener("click", handleDraw);
-  }
-
-  if (listToMachineBtn) {
-    listToMachineBtn.addEventListener("click", handleListToMachine);
-  }
+  if (drawButton)      drawButton.addEventListener("click", handleDraw);
+  if (listToMachineBtn) listToMachineBtn.addEventListener("click", handleListToMachine);
 }
 
+// ── 修正: initDom() を DOMContentLoaded 後に呼ぶ ──
 (async function init() {
   getOrCreateUserId();
+  initDom();          // jackpotEl のDOM生成（meta要素が確実に存在するタイミング）
   initMypageLink();
   bindEvents();
   await loadInitialData();
