@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投稿ページ</title>
+
+<script src="https://upload-widget.cloudinary.com/global/all.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: sans-serif;
+  background: #0f1115;
+  color: #fff;
+}
+
+.container {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.card {
+  background: #171a21;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+h2 { margin-top: 0; }
+
+input, textarea, select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 10px;
+  background: #101218;
+  color: #fff;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-upload { background: #2563eb; }
+.btn-submit { background: #16a34a; }
+.btn-nav { background: #374151; margin-top:10px; }
+
+.preview {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: #0b0d12;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.preview img, .preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message {
+  background: #101218;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 10px;
+  display: none;
+}
+
+.message.show {
+  display: block;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+<h2>作品投稿</h2>
+
+<div class="preview" id="preview"></div>
+
+<button class="btn-upload" id="uploadBtn">画像/動画アップロード</button>
+
+<input id="userId" placeholder="ユーザーID">
+<input id="creatorName" placeholder="投稿者名">
+<input id="title" placeholder="タイトル">
+<textarea id="description" placeholder="説明"></textarea>
+<input id="genre" placeholder="ジャンル">
+
+<select id="rarity">
+<option>N</option>
+<option>R</option>
+<option>SR</option>
+<option>SSR</option>
+</select>
+
+<input id="linkUrl" placeholder="作者ページURL">
+<input id="xUrl" placeholder="X URL">
+<input id="boothUrl" placeholder="BOOTH URL">
+<input id="chichipuiUrl" placeholder="ちちぷい URL">
+<input id="dlsiteUrl" placeholder="DLsite URL">
+
+<input id="contentHash" placeholder="コンテンツハッシュ（必須）">
+
+<button class="btn-submit" id="submitBtn">投稿する</button>
+
+<div id="msg" class="message"></div>
+
+<a href="index.html" class="btn-nav">戻る</a>
+
+</div>
+
+</div>
+
+<script>
+const API_BASE = "http://127.0.0.1:8000";
+const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL";
+
+let uploaded = null;
+
+// =============================
+// Cloudinary Upload Widget
+// =============================
+const widget = cloudinary.createUploadWidget({
+  cloudName: "YOUR_CLOUD_NAME",
+  uploadPreset: "YOUR_UNSIGNED_PRESET",
+  resourceType: "auto",
+  maxFiles: 1,
+  clientAllowedFormats: ["jpg","png","webp","mp4","webm"],
+  maxFileSize: 10000000
+}, (error, result) => {
+  if (!error && result && result.event === "success") {
+    uploaded = result.info;
+    renderPreview();
+  }
+});
+
+document.getElementById("uploadBtn").onclick = () => widget.open();
+
+// =============================
+// Preview
+// =============================
+function renderPreview() {
+  const preview = document.getElementById("preview");
+  if (!uploaded) return;
+
+  if (uploaded.resource_type === "video") {
+    preview.innerHTML = `<video src="${uploaded.secure_url}" controls></video>`;
+  } else {
+    preview.innerHTML = `<img src="${uploaded.secure_url}">`;
+  }
+}
+
+// =============================
+// 投稿処理
+// =============================
+document.getElementById("submitBtn").onclick = async () => {
+  try {
+    if (!uploaded) throw new Error("アップロードしてください");
+
+    const payload = {
+      creator_user_id: val("userId"),
+      creator_name: val("creatorName"),
+      title: val("title"),
+      description: val("description"),
+      genre: val("genre"),
+      type: uploaded.resource_type === "video" ? "video" : "image",
+      image_url: uploaded.resource_type === "image" ? uploaded.secure_url : "",
+      video_url: uploaded.resource_type === "video" ? uploaded.secure_url : "",
+      link_url: val("linkUrl"),
+      x_url: val("xUrl"),
+      booth_url: val("boothUrl"),
+      chichipui_url: val("chichipuiUrl"),
+      dlsite_url: val("dlsiteUrl"),
+      rarity: val("rarity"),
+      content_hash: val("contentHash")
+    };
+
+    if (!payload.content_hash) throw new Error("コンテンツハッシュ必須");
+
+    // ======================
+    // FastAPI登録
+    // ======================
+    const res = await fetch(`${API_BASE}/admin/works/create`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "登録失敗");
+
+    // ======================
+    // Apps Scriptへログ送信
+    // ======================
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: {"Content-Type":"text/plain"},
+      body: JSON.stringify(payload)
+    });
+
+    show("投稿完了！");
+
+    resetForm();
+
+  } catch (e) {
+    show(e.message);
+  }
+};
+
+function val(id) {
+  return document.getElementById(id).value.trim();
+}
+
+function show(text) {
+  const m = document.getElementById("msg");
+  m.textContent = text;
+  m.classList.add("show");
+}
+
+function resetForm() {
+  uploaded = null;
+  document.getElementById("preview").innerHTML = "";
+  document.querySelectorAll("input, textarea").forEach(e => e.value = "");
+}
+</script>
+
+</body>
+</html>
