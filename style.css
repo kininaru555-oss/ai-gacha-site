@@ -930,4 +930,71 @@ textarea {
   }
 }
 
+/* --------------------
+   devil.html
+-------------------- */
+
+.devil-hero {
+  background:
+    radial-gradient(circle at top right, rgba(255, 80, 120, 0.18), transparent 30%),
+    linear-gradient(135deg, #240a19 0%, #1a0d1a 45%, #140814 100%);
+}
+
+.devil-list {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.devil-card {
+  background: #1f1f1f;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+
+.devil-card-media-wrap {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #111;
+  margin-bottom: 14px;
+}
+
+.devil-card-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.devil-card-body {
+  min-width: 0;
+}
+
+.devil-card-title {
+  margin: 8px 0 10px;
+  font-size: 22px;
+}
+
+.devil-meta {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #ececec;
+  margin-bottom: 14px;
+}
+
+.devil-note {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.devil-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
