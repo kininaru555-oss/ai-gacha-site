@@ -1057,3 +1057,19 @@ textarea {
   line-height: 1.6;
   color: #f0f0f0;
 }
+
+.machine-card-drawing {
+  animation: machinePulse 0.7s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes machinePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  }
+  100% {
+    transform: scale(1.015);
+    box-shadow: 0 0 20px rgba(255, 120, 180, 0.35);
+  }
+}
