@@ -38,9 +38,11 @@
       margin-bottom: 10px;
       background: #101218;
       color: #fff;
+      box-sizing: border-box;
     }
 
-    button {
+    button,
+    .btn-nav {
       width: 100%;
       padding: 12px;
       border-radius: 10px;
@@ -48,10 +50,16 @@
       font-weight: bold;
       cursor: pointer;
       margin-bottom: 10px;
+      box-sizing: border-box;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
     }
 
     .btn-upload { background: #2563eb; }
-    .btn-auto { background: #7c3aed; } /* 自動生成ボタン用 */
+    .btn-auto { background: #7c3aed; }
     .btn-submit { background: #16a34a; }
     .btn-nav { background: #374151; }
 
@@ -62,6 +70,17 @@
       border-radius: 12px;
       overflow: hidden;
       margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-placeholder {
+      color: #9ca3af;
+      text-align: center;
+      padding: 16px;
+      line-height: 1.7;
+      font-size: 14px;
     }
 
     .preview img, .preview video {
@@ -94,11 +113,27 @@
       border-radius: 10px;
       margin-top: 10px;
       display: none;
+      border: 1px solid rgba(255,255,255,0.08);
+      line-height: 1.7;
     }
 
     .message.show { display: block; }
-    .message.error { color: #ff6b6b; border: 1px solid #ff6b6b; }
-    #loading { display: none; text-align: center; padding: 20px; color: #9ca3af; }
+    .message.error { color: #ff6b6b; border-color: #ff6b6b; }
+    .message.success { color: #4ade80; border-color: #4ade80; }
+
+    #loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #9ca3af;
+    }
+
+    .small-note {
+      color: #9ca3af;
+      font-size: 12px;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 
@@ -109,39 +144,40 @@
   <div class="card">
     <h2>作品投稿</h2>
 
-    <div class="preview" id="preview"></div>
+    <div class="preview" id="preview">
+      <div class="preview-placeholder">画像または動画をアップロードしてください</div>
+    </div>
 
-    <button class="btn-upload" id="uploadBtn">画像/動画アップロード</button>
-    <button class="btn-auto" id="autoStatButton">画像から自動ステータス生成</button>
+    <button class="btn-upload" id="uploadBtn" type="button">画像/動画アップロード</button>
+    <button class="btn-auto" id="autoStatButton" type="button">画像から自動ステータス生成</button>
 
     <div id="loading">ステータス生成中...</div>
 
     <input id="userId" placeholder="ユーザーID（必須）" required>
-    <input id="creatorName" placeholder="投稿者名（表示名）" required>
+    <input id="creatorName" placeholder="投稿者名（表示名）（必須）" required>
     <input id="title" placeholder="タイトル（必須）" required>
     <textarea id="description" placeholder="説明（任意）"></textarea>
     <input id="genre" placeholder="ジャンル（例: ファンタジー、日常）">
 
-    <!-- 自動生成で埋めるステータス欄 -->
     <div class="stats-grid">
       <div class="stat-input">
-        <label>HP</label>
+        <label for="hp">HP</label>
         <input id="hp" type="number" min="1" max="999" placeholder="HP">
       </div>
       <div class="stat-input">
-        <label>ATK</label>
+        <label for="atk">ATK</label>
         <input id="atk" type="number" min="1" max="999" placeholder="ATK">
       </div>
       <div class="stat-input">
-        <label>DEF</label>
+        <label for="def">DEF</label>
         <input id="def" type="number" min="1" max="999" placeholder="DEF">
       </div>
       <div class="stat-input">
-        <label>SPD</label>
+        <label for="spd">SPD</label>
         <input id="spd" type="number" min="1" max="999" placeholder="SPD">
       </div>
       <div class="stat-input">
-        <label>LUK</label>
+        <label for="luk">LUK</label>
         <input id="luk" type="number" min="1" max="999" placeholder="LUK">
       </div>
     </div>
@@ -162,7 +198,11 @@
 
     <input id="contentHash" placeholder="コンテンツハッシュ（必須）" required>
 
-    <button class="btn-submit" id="submitBtn">投稿する</button>
+    <div class="small-note">
+      Cloudinaryアップロード後に自動生成ボタンを押すと、画像特徴からHP / ATK / DEF / SPD / LUKを自動入力できます。
+    </div>
+
+    <button class="btn-submit" id="submitBtn" type="button">投稿する</button>
 
     <div id="msg" class="message"></div>
 
@@ -173,33 +213,37 @@
 
 <script>
 const API_BASE = "http://127.0.0.1:8000";
+const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL";
 
-// Cloudinary Widget（unsignedのままですが本番ではsigned推奨）
+let uploadedAsset = null;
+
+// Cloudinary Widget
 const widget = cloudinary.createUploadWidget({
   cloudName: "YOUR_CLOUD_NAME",
   uploadPreset: "YOUR_UNSIGNED_PRESET",
   resourceType: "auto",
   maxFiles: 1,
-  clientAllowedFormats: ["jpg","png","webp","mp4","webm"],
+  clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "mp4", "webm", "mov"],
   maxFileSize: 10000000
 }, (error, result) => {
   if (!error && result && result.event === "success") {
     uploadedAsset = result.info;
     renderPreview();
-    showMessage("アップロード完了！ 自動生成ボタンを押せます", false);
+    showMessage("アップロード完了！ 自動生成ボタンを押せます。", false);
   } else if (error) {
     showMessage("アップロードエラー: " + (error.message || "不明"), true);
   }
 });
 
-let uploadedAsset = null;
-
-document.getElementById("uploadBtn").onclick = () => widget.open();
+document.getElementById("uploadBtn").addEventListener("click", () => widget.open());
 
 // プレビュー表示
 function renderPreview() {
   const preview = document.getElementById("preview");
-  if (!uploadedAsset) return;
+  if (!uploadedAsset) {
+    preview.innerHTML = `<div class="preview-placeholder">画像または動画をアップロードしてください</div>`;
+    return;
+  }
 
   if (uploadedAsset.resource_type === "video") {
     preview.innerHTML = `<video src="${uploadedAsset.secure_url}" controls></video>`;
@@ -208,7 +252,7 @@ function renderPreview() {
   }
 }
 
-// 自動ステータス生成ボタン
+// 自動ステータス生成
 document.getElementById("autoStatButton").addEventListener("click", async () => {
   const btn = document.getElementById("autoStatButton");
   const loading = document.getElementById("loading");
@@ -228,23 +272,24 @@ document.getElementById("autoStatButton").addEventListener("click", async () => 
       },
       body: JSON.stringify({
         image_url: uploadedAsset.secure_url,
-        title: document.getElementById("title").value.trim(),
-        description: document.getElementById("description").value.trim(),
-        genre: document.getElementById("genre").value.trim()
+        title: val("title"),
+        description: val("description"),
+        genre: val("genre")
       })
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "ステータス生成に失敗しました");
+    if (!res.ok) {
+      throw new Error(data.detail || "ステータス生成に失敗しました");
+    }
 
-    // 入力欄に反映
-    document.getElementById("hp").value  = data.hp  || "";
+    document.getElementById("hp").value = data.hp || "";
     document.getElementById("atk").value = data.atk || "";
     document.getElementById("def").value = data.defense || "";
     document.getElementById("spd").value = data.spd || "";
     document.getElementById("luk").value = data.luk || "";
 
-    showMessage("自動生成されたステータスを反映しました！", false);
+    showMessage("自動生成されたステータスを反映しました。", false);
 
   } catch (e) {
     showMessage(e.message || "エラーが発生しました", true);
@@ -254,16 +299,27 @@ document.getElementById("autoStatButton").addEventListener("click", async () => 
   }
 });
 
-// 投稿処理（既存部分を簡略化・統合）
-document.getElementById("submitBtn").onclick = async () => {
-  if (!uploadedAsset) return showMessage("ファイルをアップロードしてください", true);
-
-  const required = ["userId", "creatorName", "title", "rarity", "contentHash"];
-  for (const id of required) {
-    if (!val(id)) return showMessage(`「\( {document.querySelector(`# \){id}`).placeholder}」は必須です`, true);
-  }
-
+// 投稿処理
+document.getElementById("submitBtn").addEventListener("click", async () => {
   try {
+    if (!uploadedAsset) {
+      throw new Error("ファイルをアップロードしてください");
+    }
+
+    const requiredFields = [
+      { id: "userId", label: "ユーザーID" },
+      { id: "creatorName", label: "投稿者名" },
+      { id: "title", label: "タイトル" },
+      { id: "rarity", label: "レア度" },
+      { id: "contentHash", label: "コンテンツハッシュ" }
+    ];
+
+    for (const field of requiredFields) {
+      if (!val(field.id)) {
+        throw new Error(`「${field.label}」は必須です`);
+      }
+    }
+
     const payload = {
       creator_user_id: val("userId"),
       creator_name: val("creatorName"),
@@ -273,18 +329,23 @@ document.getElementById("submitBtn").onclick = async () => {
       type: uploadedAsset.resource_type === "video" ? "video" : "image",
       image_url: uploadedAsset.resource_type !== "video" ? uploadedAsset.secure_url : "",
       video_url: uploadedAsset.resource_type === "video" ? uploadedAsset.secure_url : "",
-      hp: Number(val("hp")) || null,
-      atk: Number(val("atk")) || null,
-      defense: Number(val("def")) || null,
-      spd: Number(val("spd")) || null,
-      luk: Number(val("luk")) || null,
-      rarity: val("rarity"),
+      thumbnail_url: "",
       link_url: val("linkUrl"),
       x_url: val("xUrl"),
       booth_url: val("boothUrl"),
       chichipui_url: val("chichipuiUrl"),
       dlsite_url: val("dlsiteUrl"),
-      content_hash: val("contentHash")
+      rarity: val("rarity"),
+      hp: numOrDefault("hp", 10),
+      atk: numOrDefault("atk", 10),
+      defense: numOrDefault("def", 10),
+      spd: numOrDefault("spd", 10),
+      luk: numOrDefault("luk", 10),
+      exp_reward: 5,
+      is_official: 0,
+      content_hash: val("contentHash"),
+      is_ball: 0,
+      ball_code: ""
     };
 
     const res = await fetch(`${API_BASE}/admin/works/create`, {
@@ -293,39 +354,77 @@ document.getElementById("submitBtn").onclick = async () => {
       body: JSON.stringify(payload)
     });
 
+    const data = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "投稿登録に失敗しました");
+      throw new Error(data.detail || "投稿登録に失敗しました");
     }
 
-    showMessage("投稿が完了しました！ 審査をお待ちください。", false);
+    // Apps Script 監査ログ送信
+    if (APPS_SCRIPT_URL && APPS_SCRIPT_URL !== "YOUR_APPS_SCRIPT_URL") {
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          ...payload,
+          uploaded_secure_url: uploadedAsset.secure_url || "",
+          uploaded_public_id: uploadedAsset.public_id || "",
+          uploaded_resource_type: uploadedAsset.resource_type || "",
+          uploaded_format: uploadedAsset.format || "",
+          uploaded_bytes: uploadedAsset.bytes || 0,
+          logged_at: new Date().toISOString()
+        })
+      }).catch(err => {
+        console.warn("Apps Script log failed:", err);
+      });
+    }
+
+    showMessage("投稿が完了しました。投稿者には無料ガチャ1回が付与されます。", false);
     resetForm();
 
   } catch (e) {
-    showMessage(e.message, true);
+    showMessage(e.message || "投稿中にエラーが発生しました", true);
   }
-};
+});
 
 function val(id) {
-  return document.getElementById(id)?.value?.trim() || "";
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : "";
+}
+
+function numOrDefault(id, fallback) {
+  const n = Number(val(id));
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 function showMessage(text, isError = false) {
   const m = document.getElementById("msg");
   m.textContent = text;
-  m.style.color = isError ? "#ff6b6b" : "#4ade80";
-  m.classList.add("show");
-  setTimeout(() => m.classList.remove("show"), 8000);
+  m.className = "message show " + (isError ? "error" : "success");
 }
 
 function resetForm() {
   uploadedAsset = null;
-  document.getElementById("preview").innerHTML = "";
-  document.querySelectorAll("input, textarea, select").forEach(el => {
-    if (el.type !== "button") el.value = "";
+  renderPreview();
+
+  const ids = [
+    "userId", "creatorName", "title", "description", "genre",
+    "hp", "atk", "def", "spd", "luk",
+    "rarity", "linkUrl", "xUrl", "boothUrl",
+    "chichipuiUrl", "dlsiteUrl", "contentHash"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === "SELECT") {
+      el.value = "";
+    } else {
+      el.value = "";
+    }
   });
 }
 </script>
 
 </body>
-</html>
+  </html>
