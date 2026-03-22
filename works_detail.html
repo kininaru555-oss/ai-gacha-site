@@ -11,6 +11,7 @@
     <div class="top-actions">
       <a href="index.html" class="btn-back">← トップへ戻る</a>
       <a href="machines.html" class="btn-back">有料ガチャ一覧</a>
+      <a href="points_shop.html" class="btn-back">ポイント購入</a>
     </div>
 
     <div id="workDetailArea">
@@ -83,7 +84,14 @@
 
         if (hasViewAccess) {
           return `
-            <video class="detail-media" src="${escapeHtml(videoUrl)}" controls playsinline preload="metadata" poster="${escapeHtml(poster)}"></video>
+            <video
+              class="detail-media"
+              src="${escapeHtml(videoUrl)}"
+              controls
+              playsinline
+              preload="metadata"
+              poster="${escapeHtml(poster)}"
+            ></video>
           `;
         }
 
@@ -98,13 +106,21 @@
       const imageUrl = optimizeCloudinary(item.image_url || "");
       if (hasViewAccess) {
         return `
-          <img class="detail-media" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.title || "作品")}" />
+          <img
+            class="detail-media"
+            src="${escapeHtml(imageUrl)}"
+            alt="${escapeHtml(item.title || "作品")}"
+          />
         `;
       }
 
       return `
         <div class="locked-media-wrap">
-          <img class="detail-media" src="${escapeHtml(makeLightMosaicImage(imageUrl))}" alt="${escapeHtml(item.title || "作品")}" />
+          <img
+            class="detail-media"
+            src="${escapeHtml(makeLightMosaicImage(imageUrl))}"
+            alt="${escapeHtml(item.title || "作品")}"
+          />
           <div class="locked-overlay">🔒 ガチャで高画質表示を解放</div>
         </div>
       `;
@@ -115,6 +131,7 @@
       if (ownership.status === "owned") return "権利取得済み";
       if (ownership.status === "listed") return "出品中";
       if (ownership.status === "sold") return "売却済み";
+      if (ownership.status === "auction") return "オークション中";
       return ownership.status || "不明";
     }
 
@@ -136,6 +153,200 @@
       }
 
       return rows.join("");
+    }
+
+    function getUnlockMessage(item) {
+      const isVideo = String(item.type || "").trim() === "動画" || Boolean(item.video_url);
+
+      if (item.has_view_access) {
+        if (isVideo) {
+          return "この作品は動画再生が解放されています。";
+        }
+        return "この作品は高画質表示が解放されています。";
+      }
+
+      if (isVideo) {
+        return "この作品は現在プレビュー表示です。ガチャで動画再生を解放できます。";
+      }
+      return "この作品は現在プレビュー表示です。ガチャで高画質表示を解放できます。";
+    }
+
+    function getPurchaseButtons(item, ownership) {
+      const contentId = Number(item.id || item.content_id || 0);
+      const buttons = [];
+
+      if (!ownership) {
+        buttons.push(`
+          <div class="notice-box">
+            この作品はまだ流通していません。<br />
+            ガチャから閲覧権や関連ライセンスを取得できます。
+          </div>
+        `);
+      } else if (ownership.status === "listed") {
+        const price = Number(ownership.resale_price || ownership.price || 0);
+
+        buttons.push(`
+          <div class="notice-box">
+            現在価格: ${price} pt<br />
+            この作品は現在サイト内で取得可能です。
+          </div>
+          <div class="buttons">
+            <button class="btn btn-post" type="button" onclick="buyNow(${contentId})">
+              今すぐ取得する
+            </button>
+          </div>
+        `);
+      } else if (ownership.status === "auction") {
+        buttons.push(`
+          <div class="notice-box">
+            この作品は現在オークション中です。<br />
+            オークション一覧から参加できます。
+          </div>
+          <div class="buttons">
+            <a class="btn btn-post" href="auctions.html">オークションを見る</a>
+          </div>
+        `);
+      } else if (ownership.status === "owned") {
+        buttons.push(`
+          <div class="notice-box">
+            現在この作品は誰かが保有しています。<br />
+            追加ライセンスメニューがある場合は下から取得できます。
+          </div>
+        `);
+      } else if (ownership.status === "sold") {
+        buttons.push(`
+          <div class="notice-box">
+            この作品は過去に移転実績があります。<br />
+            現在の取得状態は作品ページのライセンスメニューをご確認ください。
+          </div>
+        `);
+      }
+
+      if (Number(item.site_license_enabled || 0) === 1) {
+        buttons.push(`
+          <div class="buttons">
+            <button class="btn btn-creator" type="button" onclick="buySiteLicense(${contentId})">
+              サイト内利用権を取得する（${Number(item.site_license_price || 0)}pt）
+            </button>
+          </div>
+        `);
+      }
+
+      if (Number(item.copyright_transfer_enabled || 0) === 1) {
+        buttons.push(`
+          <div class="buttons">
+            <button class="btn btn-ranking" type="button" onclick="buyCopyrightTransfer(${contentId})">
+              サイト内権利譲渡を取得する（${Number(item.copyright_transfer_price || 0)}pt）
+            </button>
+          </div>
+        `);
+      }
+
+      if (buttons.length === 0) {
+        buttons.push(`
+          <div class="notice-box">
+            現在、この作品に表示できる購入メニューはありません。<br />
+            ガチャや有料ガチャ一覧から別導線をご利用ください。
+          </div>
+        `);
+      }
+
+      return buttons.join("");
+    }
+
+    async function buyNow(contentId) {
+      const userId = getOrCreateUserId();
+
+      if (!confirm("この作品を取得しますか？")) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/buy`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            content_id: contentId
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "購入に失敗しました");
+        }
+
+        alert("取得しました。");
+        await loadWorkDetail();
+      } catch (e) {
+        console.error(e);
+        alert(e.message || "購入に失敗しました");
+      }
+    }
+
+    async function buySiteLicense(contentId) {
+      const userId = getOrCreateUserId();
+
+      if (!confirm("サイト内利用権を取得しますか？")) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/license/buy/site/${contentId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            buyer_id: userId,
+            seller_settlement: "points",
+            creator_settlement: "points"
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "サイト内利用権の取得に失敗しました");
+        }
+
+        alert("サイト内利用権を取得しました。");
+        await loadWorkDetail();
+      } catch (e) {
+        console.error(e);
+        alert(e.message || "サイト内利用権の取得に失敗しました");
+      }
+    }
+
+    async function buyCopyrightTransfer(contentId) {
+      const userId = getOrCreateUserId();
+
+      if (!confirm("サイト内権利譲渡を取得しますか？")) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/license/buy/transfer/${contentId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            buyer_id: userId,
+            seller_settlement: "points",
+            creator_settlement: "points"
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "サイト内権利譲渡の取得に失敗しました");
+        }
+
+        alert("サイト内権利譲渡を取得しました。");
+        await loadWorkDetail();
+      } catch (e) {
+        console.error(e);
+        alert(e.message || "サイト内権利譲渡の取得に失敗しました");
+      }
     }
 
     function renderWorkDetail(payload) {
@@ -167,6 +378,11 @@
         </div>
 
         <div class="notice-box">
+          <strong>閲覧状態</strong><br />
+          ${escapeHtml(getUnlockMessage(item))}
+        </div>
+
+        <div class="notice-box">
           <strong>ライセンス情報</strong><br />
           ${getRightsHtml(item)}
         </div>
@@ -175,6 +391,8 @@
           <strong>説明</strong><br />
           ${escapeHtml(item.comment || "説明はありません")}
         </div>
+
+        ${getPurchaseButtons(item, ownership)}
 
         <div class="buttons">
           <a class="btn btn-post" href="index.html">ガチャへ戻る</a>
