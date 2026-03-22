@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>デビルガチャオークション | 注目枠更新</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="top-actions">
+      <a href="index.html" class="btn-back">← トップへ戻る</a>
+      <a href="points_shop.html" class="btn-back">ポイント購入</a>
+    </div>
+
+    <div class="hero devil-hero">
+      <h1>デビルガチャオークション</h1>
+      <p class="sub">
+        特定作品の<strong>注目枠</strong>を更新できる特別ページです。<br />
+        ポイントを使って表示順位や注目状態を更新できます。
+      </p>
+
+      <div class="adult-warning">
+        デビルガチャオークションは、作品の資産価値や収益を保証する機能ではありません。<br />
+        本ページで扱うのは、本サービス内における表示順位・注目状態・導線強化などの機能です。
+      </div>
+    </div>
+
+    <div class="notice-box">
+      <strong>デビルガチャオークションの仕組み</strong><br />
+      ・常設の特別枠です<br />
+      ・開始基準価格は100ptです<br />
+      ・100pt単位で更新できます<br />
+      ・一定期間ごとに必要ポイントが下がります<br />
+      ・更新が通ると、その作品の注目状態が切り替わります
+    </div>
+
+    <div id="devilSummary" class="notice-box">
+      読み込み中...
+    </div>
+
+    <div id="devilList" class="devil-list"></div>
+  </div>
+
+  <script>
+    const API_BASE = "https://aicontents.onrender.com";
+    const DEVIL_API = `${API_BASE}/api/devil-machines/1`;
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function optimizeCloudinary(url) {
+      if (!url) return "";
+      if (url.includes("res.cloudinary.com") && !url.includes("f_auto")) {
+        return url.replace("/upload/", "/upload/f_auto,q_auto/");
+      }
+      return url;
+    }
+
+    function getOrCreateUserId() {
+      let userId = localStorage.getItem("gacha_user_id");
+
+      if (!userId) {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+          userId = "user_" + window.crypto.randomUUID();
+        } else {
+          userId = "user_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+        }
+        localStorage.setItem("gacha_user_id", userId);
+      }
+
+      return userId;
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "-";
+      try {
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) return escapeHtml(value);
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, "0");
+        const d = String(dt.getDate()).padStart(2, "0");
+        const hh = String(dt.getHours()).padStart(2, "0");
+        const mm = String(dt.getMinutes()).padStart(2, "0");
+        return `${y}/${m}/${d} ${hh}:${mm}`;
+      } catch {
+        return escapeHtml(value);
+      }
+    }
+
+    function buildBidButtons(contentId, currentRequiredPrice) {
+      const prices = [
+        currentRequiredPrice,
+        currentRequiredPrice + 100,
+        currentRequiredPrice + 200
+      ];
+
+      return prices.map((price) => {
+        return `
+          <button
+            type="button"
+            class="btn btn-post devil-bid-btn"
+            data-content-id="${contentId}"
+            data-bid-price="${price}"
+          >
+            ${price}ptで注目枠を更新
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderSummary(machine) {
+      const summaryEl = document.getElementById("devilSummary");
+
+      if (!machine) {
+        summaryEl.textContent = "デビルガチャオークションを読み込めませんでした。";
+        return;
+      }
+
+      const itemCount = Array.isArray(machine.items) ? machine.items.length : 0;
+
+      summaryEl.innerHTML = `
+        台名: ${escapeHtml(machine.name || "デビルガチャオークション")}<br />
+        収録作品数: ${itemCount}件<br />
+        表示更新形式: 100pt単位 / 注目枠更新型
+      `;
+    }
+
+    function renderItems(items) {
+      const listEl = document.getElementById("devilList");
+
+      if (!Array.isArray(items) || items.length === 0) {
+        listEl.innerHTML = `
+          <div class="card card-empty">
+            現在表示できる作品はありません。
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = items.map((item) => {
+        const contentId = Number(item.content_id || item.id || 0);
+        const title = escapeHtml(item.title || "無題");
+        const imageUrl = optimizeCloudinary(
+          item.image_url || "https://via.placeholder.com/600x800?text=No+Image"
+        );
+        const ownerName = escapeHtml(item.current_owner_id || "未設定");
+        const requiredPrice = Number(item.current_required_price || item.last_bid_price || 100);
+        const lastBidPrice = Number(item.last_bid_price || 100);
+        const nextDecayAt = formatDateTime(item.next_decay_at);
+        const badgeText = escapeHtml(item.right_type || "注目枠対象");
+
+        return `
+          <article class="devil-card">
+            <div class="devil-card-media-wrap">
+              <img
+                class="devil-card-media"
+                src="${escapeHtml(imageUrl)}"
+                alt="${title}"
+                loading="lazy"
+              />
+            </div>
+
+            <div class="devil-card-body">
+              <div class="badge-row">
+                <span class="badge">${badgeText}</span>
+                <span class="badge badge-listed">注目枠</span>
+              </div>
+
+              <h2 class="devil-card-title">${title}</h2>
+
+              <div class="devil-meta">
+                <div>現在の注目表示者: ${ownerName}</div>
+                <div>現在必要価格: ${requiredPrice}pt</div>
+                <div>直近更新価格: ${lastBidPrice}pt</div>
+                <div>次回価格更新目安: ${nextDecayAt}</div>
+              </div>
+
+              <div class="notice-box devil-note">
+                この作品は、ポイントを使って注目枠の表示状態を更新できます。<br />
+                更新後は、次の更新が入るまで現在の注目状態として表示されます。
+              </div>
+
+              <div class="devil-actions">
+                ${buildBidButtons(contentId, requiredPrice)}
+                <a class="btn btn-link" href="/works/${contentId}">作品詳細を見る</a>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      bindBidButtons();
+    }
+
+    async function bidByPoints(contentId, bidPrice) {
+      const bidderId = getOrCreateUserId();
+
+      const res = await fetch(`${API_BASE}/api/devil-machines/1/bid/points`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          content_id: contentId,
+          bidder_id: bidderId,
+          bid_price: bidPrice
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "注目枠の更新に失敗しました");
+      }
+
+      return data;
+    }
+
+    function bindBidButtons() {
+      const buttons = document.querySelectorAll(".devil-bid-btn");
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const contentId = Number(button.dataset.contentId || 0);
+          const bidPrice = Number(button.dataset.bidPrice || 0);
+
+          if (!contentId || !bidPrice) {
+            alert("更新情報が不正です。");
+            return;
+          }
+
+          const originalText = button.textContent;
+          button.disabled = true;
+          button.textContent = "更新中...";
+
+          try {
+            await bidByPoints(contentId, bidPrice);
+            alert("注目枠を更新しました。");
+            await loadDevilPage();
+          } catch (error) {
+            console.error(error);
+            alert(error.message || "注目枠の更新に失敗しました");
+            button.disabled = false;
+            button.textContent = originalText;
+          }
+        });
+      });
+    }
+
+    async function loadDevilPage() {
+      const listEl = document.getElementById("devilList");
+      listEl.innerHTML = `<div class="card card-empty">読み込み中...</div>`;
+
+      try {
+        const res = await fetch(DEVIL_API, {
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "デビルガチャオークションの取得に失敗しました");
+        }
+
+        renderSummary(data.machine || data);
+        renderItems(data.items || data.machine?.items || []);
+      } catch (error) {
+        console.error(error);
+        document.getElementById("devilSummary").textContent =
+          "デビルガチャオークションの読み込みに失敗しました。";
+
+        listEl.innerHTML = `
+          <div class="card card-error">
+            読み込みに失敗しました。時間を置いて再度お試しください。
+          </div>
+        `;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadDevilPage);
+  </script>
+</body>
+</html>
