@@ -3,58 +3,111 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIガチャ</title>
+  <title>美女ガチャクエスト - AIガチャ統合版</title>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: sans-serif;
-      background: #f5f5f5;
-      color: #222;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      background: linear-gradient(180deg, #0f0f12 0%, #151821 100%);
+      color: #fff;
       min-height: 100vh;
     }
 
     .container {
       width: 100%;
-      max-width: 440px;
-      padding: 20px;
-      box-sizing: border-box;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 18px 14px 40px;
     }
 
     .card {
-      background: #fff;
+      background: #1b1b1f;
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-      text-align: center;
-      position: relative;
-      overflow: hidden;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
     }
 
-    h1 {
-      margin: 0 0 8px;
-      font-size: 24px;
-    }
+    h1, h2, h3, p { margin-top: 0; }
 
     .sub {
-      margin: 0 0 16px;
-      color: #666;
+      color: #aeb5c2;
       font-size: 14px;
+      line-height: 1.7;
     }
 
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #101218;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .btn-login    { background: #2563eb; }
+    .btn-logout   { background: #374151; }
+    .btn-free     { background: #16a34a; }
+    .btn-paid     { background: #db2777; margin-top: 10px; }
+    .btn-like     { background: #e91e63; }
+    .btn-link     { background: #0b57d0; }
+    .btn-share    { background: #374151; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .status-item {
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      text-align: center;
+    }
+
+    .status-item span {
+      display: block;
+      font-size: 12px;
+      color: #aeb5c2;
+      margin-bottom: 4px;
+    }
+
+    .status-item strong {
+      font-size: 18px;
+    }
+
+    /* ── AIガチャから取り込んだ演出 ── */
     .stage {
       position: relative;
       width: 100%;
       aspect-ratio: 3 / 4;
-      background: #eee;
-      border-radius: 14px;
+      background: #0b0d12;
+      border-radius: 16px;
       overflow: hidden;
       margin: 16px 0;
       display: flex;
       justify-content: center;
       align-items: center;
+      border: 1px solid rgba(255,255,255,0.08);
     }
 
     .media {
@@ -65,79 +118,74 @@
     }
 
     .placeholder {
-      color: #666;
+      color: #9ca3af;
+      text-align: center;
+      padding: 20px;
       font-size: 15px;
-      padding: 16px;
       line-height: 1.6;
     }
 
-    .flash {
+    .flash, .shine {
       position: absolute;
       inset: 0;
-      background: radial-gradient(
-        circle,
-        rgba(255,255,255,0.95) 0%,
-        rgba(255,255,255,0.18) 55%,
-        rgba(255,255,255,0) 100%
-      );
-      opacity: 0;
       pointer-events: none;
+      opacity: 0;
+    }
+
+    .flash {
+      background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.18) 55%, transparent 100%);
     }
 
     .shine {
-      position: absolute;
       top: -20%;
       left: -40%;
       width: 40%;
       height: 140%;
-      background: linear-gradient(
-        110deg,
-        rgba(255,255,255,0) 0%,
-        rgba(255,255,255,0.8) 50%,
-        rgba(255,255,255,0) 100%
-      );
+      background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.8) 50%, transparent 100%);
       transform: skewX(-20deg);
-      opacity: 0;
-      pointer-events: none;
     }
 
-    .draw-btn {
-      border: none;
-      background: #111;
-      color: #fff;
-      border-radius: 12px;
-      padding: 14px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      width: 100%;
-      margin-bottom: 12px;
+    .stage.animating { animation: shake 0.45s ease-in-out; }
+    .stage.animating .flash { animation: flashAnim 0.8s ease; }
+    .stage.animating .shine { animation: shineAnim 0.8s ease; }
+
+    .stage.ssr { box-shadow: 0 0 0 4px rgba(212,175,85,0.5), 0 0 30px rgba(212,175,85,0.4); }
+    .stage.rare { box-shadow: 0 0 0 4px rgba(123,97,255,0.4), 0 0 24px rgba(123,97,255,0.3); }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0) scale(1); }
+      20%  { transform: translateX(-4px) scale(1.01); }
+      40%  { transform: translateX(4px) scale(1.01); }
+      60%  { transform: translateX(-3px) scale(1.005); }
+      80%  { transform: translateX(3px) scale(1.005); }
     }
 
-    .draw-btn:disabled {
-      opacity: 0.6;
-      cursor: wait;
+    @keyframes flashAnim {
+      0% { opacity: 0; } 20% { opacity: 1; } 60% { opacity: 0.7; } 100% { opacity: 0; }
+    }
+
+    @keyframes shineAnim {
+      0% { left: -45%; opacity: 0; } 20% { opacity: 1; } 100% { left: 120%; opacity: 0; }
     }
 
     .meta {
-      margin-top: 14px;
-      text-align: left;
-      font-size: 14px;
-      line-height: 1.8;
-      background: #fafafa;
+      margin-top: 12px;
+      background: #101218;
+      border: 1px solid rgba(255,255,255,0.06);
       border-radius: 12px;
       padding: 12px;
+      font-size: 13px;
+      line-height: 1.6;
       display: none;
     }
 
     .rarity {
       display: inline-block;
-      margin-top: 10px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: bold;
-      background: #222;
-      color: #fff;
+      margin: 8px 0;
     }
 
     .buttons {
@@ -147,131 +195,63 @@
       flex-wrap: wrap;
     }
 
-    .btn-link,
-    .btn-like,
-    .btn-share {
-      border: none;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      min-width: 100px;
-      box-sizing: border-box;
-    }
-
-    .btn-link {
-      background: #0b57d0;
-      color: #fff;
-    }
-
-    .btn-share {
-      background: #222;
-      color: #fff;
-    }
-
-    .btn-like {
-      background: #e91e63;
-      color: #fff;
-    }
-
-    .stats {
-      margin-top: 8px;
-      color: #666;
-      font-size: 13px;
-    }
-
-    .notice-box {
+    .button-group {
+      display: grid;
+      gap: 10px;
       margin-top: 16px;
-      text-align: left;
-      font-size: 13px;
-      color: #555;
-      background: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     }
 
-    .notice-box a {
-      color: #0b57d0;
-      word-break: break-all;
-    }
-
-    .stage.animating {
-      animation: shake 0.45s ease-in-out;
-    }
-
-    .stage.animating .flash {
-      animation: flashAnim 0.8s ease;
-    }
-
-    .stage.animating .shine {
-      animation: shineAnim 0.8s ease;
-    }
-
-    .stage.ssr {
-      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.4), 0 0 28px rgba(212, 175, 55, 0.35);
-    }
-
-    .stage.rare {
-      box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.28), 0 0 20px rgba(123, 97, 255, 0.22);
-    }
-
-    @keyframes shake {
-      0%   { transform: translateX(0) scale(1); }
-      20%  { transform: translateX(-4px) scale(1.01); }
-      40%  { transform: translateX(4px) scale(1.01); }
-      60%  { transform: translateX(-3px) scale(1.005); }
-      80%  { transform: translateX(3px) scale(1.005); }
-      100% { transform: translateX(0) scale(1); }
-    }
-
-    @keyframes flashAnim {
-      0%   { opacity: 0; }
-      20%  { opacity: 1; }
-      60%  { opacity: 0.65; }
-      100% { opacity: 0; }
-    }
-
-    @keyframes shineAnim {
-      0%   { left: -45%; opacity: 0; }
-      20%  { opacity: 1; }
-      100% { left: 120%; opacity: 0; }
+    .draw-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
 </head>
 <body>
+
   <div class="container">
+
     <div class="card">
-      <h1>AIガチャ</h1>
-      <p class="sub">画像も動画もランダムで出る無料ガチャです</p>
+      <h1>美女ガチャクエスト</h1>
+      <p class="sub">AI生成美女も混ざる！ 投稿・ガチャ・所有がつながる</p>
+
+      <div class="login-box">
+        <input id="userIdInput" placeholder="ユーザーID" />
+        <input id="passwordInput" type="password" placeholder="簡易パスワード" />
+        <button id="loginButton" class="btn-login">ログイン / 新規作成</button>
+        <button id="logoutButton" class="btn-logout" style="display:none;">ログアウト</button>
+        <div id="loginStatus" class="sub">未ログイン</div>
+      </div>
+
+      <div id="systemMessage" style="color:#ff6b6b; margin-top:8px; font-size:13px;"></div>
+    </div>
+
+    <div class="card" id="statusCard" style="display:none;">
+      <h2>ステータス</h2>
+      <div class="status-grid">
+        <div class="status-item"><span>ポイント</span><strong id="pointsText">0</strong></div>
+        <div class="status-item"><span>無料回数</span><strong id="freeDrawText">0</strong></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ガチャ</h2>
 
       <div id="stage" class="stage">
         <div id="placeholder" class="placeholder">
-          ボタンを押すとランダムで作品が出ます
+          ログインしてガチャを引こう<br>
+          未所有なら所有権GET！ 既所有ならEXP＋いいねチャンス
         </div>
-
-        <img id="resultImage" class="media" alt="ガチャ画像" />
-
-        <video
-          id="resultVideo"
-          class="media"
-          autoplay
-          loop
-          muted
-          playsinline
-          preload="metadata"
-        ></video>
-
+        <img id="resultImage" class="media" alt="ガチャ結果" />
+        <video id="resultVideo" class="media" autoplay loop muted playsinline preload="metadata"></video>
         <div class="flash"></div>
         <div class="shine"></div>
       </div>
 
-      <button id="drawButton" class="draw-btn">ガチャを引く</button>
+      <div class="button-group">
+        <button id="freeDrawButton" class="btn-free draw-btn" disabled>無料ガチャ</button>
+        <button id="paidDrawButton" class="btn-paid draw-btn" disabled>30ptガチャ</button>
+      </div>
 
       <div id="meta" class="meta">
         <div><strong>タイトル:</strong> <span id="title"></span></div>
@@ -280,136 +260,121 @@
         <div><strong>説明:</strong> <span id="description"></span></div>
         <div><strong>タイプ:</strong> <span id="mediaType"></span></div>
 
-        <div class="stats">
-          いいね: <span id="likeCount">0</span>
-        </div>
-
-        <div><span id="rarity" class="rarity">NORMAL</span></div>
+        <div class="rarity" id="rarity">NORMAL</div>
 
         <div class="buttons">
-          <button id="likeButton" class="btn-like">♡ いいね</button>
-          <a id="linkButton" class="btn-link" href="#" target="_blank" rel="noopener noreferrer">作者ページへ</a>
-          <a id="shareButton" class="btn-share" href="#" target="_blank" rel="noopener noreferrer">Xでシェア</a>
+          <button id="likeButton" class="btn-like">♡ いいね (<span id="likeCount">0</span>)</button>
+          <a id="linkButton" class="btn-link" href="#" target="_blank">作者ページ</a>
+          <a id="shareButton" class="btn-share" href="#" target="_blank">Xでシェア</a>
         </div>
       </div>
     </div>
 
-    <div class="notice-box">
-      <strong>掲載応募フォーム</strong><br>
-      <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-i2EpWwmMsonUxGqGnTdO3fQy72m3X-5sjG7s7oDzL1klHg/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
-        Googleフォームを開く
-      </a>
-    </div>
   </div>
 
   <script>
     let works = [];
     let currentWork = null;
+    let isLoggedIn = false;
 
-    const drawButton = document.getElementById("drawButton");
-    const stage = document.getElementById("stage");
-    const placeholder = document.getElementById("placeholder");
-    const resultImage = document.getElementById("resultImage");
-    const resultVideo = document.getElementById("resultVideo");
-    const meta = document.getElementById("meta");
+    // DOM elements
+    const loginButton    = document.getElementById("loginButton");
+    const logoutButton   = document.getElementById("logoutButton");
+    const freeDrawButton = document.getElementById("freeDrawButton");
+    const paidDrawButton = document.getElementById("paidDrawButton");
+    const stage          = document.getElementById("stage");
+    const placeholder    = document.getElementById("placeholder");
+    const resultImage    = document.getElementById("resultImage");
+    const resultVideo    = document.getElementById("resultVideo");
+    const meta           = document.getElementById("meta");
 
+    // 簡易ログイン（本番ではAPI化推奨）
+    loginButton.addEventListener("click", () => {
+      const uid = document.getElementById("userIdInput").value.trim();
+      const pw  = document.getElementById("passwordInput").value.trim();
+      if (!uid || !pw) {
+        document.getElementById("systemMessage").textContent = "IDとパスワードを入力してください";
+        return;
+      }
+      // ここで実際はAPI認証
+      isLoggedIn = true;
+      document.getElementById("loginStatus").textContent = `ようこそ、${uid}さん！`;
+      loginButton.style.display = "none";
+      logoutButton.style.display = "block";
+      document.getElementById("statusCard").style.display = "block";
+      freeDrawButton.disabled = false;
+      paidDrawButton.disabled = false; // 有料はポイントチェックを後で
+      document.getElementById("systemMessage").textContent = "";
+    });
+
+    logoutButton.addEventListener("click", () => {
+      isLoggedIn = false;
+      document.getElementById("loginStatus").textContent = "未ログイン";
+      loginButton.style.display = "block";
+      logoutButton.style.display = "none";
+      document.getElementById("statusCard").style.display = "none";
+      freeDrawButton.disabled = true;
+      paidDrawButton.disabled = true;
+    });
+
+    // data.json 読み込み
     async function loadWorks() {
       try {
-        const response = await fetch("data.json");
-        if (!response.ok) {
-          throw new Error("data.json の読み込みに失敗しました");
-        }
-
-        works = await response.json();
-
-        if (!Array.isArray(works) || works.length === 0) {
-          throw new Error("作品データが空です");
-        }
-      } catch (error) {
-        placeholder.textContent = "作品を読み込めませんでした";
-        console.error(error);
+        const res = await fetch("data.json");
+        if (!res.ok) throw new Error("data.json 読み込み失敗");
+        works = await res.json();
+        if (!Array.isArray(works) || works.length === 0) throw new Error("作品データなし");
+      } catch (e) {
+        placeholder.textContent = "作品を読み込めませんでした…";
+        console.error(e);
       }
     }
 
     function getWorkId(work) {
-      return `${work.creator}__${work.title}`;
+      return `\( {work.creator || "unknown"}__ \){work.title || "untitled"}`;
     }
 
     function getLikes() {
-      const raw = localStorage.getItem("ai_gacha_likes");
-      return raw ? JSON.parse(raw) : {};
+      return JSON.parse(localStorage.getItem("ai_gacha_likes") || "{}");
     }
 
     function setLikes(likes) {
       localStorage.setItem("ai_gacha_likes", JSON.stringify(likes));
     }
 
-    function getLikeCount(work) {
-      const likes = getLikes();
-      return likes[getWorkId(work)] || 0;
-    }
+    function weightedDraw() {
+      const normal = works.filter(w => (w.rarity || "NORMAL") === "NORMAL");
+      const rare   = works.filter(w => w.rarity === "RARE");
+      const ssr    = works.filter(w => w.rarity === "SSR");
 
-    function addLike(work) {
-      const likes = getLikes();
-      const id = getWorkId(work);
-      likes[id] = (likes[id] || 0) + 1;
-      setLikes(likes);
-      return likes[id];
-    }
-
-    function setRarityStyle(rarityText) {
-      const rarity = document.getElementById("rarity");
-      rarity.textContent = rarityText || "NORMAL";
-
-      stage.classList.remove("rare", "ssr");
-
-      if (rarityText === "SSR") {
-        rarity.style.background = "#d4af37";
-        rarity.style.color = "#111";
-        stage.classList.add("ssr");
-      } else if (rarityText === "RARE") {
-        rarity.style.background = "#7b61ff";
-        rarity.style.color = "#fff";
-        stage.classList.add("rare");
-      } else {
-        rarity.style.background = "#222";
-        rarity.style.color = "#fff";
-      }
+      const roll = Math.random() * 100;
+      if (roll < 2  && ssr.length  > 0) return ssr[Math.floor(Math.random() * ssr.length)];
+      if (roll < 20 && rare.length > 0) return rare[Math.floor(Math.random() * rare.length)];
+      if (normal.length > 0) return normal[Math.floor(Math.random() * normal.length)];
+      return works[Math.floor(Math.random() * works.length)];
     }
 
     function resetMedia() {
       resultImage.style.display = "none";
       resultVideo.style.display = "none";
       resultVideo.pause();
-      resultVideo.removeAttribute("src");
-      resultVideo.load();
+      resultVideo.src = "";
     }
 
-    function weightedDraw() {
-      const normalPool = works.filter(w => (w.rarity || "NORMAL") === "NORMAL");
-      const rarePool = works.filter(w => w.rarity === "RARE");
-      const ssrPool = works.filter(w => w.rarity === "SSR");
+    function setRarityStyle(rarity = "NORMAL") {
+      const el = document.getElementById("rarity");
+      el.textContent = rarity;
+      stage.classList.remove("ssr", "rare");
 
-      const roll = Math.random() * 100;
-
-      if (roll < 2 && ssrPool.length > 0) {
-        return ssrPool[Math.floor(Math.random() * ssrPool.length)];
+      if (rarity === "SSR") {
+        el.style.background = "#d4af37"; el.style.color = "#111";
+        stage.classList.add("ssr");
+      } else if (rarity === "RARE") {
+        el.style.background = "#7b61ff"; el.style.color = "#fff";
+        stage.classList.add("rare");
+      } else {
+        el.style.background = "#444"; el.style.color = "#ddd";
       }
-
-      if (roll < 20 && rarePool.length > 0) {
-        return rarePool[Math.floor(Math.random() * rarePool.length)];
-      }
-
-      if (normalPool.length > 0) {
-        return normalPool[Math.floor(Math.random() * normalPool.length)];
-      }
-
-      return works[Math.floor(Math.random() * works.length)];
-    }
-
-    function buildShareUrl(work) {
-      const text = `AIガチャ結果\n${work.rarity || "NORMAL"}：${work.title}\n作者：${work.creator}\n#AIガチャ`;
-      return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(work.link)}`;
     }
 
     function renderWork(work) {
@@ -421,52 +386,61 @@
       if (work.type === "video") {
         resultVideo.src = work.file;
         resultVideo.style.display = "block";
-        resultVideo.play().catch(() => {});
+        resultVideo.play().catch(()=>{});
       } else {
         resultImage.src = work.file;
-        resultImage.alt = work.title;
+        resultImage.alt = work.title || "作品";
         resultImage.style.display = "block";
       }
 
-      document.getElementById("title").textContent = work.title || "";
-      document.getElementById("creator").textContent = work.creator || "";
-      document.getElementById("genre").textContent = work.genre || "";
-      document.getElementById("description").textContent = work.description || "なし";
-      document.getElementById("mediaType").textContent = work.type === "video" ? "動画" : "画像";
-      document.getElementById("likeCount").textContent = getLikeCount(work);
+      document.getElementById("title").textContent       = work.title       || "ー";
+      document.getElementById("creator").textContent     = work.creator     || "匿名";
+      document.getElementById("genre").textContent       = work.genre       || "ー";
+      document.getElementById("description").textContent = work.description || "詳細なし";
+      document.getElementById("mediaType").textContent   = work.type === "video" ? "動画" : "画像";
 
-      const linkButton = document.getElementById("linkButton");
-      linkButton.href = work.link || "#";
+      document.getElementById("likeCount").textContent = getLikes()[getWorkId(work)] || 0;
 
-      const shareButton = document.getElementById("shareButton");
-      shareButton.href = buildShareUrl(work);
+      document.getElementById("linkButton").href = work.link || "#";
+      document.getElementById("shareButton").href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        `美女ガチャ結果！ \( {work.rarity || "NORMAL"}： \){work.title} by ${work.creator} #美女ガチャクエスト`
+      )}&url=${encodeURIComponent(work.link || window.location.href)}`;
 
-      setRarityStyle(work.rarity || "NORMAL");
+      setRarityStyle(work.rarity);
     }
 
-    drawButton.addEventListener("click", () => {
-      if (!works.length) return;
+    async function performDraw(isFree = true) {
+      if (!isLoggedIn || works.length === 0) return;
 
-      drawButton.disabled = true;
+      const btn = isFree ? freeDrawButton : paidDrawButton;
+      btn.disabled = true;
       stage.classList.add("animating");
 
       setTimeout(() => {
         const work = weightedDraw();
         renderWork(work);
-      }, 550);
+        // ここで本当はサーバーに所有チェック・ポイント減算・EXP加算などを送信
+      }, 600);
 
       setTimeout(() => {
         stage.classList.remove("animating");
-        drawButton.disabled = false;
-      }, 850);
-    });
+        btn.disabled = false;
+      }, 900);
+    }
+
+    freeDrawButton.addEventListener("click", () => performDraw(true));
+    paidDrawButton.addEventListener("click", () => performDraw(false));
 
     document.getElementById("likeButton").addEventListener("click", () => {
       if (!currentWork) return;
-      const count = addLike(currentWork);
-      document.getElementById("likeCount").textContent = count;
+      const likes = getLikes();
+      const id = getWorkId(currentWork);
+      likes[id] = (likes[id] || 0) + 1;
+      setLikes(likes);
+      document.getElementById("likeCount").textContent = likes[id];
     });
 
+    // 初期化
     loadWorks();
   </script>
 </body>
