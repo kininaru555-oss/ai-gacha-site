@@ -959,5 +959,33 @@ def admin_point_requests():
                 for row in rows
             ]
         }
+        @app.get("/market/listings")
+def listings():
+    return get_market_list()
+
+@app.post("/market/list")
+def list_item(data: dict):
+    return create_listing(data)
+
+@app.post("/market/buy")
+def buy(data: dict):
+    return buy_listing(data)
+
+    @app.get("/users/{user_id}/works")
+def myworks(user_id: str):
+    return get_user_works(user_id)
+
+    @app.get("/offers/inbox/{user_id}")
+def inbox(user_id: str):
+    return get_offers_for_user(user_id)
+
+@app.post("/offers/{offer_id}/accept")
+def accept(offer_id: int):
+    return accept_offer(offer_id)
+
+@app.post("/offers/{offer_id}/reject")
+def reject(offer_id: int):
+    return reject_offer(offer_id)
+    
     finally:
         db.close()
