@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マイページ</title>
+
+<style>
+body { background:#0f0f12; color:#fff; font-family:sans-serif; margin:0; }
+.container { max-width:480px; margin:auto; padding:16px; }
+.card { background:#1b1b1f; padding:14px; border-radius:14px; margin-bottom:16px; }
+.item { padding:10px; border-bottom:1px solid #333; }
+button { margin-top:6px; padding:8px; border:none; border-radius:8px; }
+.ok { background:#16a34a; color:#fff; }
+.ng { background:#dc2626; color:#fff; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card">
+    <h3>📩 受信オファー</h3>
+    <div id="offerList"></div>
+  </div>
+
+  <div class="card">
+    <h3>🖼 所有カード</h3>
+    <div id="myWorks"></div>
+  </div>
+
+</div>
+
+<script>
+
+const API = "http://127.0.0.1:8000";
+const userId = localStorage.getItem("user_id");
+
+async function loadOffers() {
+  const res = await fetch(`${API}/offers/inbox/${userId}`);
+  const data = await res.json();
+
+  const el = document.getElementById("offerList");
+  el.innerHTML = "";
+
+  data.forEach(o => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div>作品ID: ${o.work_id}</div>
+      <div>オファー: ${o.points}pt</div>
+      <button class="ok" onclick="accept(${o.id})">承認</button>
+      <button class="ng" onclick="reject(${o.id})">拒否</button>
+    `;
+    el.appendChild(div);
+  });
+}
+
+async function accept(id) {
+  await fetch(`${API}/offers/${id}/accept`, {method:"POST"});
+  alert("成立！");
+  loadOffers();
+}
+
+async function reject(id) {
+  await fetch(`${API}/offers/${id}/reject`, {method:"POST"});
+  loadOffers();
+}
+
+async function loadWorks() {
+  const res = await fetch(`${API}/users/${userId}/works`);
+  const data = await res.json();
+
+  const el = document.getElementById("myWorks");
+  el.innerHTML = "";
+
+  data.forEach(w => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div>${w.title}</div>
+      <button onclick="sell(${w.id})">売却</button>
+    `;
+    el.appendChild(div);
+  });
+}
+
+async function sell(workId) {
+  const price = prompt("販売価格(ポイント)");
+  if (!price) return;
+
+  await fetch(`${API}/market/list`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      user_id: userId,
+      work_id: workId,
+      price_points: Number(price)
+    })
+  });
+
+  alert("出品しました");
+}
+
+loadOffers();
+loadWorks();
+
+</script>
+
+</body>
+</html>
