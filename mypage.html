@@ -1,112 +1,542 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>マイページ</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>マイページ</title>
+  <style>
+    * { box-sizing: border-box; }
 
-<style>
-body { background:#0f0f12; color:#fff; font-family:sans-serif; margin:0; }
-.container { max-width:480px; margin:auto; padding:16px; }
-.card { background:#1b1b1f; padding:14px; border-radius:14px; margin-bottom:16px; }
-.item { padding:10px; border-bottom:1px solid #333; }
-button { margin-top:6px; padding:8px; border:none; border-radius:8px; }
-.ok { background:#16a34a; color:#fff; }
-.ng { background:#dc2626; color:#fff; }
-</style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #0f1115;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .top-links {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .top-links a {
+      background: #374151;
+      color: #fff;
+      text-decoration: none;
+      text-align: center;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .stat span {
+      display: block;
+      font-size: 12px;
+      color: #aeb5c2;
+      margin-bottom: 5px;
+    }
+
+    .stat strong {
+      font-size: 18px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .item {
+      background: #101218;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 12px;
+    }
+
+    .thumb {
+      width: 100%;
+      aspect-ratio: 3/4;
+      background: #0b0d12;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .thumb img, .thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .muted {
+      color: #aeb5c2;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .btn-primary { background: #2563eb; }
+    .btn-success { background: #16a34a; }
+    .btn-danger { background: #dc2626; }
+    .btn-pink { background: #db2777; }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #101218;
+      color: #fff;
+      margin-top: 10px;
+    }
+
+    .message {
+      display: none;
+      margin-bottom: 16px;
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .message.show {
+      display: block;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
 
-<div class="container">
+    <div class="top-links">
+      <a href="index.html">ガチャ</a>
+      <a href="result.html">結果</a>
+      <a href="market.html">公開売却</a>
+    </div>
 
-  <div class="card">
-    <h3>📩 受信オファー</h3>
-    <div id="offerList"></div>
+    <div id="systemMessage" class="message"></div>
+
+    <div class="card">
+      <div class="section-title">ステータス</div>
+      <div class="stats">
+        <div class="stat"><span>ポイント</span><strong id="pointsText">0</strong></div>
+        <div class="stat"><span>EXP</span><strong id="expText">0</strong></div>
+        <div class="stat"><span>レベル</span><strong id="levelText">1</strong></div>
+        <div class="stat"><span>無料回数</span><strong id="freeDrawText">0</strong></div>
+        <div class="stat"><span>復活アイテム</span><strong id="reviveText">0</strong></div>
+        <div class="stat"><span>ボウル</span><strong id="ballText">0 / 7</strong></div>
+      </div>
+
+      <div class="buttons">
+        <button id="buyReviveButton" class="btn-success">復活アイテム購入(100pt)</button>
+        <button id="adXpButton" class="btn-pink">広告EXP +20</button>
+      </div>
+
+      <input id="withdrawInput" type="number" min="1000" placeholder="出金申請額（1000以上）" />
+      <div class="buttons">
+        <button id="withdrawButton" class="btn-primary">出金申請</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">届いたオファー</div>
+      <div id="incomingOffers" class="list"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">送ったオファー</div>
+      <div id="outgoingOffers" class="list"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">所有カード</div>
+      <div id="myWorks" class="list"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">バトル履歴</div>
+      <div id="battleLogs" class="list"></div>
+    </div>
+
   </div>
 
-  <div class="card">
-    <h3>🖼 所有カード</h3>
-    <div id="myWorks"></div>
-  </div>
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
 
-</div>
+    const systemMessage = document.getElementById("systemMessage");
+    const pointsText = document.getElementById("pointsText");
+    const expText = document.getElementById("expText");
+    const levelText = document.getElementById("levelText");
+    const freeDrawText = document.getElementById("freeDrawText");
+    const reviveText = document.getElementById("reviveText");
+    const ballText = document.getElementById("ballText");
 
-<script>
+    const incomingOffers = document.getElementById("incomingOffers");
+    const outgoingOffers = document.getElementById("outgoingOffers");
+    const myWorks = document.getElementById("myWorks");
+    const battleLogs = document.getElementById("battleLogs");
 
-const API = "http://127.0.0.1:8000";
-const userId = localStorage.getItem("user_id");
+    let authUser = null;
 
-async function loadOffers() {
-  const res = await fetch(`${API}/offers/inbox/${userId}`);
-  const data = await res.json();
+    function readAuth() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
 
-  const el = document.getElementById("offerList");
-  el.innerHTML = "";
+    function showMessage(text) {
+      systemMessage.textContent = text;
+      systemMessage.classList.add("show");
+    }
 
-  data.forEach(o => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <div>作品ID: ${o.work_id}</div>
-      <div>オファー: ${o.points}pt</div>
-      <button class="ok" onclick="accept(${o.id})">承認</button>
-      <button class="ng" onclick="reject(${o.id})">拒否</button>
-    `;
-    el.appendChild(div);
-  });
-}
+    async function api(path, options = {}) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
 
-async function accept(id) {
-  await fetch(`${API}/offers/${id}/accept`, {method:"POST"});
-  alert("成立！");
-  loadOffers();
-}
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || "APIエラー");
+      }
+      return data;
+    }
 
-async function reject(id) {
-  await fetch(`${API}/offers/${id}/reject`, {method:"POST"});
-  loadOffers();
-}
+    async function loadUser() {
+      const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
+      pointsText.textContent = data.points ?? 0;
+      expText.textContent = data.exp ?? 0;
+      levelText.textContent = data.level ?? 1;
+      freeDrawText.textContent = data.free_draw_count ?? 0;
+      reviveText.textContent = data.revive_item_count ?? 0;
+      ballText.textContent = `${data.ball_count ?? 0} / 7`;
+    }
 
-async function loadWorks() {
-  const res = await fetch(`${API}/users/${userId}/works`);
-  const data = await res.json();
+    function renderIncoming(items) {
+      if (!items.length) {
+        incomingOffers.innerHTML = `<div class="item">オファーはありません。</div>`;
+        return;
+      }
 
-  const el = document.getElementById("myWorks");
-  el.innerHTML = "";
+      incomingOffers.innerHTML = items.map(item => `
+        <div class="item">
+          <div class="title">${item.work_title}</div>
+          <div class="muted">
+            差出人: ${item.from_user}<br>
+            オファーpt: ${item.points}<br>
+            状態: ${item.status}
+          </div>
+          ${item.status === "pending" ? `
+            <div class="buttons">
+              <button class="btn-success" onclick="acceptOffer(${item.id})">承認</button>
+              <button class="btn-danger" onclick="rejectOffer(${item.id})">拒否</button>
+            </div>
+          ` : ""}
+        </div>
+      `).join("");
+    }
 
-  data.forEach(w => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <div>${w.title}</div>
-      <button onclick="sell(${w.id})">売却</button>
-    `;
-    el.appendChild(div);
-  });
-}
+    function renderOutgoing(items) {
+      if (!items.length) {
+        outgoingOffers.innerHTML = `<div class="item">送信したオファーはありません。</div>`;
+        return;
+      }
 
-async function sell(workId) {
-  const price = prompt("販売価格(ポイント)");
-  if (!price) return;
+      outgoingOffers.innerHTML = items.map(item => `
+        <div class="item">
+          <div class="title">${item.work_title}</div>
+          <div class="muted">
+            宛先: ${item.to_user}<br>
+            オファーpt: ${item.points}<br>
+            状態: ${item.status}
+          </div>
+        </div>
+      `).join("");
+    }
 
-  await fetch(`${API}/market/list`, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      user_id: userId,
-      work_id: workId,
-      price_points: Number(price)
-    })
-  });
+    function renderWorks(items) {
+      if (!items.length) {
+        myWorks.innerHTML = `<div class="item">所有カードはありません。</div>`;
+        return;
+      }
 
-  alert("出品しました");
-}
+      myWorks.innerHTML = items.map(item => `
+        <div class="item">
+          <div class="item-grid">
+            <div class="thumb">
+              ${item.video_url
+                ? `<video src="${item.video_url}" muted playsinline preload="metadata"></video>`
+                : `<img src="${item.image_url || ""}" alt="${item.title}" />`
+              }
+            </div>
+            <div>
+              <div class="title">${item.title}</div>
+              <div class="muted">
+                レア: ${item.rarity}${item.is_legend ? " / LEGEND" : ""}<br>
+                HP ${item.hp} / ATK ${item.atk} / DEF ${item.def}<br>
+                Lv ${item.level} / EXP ${item.exp} / 連敗 ${item.lose_streak_count}
+              </div>
+              <div class="buttons">
+                <button class="btn-primary" onclick="battleCard(${item.work_id})">バトル</button>
+                <button class="btn-success" onclick="listCard(${item.work_id})">公開売却</button>
+                <button class="btn-pink" onclick="legendCard(${item.work_id})">レジェンド化</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
 
-loadOffers();
-loadWorks();
+    function renderBattles(items) {
+      if (!items.length) {
+        battleLogs.innerHTML = `<div class="item">バトル履歴はありません。</div>`;
+        return;
+      }
 
-</script>
+      battleLogs.innerHTML = items.map(item => `
+        <div class="item">
+          <div class="title">${item.result.toUpperCase()} / 相手: ${item.opponent_name}</div>
+          <div class="muted">
+            ${item.log}<br>
+            EXP +${item.reward_exp}<br>
+            ${item.created_at}
+          </div>
+        </div>
+      `).join("");
+    }
 
+    async function loadOffers() {
+      const data = await api(`/offers/${encodeURIComponent(authUser.user_id)}`);
+      renderIncoming(data.incoming || []);
+      renderOutgoing(data.outgoing || []);
+    }
+
+    async function loadWorks() {
+      const data = await api(`/users/${encodeURIComponent(authUser.user_id)}/works`);
+      renderWorks(data.works || []);
+    }
+
+    async function loadBattles() {
+      const data = await api(`/battle/logs/${encodeURIComponent(authUser.user_id)}`);
+      renderBattles(data.logs || []);
+    }
+
+    async function refreshAll() {
+      try {
+        await Promise.all([loadUser(), loadOffers(), loadWorks(), loadBattles()]);
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function acceptOffer(id) {
+      try {
+        const data = await api(`/offers/${id}/accept`, { method: "POST" });
+        showMessage(data.message || "承認しました。");
+        refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function rejectOffer(id) {
+      try {
+        const data = await api(`/offers/${id}/reject`, { method: "POST" });
+        showMessage(data.message || "拒否しました。");
+        refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function battleCard(workId) {
+      try {
+        const data = await api(`/battle/entry`, {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: workId
+          })
+        });
+        showMessage(data.message || "バトル参加しました。");
+        refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function listCard(workId) {
+      const price = prompt("公開売却価格を入力してください（pt）", "100");
+      if (!price) return;
+
+      try {
+        const data = await api(`/market/list`, {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: workId,
+            price_points: Number(price)
+          })
+        });
+        showMessage(data.message || "公開売却に出品しました。");
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function legendCard(workId) {
+      try {
+        const data = await api(`/legend/activate`, {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: workId
+          })
+        });
+        showMessage(data.message || "レジェンド化しました。");
+        refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function buyRevive() {
+      try {
+        const data = await api(`/items/revive/buy`, {
+          method: "POST",
+          body: JSON.stringify({ user_id: authUser.user_id })
+        });
+        showMessage(data.message || "復活アイテムを購入しました。");
+        refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function getAdXp() {
+      try {
+        const data = await api(`/rewards/ad-xp`, {
+          method: "POST",
+          body: JSON.stringify({ user_id: authUser.user_id })
+        });
+        showMessage(data.message || "広告報酬を受け取りました。");
+        refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    async function withdrawRequest() {
+      const amount = Number(document.getElementById("withdrawInput").value || 0);
+      if (amount < 1000) {
+        showMessage("1000以上で入力してください。");
+        return;
+      }
+
+      try {
+        const data = await api(`/withdraw/request`, {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            amount: amount
+          })
+        });
+        showMessage(data.message || "出金申請を受け付けました。");
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    window.acceptOffer = acceptOffer;
+    window.rejectOffer = rejectOffer;
+    window.battleCard = battleCard;
+    window.listCard = listCard;
+    window.legendCard = legendCard;
+
+    function boot() {
+      authUser = readAuth();
+      if (!authUser || !authUser.user_id) {
+        showMessage("先にログインしてください。");
+        return;
+      }
+
+      document.getElementById("buyReviveButton").addEventListener("click", buyRevive);
+      document.getElementById("adXpButton").addEventListener("click", getAdXp);
+      document.getElementById("withdrawButton").addEventListener("click", withdrawRequest);
+
+      refreshAll();
+    }
+
+    document.addEventListener("DOMContentLoaded", boot);
+  </script>
 </body>
-</html>
+  </html>
