@@ -22,7 +22,7 @@
 
     .top-links {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0,1fr));
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -48,8 +48,14 @@
       border: 1px solid rgba(255,255,255,0.06);
     }
 
-    .message.show {
-      display: block;
+    .message.show { display: block; }
+    .message.error { border-color: #ff6b6b; color: #ff6b6b; }
+
+    .loading {
+      text-align: center;
+      padding: 40px 0;
+      color: #9ca3af;
+      font-size: 15px;
     }
 
     .list {
@@ -69,6 +75,7 @@
       width: 100%;
       aspect-ratio: 3/4;
       background: #090b10;
+      position: relative;
     }
 
     .thumb img, .thumb video {
@@ -90,11 +97,11 @@
     .muted {
       color: #aeb5c2;
       font-size: 13px;
-      line-height: 1.7;
+      line-height: 1.6;
     }
 
     .price {
-      margin-top: 10px;
+      margin: 10px 0 4px;
       font-size: 20px;
       font-weight: bold;
       color: #4ade80;
@@ -110,7 +117,7 @@
     button, a {
       border: none;
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 10px 14px;
       color: #fff;
       cursor: pointer;
       font-size: 13px;
@@ -118,9 +125,14 @@
       text-decoration: none;
     }
 
-    .btn-buy { background: #16a34a; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-buy   { background: #16a34a; }
     .btn-offer { background: #db2777; }
-    .btn-link { background: #2563eb; }
+    .btn-link  { background: #2563eb; }
   </style>
 </head>
 <body>
@@ -134,19 +146,24 @@
 
     <div id="systemMessage" class="message"></div>
 
-    <div id="listingList" class="list"></div>
+    <div id="loading" class="loading">出品情報を読み込み中...</div>
+    <div id="listingList" class="list" style="display:none;"></div>
+
   </div>
 
   <script>
     const API_BASE = "http://127.0.0.1:8000";
     const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
 
-    const listingList = document.getElementById("listingList");
-    const systemMessage = document.getElementById("systemMessage");
+    const els = {
+      message: document.getElementById("systemMessage"),
+      loading: document.getElementById("loading"),
+      list: document.getElementById("listingList"),
+    };
 
     let authUser = null;
 
-    function readAuth() {
+    function getAuth() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
         return raw ? JSON.parse(raw) : null;
@@ -155,58 +172,70 @@
       }
     }
 
-    function showMessage(text) {
-      systemMessage.textContent = text;
-      systemMessage.classList.add("show");
+    function showMessage(text, isError = false) {
+      els.message.textContent = text;
+      els.message.className = "message show" + (isError ? " error" : "");
     }
 
     async function api(path, options = {}) {
-      const res = await fetch(`${API_BASE}${path}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {})
-        },
-        ...options
-      });
+      const headers = {
+        "Content-Type": "application/json",
+        ...(authUser?.token ? { "Authorization": `Bearer ${authUser.token}` } : {}),
+        ...(options.headers || {}),
+      };
 
-      const data = await res.json().catch(() => ({}));
+      const res = await fetch(`\( {API_BASE} \){path}`, { ...options, headers });
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+
       if (!res.ok) {
-        throw new Error(data.detail || "APIエラー");
+        throw new Error(data.detail || data.message || `エラー (${res.status})`);
       }
       return data;
     }
 
     function renderListings(items) {
-      if (!items.length) {
-        listingList.innerHTML = `<div class="item"><div class="body">現在、公開売却中の作品はありません。</div></div>`;
+      els.loading.style.display = "none";
+      els.list.style.display = "grid";
+
+      if (!items?.length) {
+        els.list.innerHTML = `<div class="item"><div class="body muted" style="padding:40px;text-align:center;">現在、公開売却中の作品はありません。</div></div>`;
         return;
       }
 
-      listingList.innerHTML = items.map(item => `
+      els.list.innerHTML = items.map(item => `
         <div class="item">
           <div class="thumb">
             ${item.video_url
-              ? `<video src="${item.video_url}" muted playsinline preload="metadata"></video>`
-              : `<img src="${item.image_url || ""}" alt="${item.title}" />`
+              ? `<video src="${item.video_url}" muted playsinline preload="metadata" controls></video>`
+              : `<img src="\( {item.image_url || ''}" alt=" \){item.title || '作品'}" loading="lazy">`
             }
           </div>
           <div class="body">
-            <div class="title">${item.title}</div>
+            <div class="title">${item.title || '名称未設定'}</div>
             <div class="muted">
-              作者: ${item.creator_name}<br>
+              作者: ${item.creator_name || '匿名'}<br>
               所有者: ${item.seller_user_id}<br>
-              レア: ${item.rarity}${item.is_legend ? " / LEGEND" : ""}<br>
-              HP ${item.hp} / ATK ${item.atk} / DEF ${item.def}<br>
-              Lv ${item.level} / 総排出 ${item.draw_count}
+              レア: \( {item.rarity} \){item.is_legend ? ' / LEGEND' : ''}<br>
+              HP ${item.hp ?? '?'} / ATK ${item.atk ?? '?'} / DEF ${item.def ?? '?'}<br>
+              Lv ${item.level ?? 1} / 総排出 ${item.draw_count ?? 0}回
             </div>
-            <div class="price">${item.price_points} pt</div>
-            <div class="muted">
-              成立時は30%が運営、残り70%を所有者と著作権者で折半
+            <div class="price">${item.price_points.toLocaleString()} pt</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;">
+              成立時：運営30% / 残り70%を所有者と著作権者で折半
             </div>
             <div class="buttons">
-              <button class="btn-buy" onclick="buyItem(${item.listing_id})">購入</button>
-              <button class="btn-offer" onclick="offerItem(${item.work_id}, '${item.seller_user_id}')">オファー</button>
-              ${item.link_url ? `<a class="btn-link" href="${item.link_url}" target="_blank" rel="noopener noreferrer">作者リンク</a>` : ""}
+              <button class="btn-buy" 
+                ${authUser && item.seller_user_id !== authUser.user_id ? '' : 'disabled'}
+                onclick="buyItem(${item.listing_id}, ${item.price_points})">
+                購入
+              </button>
+              <button class="btn-offer" 
+                ${authUser && item.seller_user_id !== authUser.user_id ? '' : 'disabled'}
+                onclick="offerItem(\( {item.work_id}, ' \){item.seller_user_id}')">
+                オファー
+              </button>
+              \( {item.link_url ? `<a class="btn-link" href=" \){item.link_url}" target="_blank" rel="noopener noreferrer">作者リンク</a>` : ''}
             </div>
           </div>
         </div>
@@ -217,71 +246,83 @@
       try {
         const data = await api("/market/listings");
         renderListings(data.items || []);
-      } catch (error) {
-        showMessage(error.message);
+      } catch (err) {
+        showMessage("出品一覧の取得に失敗しました", true);
+        els.loading.textContent = "読み込みに失敗しました…";
       }
     }
 
-    async function buyItem(listingId) {
-      if (!authUser || !authUser.user_id) {
-        showMessage("先にログインしてください。");
+    async function buyItem(listingId, price) {
+      if (!authUser?.user_id) {
+        showMessage("購入するにはログインが必要です", true);
+        return;
+      }
+      if ((authUser.points ?? 0) < price) {
+        showMessage(`ポイントが不足しています（必要: ${price} pt）`, true);
         return;
       }
 
+      if (!confirm(`この作品を${price.toLocaleString()}ptで購入しますか？`)) return;
+
       try {
-        const data = await api("/market/buy", {
+        const res = await api("/market/buy", {
           method: "POST",
           body: JSON.stringify({
             buyer_user_id: authUser.user_id,
             listing_id: listingId
           })
         });
-        showMessage(data.message || "購入しました。");
+        showMessage(res.message || "購入が完了しました！");
         loadListings();
-      } catch (error) {
-        showMessage(error.message);
+      } catch (err) {
+        showMessage(err.message || "購入に失敗しました", true);
       }
     }
 
     async function offerItem(workId, sellerId) {
-      if (!authUser || !authUser.user_id) {
-        showMessage("先にログインしてください。");
+      if (!authUser?.user_id) {
+        showMessage("オファーするにはログインが必要です", true);
         return;
       }
-
       if (sellerId === authUser.user_id) {
-        showMessage("自分の出品にはオファーできません。");
+        showMessage("自分の出品にはオファーできません", true);
         return;
       }
 
-      const points = prompt("オファーptを入力してください", "100");
-      if (!points) return;
+      const input = prompt("オファー額 (pt)を入力してください", "100");
+      if (!input) return;
+
+      const points = Number(input);
+      if (isNaN(points) || points <= 0) {
+        showMessage("有効な数値を入力してください", true);
+        return;
+      }
 
       try {
-        const data = await api("/offers", {
+        const res = await api("/offers", {
           method: "POST",
           body: JSON.stringify({
             from_user_id: authUser.user_id,
             to_user_id: sellerId,
             work_id: workId,
-            offer_points: Number(points)
+            offer_points: points
           })
         });
-        showMessage(data.message || "オファーを送信しました。");
-      } catch (error) {
-        showMessage(error.message);
+        showMessage(res.message || "オファーを送信しました");
+      } catch (err) {
+        showMessage(err.message || "オファーに失敗しました", true);
       }
     }
 
     window.buyItem = buyItem;
     window.offerItem = offerItem;
 
-    function boot() {
-      authUser = readAuth();
+    function init() {
+      authUser = getAuth();
       loadListings();
     }
 
-    document.addEventListener("DOMContentLoaded", boot);
+    document.addEventListener("DOMContentLoaded", init);
   </script>
 </body>
 </html>
