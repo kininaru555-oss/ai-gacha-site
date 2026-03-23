@@ -15,7 +15,7 @@
     }
 
     .container {
-      max-width: 960px;
+      max-width: 1080px;
       margin: 0 auto;
       padding: 16px;
     }
@@ -143,7 +143,7 @@
 
     .item-grid {
       display: grid;
-      grid-template-columns: 140px 1fr;
+      grid-template-columns: 160px 1fr;
       gap: 12px;
     }
 
@@ -189,6 +189,74 @@
       font-weight: bold;
     }
 
+    .badge.legend {
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    .badge.power {
+      background: #7c3aed;
+    }
+
+    .badge.wins {
+      background: #16a34a;
+    }
+
+    .badge.ball {
+      background: #fbbf24;
+      color: #111827;
+    }
+
+    .stats-mini {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .mini-box {
+      background: #0b0d12;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .mini-box span {
+      display: block;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    .mini-box strong {
+      font-size: 14px;
+    }
+
+    .ball-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0,1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .ball-cell {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #9ca3af;
+    }
+
+    .ball-cell.has {
+      background: #f59e0b;
+      border-color: #fbbf24;
+      color: #111827;
+    }
+
     .empty {
       color: #9ca3af;
       font-size: 14px;
@@ -206,6 +274,14 @@
 
       .item-grid {
         grid-template-columns: 1fr;
+      }
+
+      .stats-mini {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .ball-grid {
+        grid-template-columns: repeat(4, minmax(0,1fr));
       }
     }
   </style>
@@ -234,14 +310,22 @@
       </div>
 
       <div class="actions">
-        <button id="buyReviveButton" class="btn-success" type="button">復活アイテム購入(100pt)</button>
-        <button id="adXpButton" class="btn-pink" type="button">広告EXP +20</button>
+        <button id="buyReviveButton" class="btn-success" type="button">復活アイテムを購入（100pt）</button>
+        <button id="adXpButton" class="btn-pink" type="button">広告を見てEXP +20</button>
       </div>
 
-      <input id="withdrawInput" type="number" min="1000" placeholder="出金申請額（1000以上）" />
+      <input id="withdrawInput" type="number" min="1000" placeholder="出金希望額（1,000pt以上）" />
       <div class="actions">
         <button id="withdrawButton" class="btn-primary" type="button">出金申請</button>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">トラゴンボウル</div>
+      <div class="sub">
+        7種すべて集めると、所有カード1枚をレジェンド化できます。
+      </div>
+      <div id="ballGrid" class="ball-grid"></div>
     </div>
 
     <div class="card">
@@ -257,7 +341,7 @@
     <div class="card">
       <div class="section-title">所有カード</div>
       <div class="sub" style="margin-bottom:12px;">
-        自分が所有している作品の一覧です。ここからバトル参加、公開売却、レジェンド化ができます。
+        所有カードの一覧です。育成済みカードはマーケットでそのまま売買されます。バトル・売却・レジェンド化ができます。
       </div>
       <div id="myWorks" class="list"></div>
     </div>
@@ -286,8 +370,10 @@
     const outgoingOffers = document.getElementById("outgoingOffers");
     const myWorks = document.getElementById("myWorks");
     const battleLogs = document.getElementById("battleLogs");
+    const ballGrid = document.getElementById("ballGrid");
 
     let authUser = null;
+    let currentBallCount = 0;
 
     function readAuth() {
       try {
@@ -331,7 +417,26 @@
       levelText.textContent = data.level ?? 1;
       freeDrawText.textContent = data.free_draw_count ?? 0;
       reviveText.textContent = data.revive_item_count ?? 0;
-      ballText.textContent = `${data.ball_count ?? 0} / 7`;
+      currentBallCount = data.ball_count ?? 0;
+      ballText.textContent = `${currentBallCount} / 7`;
+    }
+
+    async function loadBalls() {
+      const data = await api(`/balls/${encodeURIComponent(authUser.user_id)}`);
+      const ownedCodes = new Set((data.items || []).map(item => String(item.ball_code || "")));
+
+      const cells = [];
+      for (let i = 1; i <= 7; i++) {
+        const key = `BALL_${i}`;
+        const has = ownedCodes.has(key) || ownedCodes.has(String(i));
+        cells.push(`
+          <div class="ball-cell ${has ? "has" : ""}">
+            ${i}
+          </div>
+        `);
+      }
+
+      ballGrid.innerHTML = cells.join("");
     }
 
     function renderIncoming(items) {
@@ -376,47 +481,100 @@
       `).join("");
     }
 
+    function calcCardPower(item) {
+      return (
+        Number(item.hp || 0) +
+        Number(item.atk || 0) +
+        Number(item.def || 0) +
+        Number(item.spd || 0) +
+        Number(item.luk || 0)
+      );
+    }
+
     function renderWorks(items) {
-      if (!items.length) {
+      const filtered = (items || []).filter(item => !item.is_ball);
+
+      if (!filtered.length) {
         myWorks.innerHTML = `<div class="empty">所有カードはありません。</div>`;
         return;
       }
 
-      myWorks.innerHTML = items.map(item => `
-        <div class="item">
-          <div class="item-grid">
-            <div class="thumb">
-              ${item.video_url
-                ? `<video src="${escapeAttr(item.video_url)}" muted playsinline preload="metadata"></video>`
-                : `<img src="${escapeAttr(item.image_url || "")}" alt="${escapeAttr(item.title)}" />`
-              }
-            </div>
-            <div>
-              <div class="badge-row">
-                <div class="badge">${escapeHtml(item.rarity)}</div>
-                ${item.is_legend ? `<div class="badge">LEGEND</div>` : ""}
-                <div class="badge">Lv ${item.level}</div>
+      myWorks.innerHTML = filtered.map(item => {
+        const power = calcCardPower(item);
+        const canLegend = !item.is_legend && currentBallCount >= 7;
+
+        return `
+          <div class="item">
+            <div class="item-grid">
+              <div class="thumb">
+                ${item.video_url
+                  ? `<video src="${escapeAttr(item.video_url)}" muted playsinline preload="metadata"></video>`
+                  : `<img src="${escapeAttr(item.image_url || "")}" alt="${escapeAttr(item.title)}" />`
+                }
               </div>
+              <div>
+                <div class="badge-row">
+                  <div class="badge">${escapeHtml(item.rarity || "N")}</div>
+                  ${item.is_legend ? `<div class="badge legend">LEGEND</div>` : ""}
+                  <div class="badge">Lv ${item.level ?? 1}</div>
+                  <div class="badge wins">勝利 ${item.win_count ?? 0}</div>
+                  <div class="badge power">戦闘力 ${power}</div>
+                </div>
 
-              <div class="title">${escapeHtml(item.title)}</div>
+                <div class="title">${escapeHtml(item.title)}</div>
 
-              <div class="meta">
-                作者: ${escapeHtml(item.creator_name || "不明")}<br>
-                HP ${item.hp} / ATK ${item.atk} / DEF ${item.def}<br>
-                SPD ${item.spd} / LUK ${item.luk}<br>
-                EXP ${item.exp} / 連敗 ${item.lose_streak_count}<br>
-                総排出 ${item.draw_count}
-              </div>
+                <div class="meta">
+                  作者: ${escapeHtml(item.creator_name || "不明")}<br>
+                  HP ${item.hp} / ATK ${item.atk} / DEF ${item.def}<br>
+                  SPD ${item.spd} / LUK ${item.luk}<br>
+                  現在EXP ${item.exp ?? 0} / 累計EXP ${item.total_exp ?? 0}<br>
+                  勝利 ${item.win_count ?? 0} / 総バトル ${item.battle_count ?? 0}<br>
+                  連敗 ${item.lose_streak_count ?? 0} / 総排出 ${item.draw_count ?? 0}
+                </div>
 
-              <div class="actions">
-                <button class="btn-primary" onclick="battleCard(${item.work_id})" type="button">バトル</button>
-                <button class="btn-success" onclick="listCard(${item.work_id})" type="button">公開売却</button>
-                <button class="btn-pink" onclick="legendCard(${item.work_id})" type="button">レジェンド化</button>
+                <div class="stats-mini">
+                  <div class="mini-box">
+                    <span>HP</span>
+                    <strong>${item.hp ?? 0}</strong>
+                  </div>
+                  <div class="mini-box">
+                    <span>ATK</span>
+                    <strong>${item.atk ?? 0}</strong>
+                  </div>
+                  <div class="mini-box">
+                    <span>DEF</span>
+                    <strong>${item.def ?? 0}</strong>
+                  </div>
+                  <div class="mini-box">
+                    <span>SPD</span>
+                    <strong>${item.spd ?? 0}</strong>
+                  </div>
+                  <div class="mini-box">
+                    <span>LUK</span>
+                    <strong>${item.luk ?? 0}</strong>
+                  </div>
+                  <div class="mini-box">
+                    <span>戦闘力</span>
+                    <strong>${power}</strong>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <button class="btn-primary" onclick="battleCard(${item.work_id})" type="button">バトル</button>
+                  <button class="btn-success" onclick="listCard(${item.work_id})" type="button">公開売却</button>
+                  ${
+                    item.is_legend
+                      ? `<button class="btn-gray" type="button" disabled>レジェンド済み</button>`
+                      : canLegend
+                        ? `<button class="btn-pink" onclick="legendCard(${item.work_id})" type="button">レジェンド化</button>`
+                        : `<button class="btn-gray" type="button" disabled>ボウル7個で解放</button>`
+                  }
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     function renderBattles(items) {
@@ -456,16 +614,22 @@
     async function refreshAll() {
       clearMessage();
       try {
-        await Promise.all([loadUser(), loadOffers(), loadWorks(), loadBattles()]);
+        await Promise.all([
+          loadUser(),
+          loadOffers(),
+          loadBattles(),
+          loadBalls()
+        ]);
+        await loadWorks();
       } catch (error) {
-        showMessage(error.message || "読み込みに失敗しました。");
+        showMessage(error.message || "データの読み込みに失敗しました。通信状況を確認してから再読み込みしてください。");
       }
     }
 
     async function acceptOffer(id) {
       try {
         const data = await api(`/offers/${id}/accept`, { method: "POST" });
-        showMessage(data.message || "承認しました。");
+        showMessage(data.message || "オファーを承認しました。");
         await refreshAll();
       } catch (error) {
         showMessage(error.message);
@@ -475,7 +639,7 @@
     async function rejectOffer(id) {
       try {
         const data = await api(`/offers/${id}/reject`, { method: "POST" });
-        showMessage(data.message || "拒否しました。");
+        showMessage(data.message || "オファーを拒否しました。");
         await refreshAll();
       } catch (error) {
         showMessage(error.message);
@@ -491,7 +655,7 @@
             work_id: workId
           })
         });
-        showMessage(data.message || "バトル参加しました。");
+        showMessage(data.message || "バトルに参加しました！");
         await refreshAll();
       } catch (error) {
         showMessage(error.message);
@@ -499,8 +663,14 @@
     }
 
     async function listCard(workId) {
-      const price = prompt("公開売却価格を入力してください（pt）", "100");
+      const price = prompt("出品価格を入力してください（pt単位・最低1pt）", "100");
       if (!price) return;
+
+      const numericPrice = Number(price);
+      if (!Number.isFinite(numericPrice) || numericPrice < 1) {
+        showMessage("出品価格は1pt以上で入力してください。");
+        return;
+      }
 
       try {
         const data = await api(`/market/list`, {
@@ -508,16 +678,21 @@
           body: JSON.stringify({
             user_id: authUser.user_id,
             work_id: workId,
-            price_points: Number(price)
+            price_points: numericPrice
           })
         });
-        showMessage(data.message || "公開売却に出品しました。");
+        showMessage(data.message || "マーケットに出品しました！");
       } catch (error) {
         showMessage(error.message);
       }
     }
 
     async function legendCard(workId) {
+      if (currentBallCount < 7) {
+        showMessage("レジェンド化にはトラゴンボウル7個が必要です。");
+        return;
+      }
+
       try {
         const data = await api(`/legend/activate`, {
           method: "POST",
@@ -526,7 +701,7 @@
             work_id: workId
           })
         });
-        showMessage(data.message || "レジェンド化しました。");
+        showMessage(data.message || "レジェンド化しました！");
         await refreshAll();
       } catch (error) {
         showMessage(error.message);
@@ -539,7 +714,7 @@
           method: "POST",
           body: JSON.stringify({ user_id: authUser.user_id })
         });
-        showMessage(data.message || "復活アイテムを購入しました。");
+        showMessage(data.message || "復活アイテムを購入しました！");
         await refreshAll();
       } catch (error) {
         showMessage(error.message);
@@ -552,7 +727,7 @@
           method: "POST",
           body: JSON.stringify({ user_id: authUser.user_id })
         });
-        showMessage(data.message || "広告報酬を受け取りました。");
+        showMessage(data.message || "広告報酬を受け取りました！EXP +20");
         await refreshAll();
       } catch (error) {
         showMessage(error.message);
@@ -560,60 +735,4 @@
     }
 
     async function withdrawRequest() {
-      const amount = Number(document.getElementById("withdrawInput").value || 0);
-      if (amount < 1000) {
-        showMessage("1000以上で入力してください。");
-        return;
-      }
-
-      try {
-        const data = await api(`/withdraw/request`, {
-          method: "POST",
-          body: JSON.stringify({
-            user_id: authUser.user_id,
-            amount
-          })
-        });
-        showMessage(data.message || "出金申請を受け付けました。");
-      } catch (error) {
-        showMessage(error.message);
-      }
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-    }
-
-    function escapeAttr(value) {
-      return escapeHtml(value);
-    }
-
-    window.acceptOffer = acceptOffer;
-    window.rejectOffer = rejectOffer;
-    window.battleCard = battleCard;
-    window.listCard = listCard;
-    window.legendCard = legendCard;
-
-    function boot() {
-      authUser = readAuth();
-      if (!authUser || !authUser.user_id) {
-        showMessage("先にログインしてください。");
-        return;
-      }
-
-      document.getElementById("buyReviveButton").addEventListener("click", buyRevive);
-      document.getElementById("adXpButton").addEventListener("click", getAdXp);
-      document.getElementById("withdrawButton").addEventListener("click", withdrawRequest);
-
-      refreshAll();
-    }
-
-    document.addEventListener("DOMContentLoaded", boot);
-  </script>
-</body>
-</html>
+      const amount = Number(document.getElementById("withdrawInput"
