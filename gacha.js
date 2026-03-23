@@ -109,7 +109,7 @@ async function api(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.detail || "APIエラー");
+    throw new Error(data.detail || "APIエラーが発生しました。しばらく待ってから再試行してください。");
   }
 
   return data;
@@ -250,7 +250,7 @@ async function handleLogin() {
     updateStatusUI(authUser);
     showMessage("ログインしました。");
   } catch (error) {
-    showMessage(error.message || "ログインに失敗しました。");
+    showMessage(error.message || "ログインに失敗しました。ユーザーIDとパスワードを確認してください。");
   } finally {
     loginButton.disabled = false;
     loginButton.textContent = "ログイン / 新規登録";
@@ -283,7 +283,7 @@ async function drawGacha(type) {
   if (isDrawing) return;
 
   if (!authUser || !authUser.user_id) {
-    showMessage("先にログインしてください。");
+    showMessage("ガチャを引くにはログインが必要です。");
     return;
   }
 
@@ -293,8 +293,8 @@ async function drawGacha(type) {
 
     freeDrawButton.disabled = true;
     paidDrawButton.disabled = true;
-    freeDrawButton.textContent = "ガチャ中...";
-    paidDrawButton.textContent = "ガチャ中...";
+    freeDrawButton.textContent = "抽選中...";
+    paidDrawButton.textContent = "抽選中...";
 
     const path = type === "paid"
       ? `/gacha/paid/${encodeURIComponent(authUser.user_id)}`
@@ -302,14 +302,15 @@ async function drawGacha(type) {
 
     const data = await api(path, { method: "POST" });
 
-    previewResult(data.result);
+    // ガチャ結果を保存してから結果ページへ遷移
     localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(data));
 
-    await refreshUser();
+    // プレビュー表示（遷移前の一瞬だけ見える）
+    previewResult(data.result);
 
     location.href = "result.html";
   } catch (error) {
-    showMessage(error.message || "ガチャに失敗しました。");
+    showMessage(error.message || "ガチャに失敗しました。しばらく待ってから再試行してください。");
   } finally {
     isDrawing = false;
     freeDrawButton.disabled = false;
@@ -331,13 +332,9 @@ function handleStripeResult() {
 
   if (success === "1") {
     showMessage("決済が完了しました。ポイントが反映されています。");
-    if (typeof loadUserStatus === "function") {
-      loadUserStatus().then(() => {
-        flashBox(pointsBox);
-      }).catch(() => {});
-    } else {
-      flashBox(pointsBox);
-    }
+    loadUserStatus()
+      .then(() => flashBox(pointsBox))
+      .catch(() => flashBox(pointsBox));
     history.replaceState({}, "", location.pathname);
   }
 
@@ -348,24 +345,19 @@ function handleStripeResult() {
 }
 
 async function buyPoints(type) {
+  if (!authUser || !authUser.user_id) {
+    showMessage("ポイント購入にはログインが必要です。");
+    return;
+  }
+
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    const auth = raw ? JSON.parse(raw) : null;
-
-    if (!auth || !auth.user_id) {
-      showMessage("先にログインしてください。");
-      return;
-    }
-
     clearMessage();
 
     const response = await fetch(`${API_BASE}/create-checkout-session`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        user_id: auth.user_id,
+        user_id: authUser.user_id,
         type: type
       })
     });
@@ -373,16 +365,16 @@ async function buyPoints(type) {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.detail || "決済セッション作成に失敗しました");
+      throw new Error(data.detail || "決済セッションの作成に失敗しました。");
     }
 
     if (!data.url) {
-      throw new Error("決済URLを取得できませんでした");
+      throw new Error("決済URLを取得できませんでした。");
     }
 
     window.location.href = data.url;
   } catch (error) {
-    showMessage(error.message || "決済開始に失敗しました。");
+    showMessage(error.message || "決済の開始に失敗しました。しばらく待ってから再試行してください。");
   }
 }
 
@@ -401,22 +393,15 @@ function injectPointPurchaseButtons() {
     <p class="sub">初回購入はポイント50%増量です。</p>
     <div class="button-group">
       <button id="buy300Button" class="btn-link" type="button">300pt / ¥300（初回 450pt）</button>
-      <button id="buy1000Button" class="btn-link" type="button">1100pt / ¥1000（初回 1650pt）</button>
+      <button id="buy1000Button" class="btn-link" type="button">1,100pt / ¥1,000（初回 1,650pt）</button>
     </div>
   `;
 
   const targetCard = cards[2];
   targetCard.parentNode.insertBefore(purchaseCard, targetCard.nextSibling);
 
-  const buy300Button = document.getElementById("buy300Button");
-  const buy1000Button = document.getElementById("buy1000Button");
-
-  if (buy300Button) {
-    buy300Button.addEventListener("click", () => buyPoints("300"));
-  }
-  if (buy1000Button) {
-    buy1000Button.addEventListener("click", () => buyPoints("1000"));
-  }
+  document.getElementById("buy300Button")?.addEventListener("click", () => buyPoints("300"));
+  document.getElementById("buy1000Button")?.addEventListener("click", () => buyPoints("1000"));
 }
 
 function boot() {
@@ -440,6 +425,8 @@ function boot() {
       })
       .catch((error) => {
         console.warn("refreshUser failed", error);
+        // refreshUser失敗時もキャッシュ済みのauthUserで表示を維持
+        updateStatusUI(authUser);
       });
   } else {
     updateStatusUI({
@@ -465,9 +452,7 @@ function boot() {
   }
 
   passwordInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      handleLogin();
-    }
+    if (event.key === "Enter") handleLogin();
   });
 
   handleStripeResult();
