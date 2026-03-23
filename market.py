@@ -15,6 +15,7 @@ from helpers import (
     count_ball_codes,
     get_owned_card,
     update_user_level,
+    grant_view_access,
 )
 from models import (
     OfferRequest,
@@ -87,6 +88,9 @@ def send_offer(payload: OfferRequest):
                 VALUES(%s, %s, %s, %s, %s)
             """, (payload.work_id, payload.from_user_id, payload.to_user_id, payload.offer_points, "pending"))
 
+        # オファー送信時点で閲覧権解放
+        grant_view_access(conn, payload.from_user_id, payload.work_id, "offer")
+
         return {"message": "オファーを送信しました！"}
 
 
@@ -152,6 +156,9 @@ def accept_offer(offer_id: int):
             offer["to_user"],
             offer["from_user"],
         )
+
+        # 承認後も閲覧権を保証
+        grant_view_access(conn, offer["from_user"], offer["work_id"], "offer")
 
         with conn.cursor() as cur:
             cur.execute("""
@@ -328,6 +335,9 @@ def buy_market(payload: MarketBuyRequest):
             payload.buyer_user_id,
         )
 
+        # 購入時に閲覧権解放
+        grant_view_access(conn, payload.buyer_user_id, listing["work_id"], "market")
+
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE market
@@ -357,7 +367,7 @@ def withdraw_request(payload: WithdrawRequestIn):
         user = ensure_user(conn, payload.user_id)
 
         if payload.amount < 1000:
-            raise HTTPException(status_code=400, detail="出金は1,000pt以上から申請できます")
+            raise HTTPException(status_code=400, detail="出金は1,000円以上から申請できます")
         if user["royalty_balance"] < payload.amount:
             raise HTTPException(status_code=400, detail="出金可能残高が不足しています")
 
@@ -503,4 +513,4 @@ def reward_ad_xp(payload: UserOnlyRequest):
             "message": "広告報酬でEXP +20 を獲得しました！",
             "exp": user["exp"],
             "level": user["level"],
-}
+                }
