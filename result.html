@@ -5,11 +5,176 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ガチャ結果</title>
   <style>
-    /* 既存スタイルを維持しつつ、追加・微調整 */
-    .message.loading { color: #9ca3af; background: transparent; border: none; text-align: center; padding: 40px 0; }
-    .message.error { color: #ff6b6b; border-color: #ff6b6b; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .liked { background: #9f1239 !important; } /* いいね済み時の色例 */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #0f1115;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3/4;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #090b10;
+      margin-bottom: 14px;
+    }
+
+    img, video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #263042;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .sub {
+      font-size: 13px;
+      color: #aeb5c2;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .message {
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.8;
+      margin-bottom: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .meta-item {
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .meta-item span {
+      display: block;
+      font-size: 12px;
+      color: #aeb5c2;
+      margin-bottom: 5px;
+    }
+
+    .meta-item strong {
+      font-size: 16px;
+    }
+
+    .buttons {
+      display: grid;
+      gap: 10px;
+    }
+
+    button, a {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      text-decoration: none;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .btn-share { background: #111827; }
+    .btn-like { background: #db2777; }
+    .btn-battle { background: #2563eb; }
+    .btn-link { background: #16a34a; }
+    .btn-nav { background: #374151; }
+
+    .offer-box {
+      margin-top: 12px;
+      display: none;
+      gap: 10px;
+    }
+
+    .offer-box.show {
+      display: grid;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #101218;
+      color: #fff;
+    }
+
+    .system-message {
+      display: none;
+      margin-top: 12px;
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .system-message.show {
+      display: block;
+    }
+
+    .desc {
+      color: #d1d5db;
+      line-height: 1.8;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -17,7 +182,7 @@
 
     <div class="card">
       <div class="stage">
-        <img id="resultImage" style="display:none;" alt="結果画像" loading="lazy" />
+        <img id="resultImage" style="display:none;" alt="結果画像" />
         <video id="resultVideo" style="display:none;" controls playsinline preload="metadata"></video>
       </div>
 
@@ -34,15 +199,15 @@
       <div id="meta" class="meta"></div>
 
       <div class="buttons">
-        <button id="shareButton" class="btn-share">Xで共有</button>
-        <button id="likeButton" class="btn-like">いいね</button>
-        <button id="battleButton" class="btn-battle">バトル参加</button>
+        <button id="shareButton" class="btn-share" type="button">Xで共有</button>
+        <button id="likeButton" class="btn-like" type="button">いいね</button>
+        <button id="battleButton" class="btn-battle" type="button">バトル参加</button>
         <a id="authorLinkButton" href="#" target="_blank" rel="noopener noreferrer" class="btn-link">作者ページ</a>
       </div>
 
-      <div id="offerArea" class="offer-box" style="display:none;">
+      <div id="offerArea" class="offer-box">
         <input id="offerPointInput" type="number" min="10" placeholder="オファーpt 例: 100" />
-        <button id="offerButton" class="btn-link">所有者にオファー送信</button>
+        <button id="offerButton" class="btn-link" type="button">所有者にオファー送信</button>
       </div>
 
       <div id="systemMessage" class="system-message"></div>
@@ -63,203 +228,187 @@
 
   </div>
 
+  <script src="config.js"></script>
   <script>
-    const API_BASE = "http://127.0.0.1:8000";
-    const RESULT_STORAGE_KEY = "gacha_last_result";
-    const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
+    const API_BASE = window.APP_CONFIG.API_BASE;
+    const RESULT_STORAGE_KEY = window.APP_CONFIG.RESULT_STORAGE_KEY;
+    const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
 
-    // DOM要素まとめ
-    const els = {
-      resultImage: document.getElementById("resultImage"),
-      resultVideo: document.getElementById("resultVideo"),
-      rarityBadge: document.getElementById("rarityBadge"),
-      ownerBadge: document.getElementById("ownerBadge"),
-      expBadge: document.getElementById("expBadge"),
-      title: document.getElementById("title"),
-      sub: document.getElementById("sub"),
-      resultMessage: document.getElementById("resultMessage"),
-      meta: document.getElementById("meta"),
-      description: document.getElementById("description"),
-      authorLinkButton: document.getElementById("authorLinkButton"),
-      shareButton: document.getElementById("shareButton"),
-      likeButton: document.getElementById("likeButton"),
-      battleButton: document.getElementById("battleButton"),
-      offerArea: document.getElementById("offerArea"),
-      offerPointInput: document.getElementById("offerPointInput"),
-      offerButton: document.getElementById("offerButton"),
-      systemMessage: document.getElementById("systemMessage"),
-    };
+    const resultImage = document.getElementById("resultImage");
+    const resultVideo = document.getElementById("resultVideo");
+    const rarityBadge = document.getElementById("rarityBadge");
+    const ownerBadge = document.getElementById("ownerBadge");
+    const expBadge = document.getElementById("expBadge");
+    const titleEl = document.getElementById("title");
+    const subEl = document.getElementById("sub");
+    const resultMessage = document.getElementById("resultMessage");
+    const metaEl = document.getElementById("meta");
+    const descriptionEl = document.getElementById("description");
+    const authorLinkButton = document.getElementById("authorLinkButton");
+    const shareButton = document.getElementById("shareButton");
+    const likeButton = document.getElementById("likeButton");
+    const battleButton = document.getElementById("battleButton");
+    const offerButton = document.getElementById("offerButton");
+    const offerPointInput = document.getElementById("offerPointInput");
+    const offerArea = document.getElementById("offerArea");
+    const systemMessage = document.getElementById("systemMessage");
 
     let authUser = null;
     let payload = null;
-    let isLiked = false;
 
-    function getStored(key) {
-      try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+    function readJSON(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
     }
 
-    function showMessage(text, isError = false) {
-      els.systemMessage.textContent = text;
-      els.systemMessage.style.color = isError ? "#ff6b6b" : "#4ade80";
-      els.systemMessage.classList.add("show");
+    function showMessage(text) {
+      systemMessage.textContent = text;
+      systemMessage.classList.add("show");
     }
 
     async function api(path, options = {}) {
-      const headers = {
-        "Content-Type": "application/json",
-        ...(authUser?.token ? { "Authorization": `Bearer ${authUser.token}` } : {}),
-        ...(options.headers || {}),
-      };
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
 
-      const res = await fetch(`\( {API_BASE} \){path}`, { ...options, headers });
-      let data;
-      try { data = await res.json(); } catch { data = {}; }
-
-      if (!res.ok) throw new Error(data.detail || data.message || `エラー (${res.status})`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || "APIエラー");
+      }
       return data;
     }
 
     function renderMedia(result) {
-      if (result?.type === "video" && result.video_url) {
-        els.resultVideo.src = result.video_url;
-        els.resultVideo.style.display = "block";
-        els.resultImage.style.display = "none";
-      } else if (result?.image_url) {
-        els.resultImage.src = result.image_url;
-        els.resultImage.style.display = "block";
-        els.resultVideo.style.display = "none";
+      if (result.type === "video" && result.video_url) {
+        resultVideo.src = result.video_url;
+        resultVideo.style.display = "block";
+        resultImage.style.display = "none";
       } else {
-        els.resultMessage.textContent = "メディア読み込みに失敗しました";
-        els.resultMessage.classList.add("error");
+        resultImage.src = result.image_url || "";
+        resultImage.style.display = "block";
+        resultVideo.style.display = "none";
       }
     }
 
     function renderMeta(result) {
-      const stats = [
-        { label: "HP",  value: result.hp  },
-        { label: "ATK", value: result.atk },
-        { label: "DEF", value: result.def },
-        { label: "SPD", value: result.spd },
-        { label: "LUK", value: result.luk },
-        { label: "総排出", value: result.draw_count ?? 0 },
+      const items = [
+        ["HP", result.hp],
+        ["ATK", result.atk],
+        ["DEF", result.def],
+        ["SPD", result.spd],
+        ["LUK", result.luk],
+        ["総排出", result.draw_count],
       ];
 
-      els.meta.innerHTML = stats.map(s => `
+      metaEl.innerHTML = items.map(([label, value]) => `
         <div class="meta-item">
-          <span>${s.label}</span>
-          <strong>${s.value ?? "-"}</strong>
+          <span>${label}</span>
+          <strong>${value ?? "-"}</strong>
         </div>
       `).join("");
     }
 
-    async function renderPage() {
-      if (!payload?.result) {
-        els.resultMessage.textContent = "ガチャ結果が見つかりません。もう一度引いてください。";
-        els.resultMessage.classList.add("error");
-        els.offerArea.style.display = "none";
-        return;
-      }
-
-      const result = payload.result;
-      const info = payload.info || {};
+    function renderPage(data) {
+      payload = data;
+      const result = data.result;
+      const info = data.info || {};
 
       renderMedia(result);
       renderMeta(result);
 
-      els.rarityBadge.textContent = result.rarity || "N";
-      els.ownerBadge.textContent = `所有者: ${info.owner_user_id || "不明"}`;
-      els.expBadge.textContent = `EXP +${info.exp_gained || 0}`;
-      els.title.textContent = result.title || "ガチャ結果";
-      els.sub.textContent = `${result.creator_name || "匿名"} / ${result.genre || "未分類"} / ${result.type === "video" ? "動画" : "画像"}`;
-      els.description.textContent = result.description || "この作品には詳細な説明がありません。";
+      rarityBadge.textContent = result.rarity || "N";
+      ownerBadge.textContent = `所有者: ${info.owner_user_id || "-"}`;
+      expBadge.textContent = `EXP +${info.exp_gained || 0}`;
+      titleEl.textContent = result.title || "ガチャ結果";
+      subEl.textContent = `${result.creator_name || "投稿者不明"} / ${result.genre || "未分類"} / ${result.type === "video" ? "動画" : "画像"}`;
+      descriptionEl.textContent = result.description || "説明なし";
 
       if (info.is_new_owner) {
-        els.resultMessage.innerHTML = `初発見！あなたがこの作品の新しい所有者になりました🎉<br>EXP +${info.exp_gained || 0} を獲得`;
-        els.offerArea.style.display = "none";
+        resultMessage.innerHTML = `初発見。あなたがこの作品の所有者になりました。<br>EXP +${info.exp_gained || 0}`;
+        offerArea.classList.remove("show");
       } else {
-        els.resultMessage.innerHTML = `既所有作品でした。<br>所有権は移動しませんが、EXP +${info.exp_gained || 0} を獲得しました！`;
-        els.offerArea.style.display = "grid";
+        resultMessage.innerHTML = `この作品は既に誰かが所有しています。<br>今回は所有権は移りませんが、EXP +${info.exp_gained || 0} を獲得しました。`;
+        offerArea.classList.add("show");
       }
 
       if (result.link_url) {
-        els.authorLinkButton.href = result.link_url;
+        authorLinkButton.href = result.link_url;
+        authorLinkButton.style.pointerEvents = "auto";
+        authorLinkButton.style.opacity = "1";
       } else {
-        els.authorLinkButton.style.opacity = "0.5";
-        els.authorLinkButton.style.pointerEvents = "none";
-      }
-
-      // いいね状態チェック（簡易版：localStorageで仮管理。本来はAPIで取得）
-      const likedWorks = getStored("liked_works") || [];
-      if (likedWorks.includes(result.id)) {
-        isLiked = true;
-        els.likeButton.textContent = "いいね済み";
-        els.likeButton.classList.add("liked");
-        els.likeButton.disabled = true;
+        authorLinkButton.href = "#";
+        authorLinkButton.style.pointerEvents = "none";
+        authorLinkButton.style.opacity = "0.5";
       }
     }
 
     function shareToX() {
-      if (!payload?.result) return;
+      if (!payload) return;
       const result = payload.result;
       const info = payload.info || {};
-      const text = `【\( {result.rarity || "N"}】 \){result.title || "美女ガチャ結果"}\n\( {info.is_new_owner ? "初所有GET！" : "既所有発見"} EXP+ \){info.exp_gained || 0}\n#美女ガチャクエスト #AIガチャ`;
-      const shareUrl = `https://twitter.com/intent/tweet?text=\( {encodeURIComponent(text)}&url= \){encodeURIComponent(window.location.href)}`;
-      window.open(shareUrl, "_blank", "noopener,noreferrer");
+      const text = `【${result.rarity || "N"}】${result.title}\n${info.is_new_owner ? "初所有GET" : "既所有発見"} / EXP +${info.exp_gained || 0}\n#美女ガチャクエスト #AIガチャ`;
+      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
     }
 
     async function likeCurrent() {
-      if (!payload?.result?.id || !authUser?.user_id) return showMessage("ログインが必要です", true);
-
+      if (!payload || !authUser) return;
       try {
         const data = await api(`/works/${payload.result.id}/like`, {
           method: "POST",
-          body: JSON.stringify({ user_id: authUser.user_id })
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: payload.result.id
+          })
         });
-        showMessage(data.message || "いいねしました！");
-
-        // 簡易的にUI更新
-        isLiked = true;
-        els.likeButton.textContent = "いいね済み";
-        els.likeButton.classList.add("liked");
-        els.likeButton.disabled = true;
-
-        // localStorageに記録（永続化）
-        const liked = getStored("liked_works") || [];
-        if (!liked.includes(payload.result.id)) {
-          liked.push(payload.result.id);
-          localStorage.setItem("liked_works", JSON.stringify(liked));
-        }
-      } catch (err) {
-        showMessage(err.message || "いいねに失敗しました", true);
+        showMessage(data.message || "いいねしました");
+      } catch (error) {
+        showMessage(error.message);
       }
     }
 
     async function battleCurrent() {
-      if (!payload?.result?.id || !authUser?.user_id) return showMessage("ログインが必要です", true);
-
+      if (!payload || !authUser) return;
       try {
         const data = await api(`/battle/entry`, {
           method: "POST",
-          body: JSON.stringify({ user_id: authUser.user_id, work_id: payload.result.id })
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: payload.result.id
+          })
         });
-        showMessage(data.message || "バトルに参加しました！");
-      } catch (err) {
-        showMessage(err.message || "バトル参加に失敗しました", true);
+        showMessage(data.message || "バトル参加しました");
+      } catch (error) {
+        showMessage(error.message);
       }
     }
 
     async function sendOffer() {
-      if (!payload?.result?.id || !authUser?.user_id) return showMessage("ログインが必要です", true);
+      if (!payload || !authUser) return;
 
-      const points = Number(els.offerPointInput.value);
+      const points = Number(offerPointInput.value || 0);
       const ownerId = payload.info?.owner_user_id;
 
-      if (!ownerId) return showMessage("所有者情報がありません", true);
-      if (ownerId === authUser.user_id) return showMessage("自分の作品にはオファーできません", true);
-      if (points < 10) return showMessage("オファーは10pt以上でお願いします", true);
-
-      // ポイント残高チェック（オプション：user情報を事前に持っていれば）
-      // if (authUser.points < points) return showMessage("ポイントが不足しています", true);
+      if (!ownerId) {
+        showMessage("所有者情報がありません。");
+        return;
+      }
+      if (ownerId === authUser.user_id) {
+        showMessage("自分の所有作品にはオファーできません。");
+        return;
+      }
+      if (points < 10) {
+        showMessage("オファーptは10以上にしてください。");
+        return;
+      }
 
       try {
         const data = await api("/offers", {
@@ -271,31 +420,32 @@
             offer_points: points
           })
         });
-        showMessage(data.message || "オファーを送信しました！");
-        els.offerPointInput.value = "";
-      } catch (err) {
-        showMessage(err.message || "オファー送信に失敗しました", true);
+        showMessage(data.message || "オファーを送信しました。");
+        offerPointInput.value = "";
+      } catch (error) {
+        showMessage(error.message);
       }
     }
 
-    function init() {
-      authUser = getStored(AUTH_STORAGE_KEY);
-      payload = getStored(RESULT_STORAGE_KEY);
+    function boot() {
+      authUser = readJSON(AUTH_STORAGE_KEY);
+      payload = readJSON(RESULT_STORAGE_KEY);
 
-      if (!authUser?.user_id) {
-        showMessage("ログイン情報がありません。ガチャ画面に戻ってログインしてください。", true);
-        els.offerArea.style.display = "none";
+      if (!payload) {
+        resultMessage.textContent = "ガチャ結果がありません。index.html から引いてください。";
+        offerArea.classList.remove("show");
+        return;
       }
 
-      renderPage();
+      renderPage(payload);
 
-      els.shareButton.addEventListener("click", shareToX);
-      els.likeButton.addEventListener("click", likeCurrent);
-      els.battleButton.addEventListener("click", battleCurrent);
-      els.offerButton.addEventListener("click", sendOffer);
+      shareButton.addEventListener("click", shareToX);
+      likeButton.addEventListener("click", likeCurrent);
+      battleButton.addEventListener("click", battleCurrent);
+      offerButton.addEventListener("click", sendOffer);
     }
 
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", boot);
   </script>
 </body>
-  </html>
+</html>
