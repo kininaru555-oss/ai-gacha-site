@@ -216,10 +216,9 @@
 </div>
 
 <script>
-const API_BASE = "http://127.0.0.1:8000";
-const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL";
-const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
-
+const API_BASE = window.APP_CONFIG.API_BASE;
+const APPS_SCRIPT_URL = window.APP_CONFIG.APPS_SCRIPT_URL;
+const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
 let uploadedAsset = null;
 let isSubmitting = false;
 
