@@ -370,4 +370,4 @@ def admin_add_free_draw(user_id: str, count: int = 1):
         return {
             "message": f"{user_id} に無料ガチャ {count} 回追加しました",
             "free_draw_count": user["free_draw_count"],
-            }
+                     }
