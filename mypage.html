@@ -20,17 +20,9 @@
       padding: 16px;
     }
 
-    .card {
-      background: #171a21;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
     .top-links {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      grid-template-columns: repeat(4, minmax(0,1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -45,37 +37,39 @@
       font-weight: bold;
     }
 
+    .card {
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
     .message {
       display: none;
       margin-bottom: 16px;
-      padding: 12px;
+      background: #101218;
       border-radius: 12px;
+      padding: 12px;
       font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.7;
+      border: 1px solid rgba(255,255,255,0.06);
     }
 
-    .message.show { display: block; }
-    .message.success { background: #064e3b; border: 1px solid #10b981; }
-    .message.error   { background: #450a0a; border: 1px solid #ef4444; }
-
-    .section-title {
-      font-size: 18px;
-      margin: 0 0 12px;
-      font-weight: bold;
+    .message.show {
+      display: block;
     }
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: repeat(3, minmax(0,1fr));
       gap: 10px;
-      margin-bottom: 16px;
     }
 
     .stat {
       background: #101218;
       border-radius: 12px;
       padding: 12px;
-      text-align: center;
       border: 1px solid rgba(255,255,255,0.06);
     }
 
@@ -83,17 +77,56 @@
       display: block;
       font-size: 12px;
       color: #aeb5c2;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
     }
 
     .stat strong {
       font-size: 18px;
     }
 
-    .loading {
-      text-align: center;
-      padding: 20px;
-      color: #9ca3af;
+    .section-title {
+      font-size: 18px;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .sub {
+      color: #aeb5c2;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .btn-primary { background: #2563eb; }
+    .btn-success { background: #16a34a; }
+    .btn-danger { background: #dc2626; }
+    .btn-pink { background: #db2777; }
+    .btn-gray { background: #4b5563; }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #101218;
+      color: #fff;
+      margin-top: 10px;
     }
 
     .list {
@@ -110,7 +143,7 @@
 
     .item-grid {
       display: grid;
-      grid-template-columns: 120px 1fr;
+      grid-template-columns: 140px 1fr;
       gap: 12px;
     }
 
@@ -128,139 +161,135 @@
       object-fit: cover;
     }
 
-    .muted {
-      color: #aeb5c2;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
     .title {
       font-size: 16px;
       font-weight: bold;
       margin-bottom: 6px;
     }
 
-    .buttons {
+    .meta {
+      color: #cfd6e2;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .badge-row {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 10px;
+      margin-bottom: 8px;
     }
 
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 10px 14px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 13px;
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #263042;
+      font-size: 12px;
       font-weight: bold;
     }
 
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .empty {
+      color: #9ca3af;
+      font-size: 14px;
+      padding: 8px 0;
     }
 
-    .btn-primary  { background: #2563eb; }
-    .btn-success  { background: #16a34a; }
-    .btn-danger   { background: #dc2626; }
-    .btn-pink     { background: #db2777; }
+    @media (max-width: 720px) {
+      .top-links {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
 
-    input[type="number"] {
-      width: 100%;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: #101218;
-      color: #fff;
-      margin: 10px 0;
+      .stats {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .item-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
 
-    <div class="top-links" id="topLinks">
+    <div class="top-links">
       <a href="index.html">ガチャ</a>
       <a href="result.html">結果</a>
       <a href="market.html">公開売却</a>
+      <a href="upload.html">作品投稿</a>
     </div>
 
     <div id="systemMessage" class="message"></div>
 
-    <div class="card" id="statusCard">
+    <div class="card">
       <div class="section-title">ステータス</div>
       <div class="stats">
-        <div class="stat"><span>ポイント</span><strong id="pointsText">—</strong></div>
-        <div class="stat"><span>EXP</span><strong id="expText">—</strong></div>
-        <div class="stat"><span>レベル</span><strong id="levelText">—</strong></div>
-        <div class="stat"><span>無料回数</span><strong id="freeDrawText">—</strong></div>
-        <div class="stat"><span>復活アイテム</span><strong id="reviveText">—</strong></div>
-        <div class="stat"><span>ボウル</span><strong id="ballText">— / 7</strong></div>
+        <div class="stat"><span>ポイント</span><strong id="pointsText">0</strong></div>
+        <div class="stat"><span>EXP</span><strong id="expText">0</strong></div>
+        <div class="stat"><span>レベル</span><strong id="levelText">1</strong></div>
+        <div class="stat"><span>無料回数</span><strong id="freeDrawText">0</strong></div>
+        <div class="stat"><span>復活アイテム</span><strong id="reviveText">0</strong></div>
+        <div class="stat"><span>ボウル</span><strong id="ballText">0 / 7</strong></div>
       </div>
 
-      <div class="buttons">
-        <button id="buyReviveButton" class="btn-success">復活アイテム購入 (100pt)</button>
-        <button id="adXpButton" class="btn-pink">広告でEXP +20</button>
+      <div class="actions">
+        <button id="buyReviveButton" class="btn-success" type="button">復活アイテム購入(100pt)</button>
+        <button id="adXpButton" class="btn-pink" type="button">広告EXP +20</button>
       </div>
 
-      <input id="withdrawInput" type="number" min="1000" placeholder="出金申請額（1000pt以上）" />
-      <div class="buttons">
-        <button id="withdrawButton" class="btn-primary">出金申請</button>
+      <input id="withdrawInput" type="number" min="1000" placeholder="出金申請額（1000以上）" />
+      <div class="actions">
+        <button id="withdrawButton" class="btn-primary" type="button">出金申請</button>
       </div>
     </div>
 
     <div class="card">
       <div class="section-title">届いたオファー</div>
-      <div id="incomingOffers" class="list"><div class="loading">読み込み中...</div></div>
+      <div id="incomingOffers" class="list"></div>
     </div>
 
     <div class="card">
       <div class="section-title">送ったオファー</div>
-      <div id="outgoingOffers" class="list"><div class="loading">読み込み中...</div></div>
+      <div id="outgoingOffers" class="list"></div>
     </div>
 
     <div class="card">
       <div class="section-title">所有カード</div>
-      <div id="myWorks" class="list"><div class="loading">読み込み中...</div></div>
+      <div class="sub" style="margin-bottom:12px;">
+        自分が所有している作品の一覧です。ここからバトル参加、公開売却、レジェンド化ができます。
+      </div>
+      <div id="myWorks" class="list"></div>
     </div>
 
     <div class="card">
       <div class="section-title">バトル履歴</div>
-      <div id="battleLogs" class="list"><div class="loading">読み込み中...</div></div>
+      <div id="battleLogs" class="list"></div>
     </div>
 
   </div>
 
+  <script src="config.js"></script>
   <script>
-    const API_BASE = "http://127.0.0.1:8000";
-    const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
+    const API_BASE = window.APP_CONFIG.API_BASE;
+    const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
 
-    const els = {
-      message: document.getElementById("systemMessage"),
-      topLinks: document.getElementById("topLinks"),
-      statusCard: document.getElementById("statusCard"),
-      pointsText: document.getElementById("pointsText"),
-      expText: document.getElementById("expText"),
-      levelText: document.getElementById("levelText"),
-      freeDrawText: document.getElementById("freeDrawText"),
-      reviveText: document.getElementById("reviveText"),
-      ballText: document.getElementById("ballText"),
-      buyReviveButton: document.getElementById("buyReviveButton"),
-      adXpButton: document.getElementById("adXpButton"),
-      withdrawInput: document.getElementById("withdrawInput"),
-      withdrawButton: document.getElementById("withdrawButton"),
-      incomingOffers: document.getElementById("incomingOffers"),
-      outgoingOffers: document.getElementById("outgoingOffers"),
-      myWorks: document.getElementById("myWorks"),
-      battleLogs: document.getElementById("battleLogs"),
-    };
+    const systemMessage = document.getElementById("systemMessage");
+    const pointsText = document.getElementById("pointsText");
+    const expText = document.getElementById("expText");
+    const levelText = document.getElementById("levelText");
+    const freeDrawText = document.getElementById("freeDrawText");
+    const reviveText = document.getElementById("reviveText");
+    const ballText = document.getElementById("ballText");
+
+    const incomingOffers = document.getElementById("incomingOffers");
+    const outgoingOffers = document.getElementById("outgoingOffers");
+    const myWorks = document.getElementById("myWorks");
+    const battleLogs = document.getElementById("battleLogs");
 
     let authUser = null;
-    let isProcessing = false;
 
-    function getAuth() {
+    function readAuth() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
         return raw ? JSON.parse(raw) : null;
@@ -269,114 +298,120 @@
       }
     }
 
-    function showMessage(text, type = "success") {
-      els.message.textContent = text;
-      els.message.className = `message show ${type}`;
+    function showMessage(text) {
+      systemMessage.textContent = text;
+      systemMessage.classList.add("show");
+    }
+
+    function clearMessage() {
+      systemMessage.textContent = "";
+      systemMessage.classList.remove("show");
     }
 
     async function api(path, options = {}) {
-      if (!authUser?.token && !path.includes("/auth")) {
-        throw new Error("認証が必要です");
-      }
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
 
-      const headers = {
-        "Content-Type": "application/json",
-        ...(authUser?.token ? { "Authorization": `Bearer ${authUser.token}` } : {}),
-        ...(options.headers || {}),
-      };
-
-      const res = await fetch(`\( {API_BASE} \){path}`, { ...options, headers });
-      let data;
-      try { data = await res.json(); } catch { data = {}; }
-
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.detail || data.message || `エラー (${res.status})`);
+        throw new Error(data.detail || "APIエラー");
       }
       return data;
     }
 
-    function setLoading(el, show = true) {
-      if (show) {
-        el.innerHTML = '<div class="loading">読み込み中...</div>';
-      }
-    }
-
     async function loadUser() {
-      try {
-        const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
-        els.pointsText.textContent    = data.points ?? 0;
-        els.expText.textContent       = data.exp ?? 0;
-        els.levelText.textContent     = data.level ?? 1;
-        els.freeDrawText.textContent  = data.free_draw_count ?? 0;
-        els.reviveText.textContent    = data.revive_item_count ?? 0;
-        els.ballText.textContent      = `${data.ball_count ?? 0} / 7`;
-      } catch (err) {
-        showMessage("ステータス取得失敗", "error");
-      }
+      const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
+      pointsText.textContent = data.points ?? 0;
+      expText.textContent = data.exp ?? 0;
+      levelText.textContent = data.level ?? 1;
+      freeDrawText.textContent = data.free_draw_count ?? 0;
+      reviveText.textContent = data.revive_item_count ?? 0;
+      ballText.textContent = `${data.ball_count ?? 0} / 7`;
     }
 
-    function renderOffers(container, items, isIncoming = false) {
-      if (!items?.length) {
-        container.innerHTML = `<div class="item muted">該当するオファーはありません</div>`;
+    function renderIncoming(items) {
+      if (!items.length) {
+        incomingOffers.innerHTML = `<div class="empty">オファーはありません。</div>`;
         return;
       }
 
-      container.innerHTML = items.map(item => `
+      incomingOffers.innerHTML = items.map(item => `
         <div class="item">
-          <div class="title">${item.work_title || '作品'}</div>
-          <div class="muted">
-            ${isIncoming ? `差出人: ${item.from_user}` : `宛先: ${item.to_user}`}<br>
-            オファーpt: ${item.points?.toLocaleString() ?? '?'}<br>
-            状態: ${item.status || '不明'}
+          <div class="title">${escapeHtml(item.work_title)}</div>
+          <div class="meta">
+            差出人: ${escapeHtml(item.from_user)}<br>
+            オファーpt: ${item.points}<br>
+            状態: ${escapeHtml(item.status)}
           </div>
-          ${isIncoming && item.status === "pending" ? `
-            <div class="buttons">
-              <button class="btn-success" onclick="acceptOffer(${item.id})">承認</button>
-              <button class="btn-danger" onclick="rejectOffer(${item.id})">拒否</button>
+          ${item.status === "pending" ? `
+            <div class="actions">
+              <button class="btn-success" onclick="acceptOffer(${item.id})" type="button">承認</button>
+              <button class="btn-danger" onclick="rejectOffer(${item.id})" type="button">拒否</button>
             </div>
           ` : ""}
         </div>
       `).join("");
     }
 
-    async function loadOffers() {
-      setLoading(els.incomingOffers);
-      setLoading(els.outgoingOffers);
-      try {
-        const data = await api(`/offers/${encodeURIComponent(authUser.user_id)}`);
-        renderOffers(els.incomingOffers, data.incoming || [], true);
-        renderOffers(els.outgoingOffers, data.outgoing || [], false);
-      } catch (err) {
-        showMessage("オファー取得失敗", "error");
-      }
-    }
-
-    function renderWorks(items) {
-      if (!items?.length) {
-        els.myWorks.innerHTML = `<div class="item muted">所有カードがありません</div>`;
+    function renderOutgoing(items) {
+      if (!items.length) {
+        outgoingOffers.innerHTML = `<div class="empty">送信したオファーはありません。</div>`;
         return;
       }
 
-      els.myWorks.innerHTML = items.map(item => `
+      outgoingOffers.innerHTML = items.map(item => `
+        <div class="item">
+          <div class="title">${escapeHtml(item.work_title)}</div>
+          <div class="meta">
+            宛先: ${escapeHtml(item.to_user)}<br>
+            オファーpt: ${item.points}<br>
+            状態: ${escapeHtml(item.status)}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderWorks(items) {
+      if (!items.length) {
+        myWorks.innerHTML = `<div class="empty">所有カードはありません。</div>`;
+        return;
+      }
+
+      myWorks.innerHTML = items.map(item => `
         <div class="item">
           <div class="item-grid">
             <div class="thumb">
               ${item.video_url
-                ? `<video src="${item.video_url}" muted playsinline preload="metadata" controls></video>`
-                : `<img src="\( {item.image_url || ''}" alt=" \){item.title || '作品'}" loading="lazy">`
+                ? `<video src="${escapeAttr(item.video_url)}" muted playsinline preload="metadata"></video>`
+                : `<img src="${escapeAttr(item.image_url || "")}" alt="${escapeAttr(item.title)}" />`
               }
             </div>
             <div>
-              <div class="title">${item.title || '名称未設定'}</div>
-              <div class="muted">
-                レア: \( {item.rarity} \){item.is_legend ? ' / LEGEND' : ''}<br>
-                HP ${item.hp ?? '?'} / ATK ${item.atk ?? '?'} / DEF ${item.def ?? '?'}<br>
-                Lv ${item.level ?? 1} / EXP ${item.exp ?? 0} / 連敗 ${item.lose_streak_count ?? 0}
+              <div class="badge-row">
+                <div class="badge">${escapeHtml(item.rarity)}</div>
+                ${item.is_legend ? `<div class="badge">LEGEND</div>` : ""}
+                <div class="badge">Lv ${item.level}</div>
               </div>
-              <div class="buttons">
-                <button class="btn-primary" onclick="battleCard(${item.work_id})">バトル</button>
-                <button class="btn-success" onclick="listCard(${item.work_id})">公開売却</button>
-                <button class="btn-pink" onclick="legendCard(${item.work_id})">レジェンド化</button>
+
+              <div class="title">${escapeHtml(item.title)}</div>
+
+              <div class="meta">
+                作者: ${escapeHtml(item.creator_name || "不明")}<br>
+                HP ${item.hp} / ATK ${item.atk} / DEF ${item.def}<br>
+                SPD ${item.spd} / LUK ${item.luk}<br>
+                EXP ${item.exp} / 連敗 ${item.lose_streak_count}<br>
+                総排出 ${item.draw_count}
+              </div>
+
+              <div class="actions">
+                <button class="btn-primary" onclick="battleCard(${item.work_id})" type="button">バトル</button>
+                <button class="btn-success" onclick="listCard(${item.work_id})" type="button">公開売却</button>
+                <button class="btn-pink" onclick="legendCard(${item.work_id})" type="button">レジェンド化</button>
               </div>
             </div>
           </div>
@@ -384,195 +419,201 @@
       `).join("");
     }
 
-    async function loadWorks() {
-      setLoading(els.myWorks);
-      try {
-        const data = await api(`/users/${encodeURIComponent(authUser.user_id)}/works`);
-        renderWorks(data.works || []);
-      } catch (err) {
-        showMessage("所有カード取得失敗", "error");
-      }
-    }
-
     function renderBattles(items) {
-      if (!items?.length) {
-        els.battleLogs.innerHTML = `<div class="item muted">バトル履歴がありません</div>`;
+      if (!items.length) {
+        battleLogs.innerHTML = `<div class="empty">バトル履歴はありません。</div>`;
         return;
       }
 
-      els.battleLogs.innerHTML = items.map(item => `
+      battleLogs.innerHTML = items.map(item => `
         <div class="item">
-          <div class="title">${(item.result || '').toUpperCase()} / 相手: ${item.opponent_name || '不明'}</div>
-          <div class="muted">
-            ${item.log || 'ログなし'}<br>
-            EXP +${item.reward_exp ?? 0}<br>
-            ${item.created_at || ''}
+          <div class="title">${escapeHtml(String(item.result).toUpperCase())} / 相手: ${escapeHtml(item.opponent_name || "-")}</div>
+          <div class="meta">
+            ${escapeHtml(item.log || "")}<br>
+            EXP +${item.reward_exp}<br>
+            ${escapeHtml(item.created_at || "")}
           </div>
         </div>
       `).join("");
     }
 
+    async function loadOffers() {
+      const data = await api(`/offers/${encodeURIComponent(authUser.user_id)}`);
+      renderIncoming(data.incoming || []);
+      renderOutgoing(data.outgoing || []);
+    }
+
+    async function loadWorks() {
+      const data = await api(`/users/${encodeURIComponent(authUser.user_id)}/works`);
+      renderWorks(data.works || []);
+    }
+
     async function loadBattles() {
-      setLoading(els.battleLogs);
-      try {
-        const data = await api(`/battle/logs/${encodeURIComponent(authUser.user_id)}`);
-        renderBattles(data.logs || []);
-      } catch (err) {
-        showMessage("バトル履歴取得失敗", "error");
-      }
+      const data = await api(`/battle/logs/${encodeURIComponent(authUser.user_id)}`);
+      renderBattles(data.logs || []);
     }
 
     async function refreshAll() {
-      if (isProcessing) return;
-      await Promise.allSettled([
-        loadUser(),
-        loadOffers(),
-        loadWorks(),
-        loadBattles()
-      ]);
-    }
-
-    // アクション関数（連打防止）
-    async function withProcessing(fn) {
-      if (isProcessing) return;
-      isProcessing = true;
+      clearMessage();
       try {
-        await fn();
-      } finally {
-        isProcessing = false;
+        await Promise.all([loadUser(), loadOffers(), loadWorks(), loadBattles()]);
+      } catch (error) {
+        showMessage(error.message || "読み込みに失敗しました。");
       }
     }
 
     async function acceptOffer(id) {
-      withProcessing(async () => {
+      try {
         const data = await api(`/offers/${id}/accept`, { method: "POST" });
-        showMessage(data.message || "承認しました", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "承認しました。");
+        await refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function rejectOffer(id) {
-      withProcessing(async () => {
+      try {
         const data = await api(`/offers/${id}/reject`, { method: "POST" });
-        showMessage(data.message || "拒否しました", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "拒否しました。");
+        await refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function battleCard(workId) {
-      withProcessing(async () => {
+      try {
         const data = await api(`/battle/entry`, {
           method: "POST",
-          body: JSON.stringify({ user_id: authUser.user_id, work_id: workId })
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: workId
+          })
         });
-        showMessage(data.message || "バトルに参加しました", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "バトル参加しました。");
+        await refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function listCard(workId) {
-      const priceStr = prompt("公開売却価格 (pt)", "100");
-      if (!priceStr) return;
+      const price = prompt("公開売却価格を入力してください（pt）", "100");
+      if (!price) return;
 
-      const price = Number(priceStr);
-      if (isNaN(price) || price < 10) {
-        showMessage("10pt以上の有効な数値を入力してください", "error");
-        return;
-      }
-
-      if (!confirm(`${price.toLocaleString()}pt で公開売却に出品しますか？`)) return;
-
-      withProcessing(async () => {
+      try {
         const data = await api(`/market/list`, {
           method: "POST",
           body: JSON.stringify({
             user_id: authUser.user_id,
             work_id: workId,
-            price_points: price
+            price_points: Number(price)
           })
         });
-        showMessage(data.message || "出品しました", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "公開売却に出品しました。");
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function legendCard(workId) {
-      if (!confirm("このカードをレジェンド化しますか？（不可逆的操作）")) return;
-
-      withProcessing(async () => {
+      try {
         const data = await api(`/legend/activate`, {
           method: "POST",
-          body: JSON.stringify({ user_id: authUser.user_id, work_id: workId })
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            work_id: workId
+          })
         });
-        showMessage(data.message || "レジェンド化完了", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "レジェンド化しました。");
+        await refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function buyRevive() {
-      withProcessing(async () => {
+      try {
         const data = await api(`/items/revive/buy`, {
           method: "POST",
           body: JSON.stringify({ user_id: authUser.user_id })
         });
-        showMessage(data.message || "購入しました", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "復活アイテムを購入しました。");
+        await refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function getAdXp() {
-      withProcessing(async () => {
+      try {
         const data = await api(`/rewards/ad-xp`, {
           method: "POST",
           body: JSON.stringify({ user_id: authUser.user_id })
         });
-        showMessage(data.message || "EXPを受け取りました", "success");
-        refreshAll();
-      });
+        showMessage(data.message || "広告報酬を受け取りました。");
+        await refreshAll();
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
     async function withdrawRequest() {
-      const amount = Number(els.withdrawInput.value);
+      const amount = Number(document.getElementById("withdrawInput").value || 0);
       if (amount < 1000) {
-        showMessage("1000pt以上で申請してください", "error");
+        showMessage("1000以上で入力してください。");
         return;
       }
-      if (!confirm(`${amount.toLocaleString()}pt の出金申請を行いますか？`)) return;
 
-      withProcessing(async () => {
+      try {
         const data = await api(`/withdraw/request`, {
           method: "POST",
-          body: JSON.stringify({ user_id: authUser.user_id, amount })
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            amount
+          })
         });
-        showMessage(data.message || "申請を受け付けました", "success");
-        els.withdrawInput.value = "";
-      });
+        showMessage(data.message || "出金申請を受け付けました。");
+      } catch (error) {
+        showMessage(error.message);
+      }
     }
 
-    window.acceptOffer   = acceptOffer;
-    window.rejectOffer   = rejectOffer;
-    window.battleCard    = battleCard;
-    window.listCard      = listCard;
-    window.legendCard    = legendCard;
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
 
-    function init() {
-      authUser = getAuth();
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
 
-      if (!authUser || !authUser.user_id || !authUser.token) {
-        showMessage("ログインが必要です。ガチャ画面からログインしてください", "error");
-        els.topLinks.style.display = "none";
-        els.statusCard.innerHTML = '<div class="muted" style="padding:40px;text-align:center;">ログインしてください</div>';
+    window.acceptOffer = acceptOffer;
+    window.rejectOffer = rejectOffer;
+    window.battleCard = battleCard;
+    window.listCard = listCard;
+    window.legendCard = legendCard;
+
+    function boot() {
+      authUser = readAuth();
+      if (!authUser || !authUser.user_id) {
+        showMessage("先にログインしてください。");
         return;
       }
 
-      els.buyReviveButton.addEventListener("click", buyRevive);
-      els.adXpButton.addEventListener("click", getAdXp);
-      els.withdrawButton.addEventListener("click", withdrawRequest);
+      document.getElementById("buyReviveButton").addEventListener("click", buyRevive);
+      document.getElementById("adXpButton").addEventListener("click", getAdXp);
+      document.getElementById("withdrawButton").addEventListener("click", withdrawRequest);
 
       refreshAll();
     }
 
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", boot);
   </script>
 </body>
 </html>
