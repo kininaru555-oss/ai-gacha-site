@@ -36,6 +36,9 @@
       overflow: hidden;
       background: #090b10;
       margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     img, video {
@@ -43,6 +46,26 @@
       height: 100%;
       object-fit: cover;
       display: block;
+      background: #000;
+    }
+
+    .media-fallback {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 18px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 14px;
+      line-height: 1.7;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    }
+
+    .media-fallback.show {
+      display: flex;
     }
 
     .badge-row {
@@ -129,6 +152,11 @@
       color: #fff;
     }
 
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
     .btn-share { background: #111827; }
     .btn-like { background: #db2777; }
     .btn-battle { background: #2563eb; }
@@ -163,6 +191,8 @@
       font-size: 13px;
       line-height: 1.7;
       border: 1px solid rgba(255,255,255,0.06);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .system-message.show {
@@ -184,6 +214,7 @@
       <div class="stage">
         <img id="resultImage" style="display:none;" alt="結果画像" />
         <video id="resultVideo" style="display:none;" controls playsinline preload="metadata"></video>
+        <div id="mediaFallback" class="media-fallback">画像または動画の読み込みに失敗しました。</div>
       </div>
 
       <div class="badge-row">
@@ -206,7 +237,7 @@
       </div>
 
       <div id="offerArea" class="offer-box">
-        <input id="offerPointInput" type="number" min="10" placeholder="オファーpt 例: 100" />
+        <input id="offerPointInput" type="number" min="10" step="1" inputmode="numeric" placeholder="オファーpt 例: 100" />
         <button id="offerButton" class="btn-link" type="button">所有者にオファー送信</button>
       </div>
 
@@ -230,12 +261,13 @@
 
   <script src="config.js"></script>
   <script>
-    const API_BASE = window.APP_CONFIG.API_BASE;
-    const RESULT_STORAGE_KEY = window.APP_CONFIG.RESULT_STORAGE_KEY;
-    const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
+    const API_BASE = window.APP_CONFIG?.API_BASE || "";
+    const RESULT_STORAGE_KEY = window.APP_CONFIG?.RESULT_STORAGE_KEY || "gacha_result";
+    const AUTH_STORAGE_KEY = window.APP_CONFIG?.AUTH_STORAGE_KEY || "auth";
 
     const resultImage = document.getElementById("resultImage");
     const resultVideo = document.getElementById("resultVideo");
+    const mediaFallback = document.getElementById("mediaFallback");
     const rarityBadge = document.getElementById("rarityBadge");
     const ownerBadge = document.getElementById("ownerBadge");
     const expBadge = document.getElementById("expBadge");
@@ -255,6 +287,9 @@
 
     let authUser = null;
     let payload = null;
+    let isBusyLike = false;
+    let isBusyBattle = false;
+    let isBusyOffer = false;
 
     function readJSON(key) {
       try {
@@ -270,39 +305,128 @@
       systemMessage.classList.add("show");
     }
 
+    function hideMessage() {
+      systemMessage.textContent = "";
+      systemMessage.classList.remove("show");
+    }
+
+    function getAuthToken(auth) {
+      if (!auth || typeof auth !== "object") return "";
+      return auth.access_token || auth.token || auth.id_token || "";
+    }
+
+    function getAuthHeaders(extraHeaders = {}) {
+      const token = getAuthToken(authUser);
+      const headers = {
+        "Content-Type": "application/json",
+        ...extraHeaders
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
     async function api(path, options = {}) {
       const res = await fetch(`${API_BASE}${path}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {})
-        },
-        ...options
+        method: options.method || "GET",
+        headers: getAuthHeaders(options.headers || {}),
+        credentials: "include",
+        body: options.body
       });
 
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        throw new Error(data.detail || "APIエラー");
+        throw new Error(data.detail || data.message || "APIエラー");
       }
       return data;
     }
 
+    function hasValidResultId(data) {
+      const id = data?.result?.id;
+      return Number.isInteger(id) || (typeof id === "string" && id.trim() !== "");
+    }
+
+    function isSafeHttpUrl(url) {
+      return typeof url === "string" && /^https?:\/\//i.test(url);
+    }
+
+    function escapeHtml(text) {
+      return String(text ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function setMediaFallback(message = "画像または動画の読み込みに失敗しました。") {
+      resultImage.style.display = "none";
+      resultVideo.style.display = "none";
+      resultImage.removeAttribute("src");
+      resultVideo.removeAttribute("src");
+      resultVideo.load();
+      mediaFallback.textContent = message;
+      mediaFallback.classList.add("show");
+    }
+
+    function clearMediaFallback() {
+      mediaFallback.textContent = "";
+      mediaFallback.classList.remove("show");
+    }
+
+    function bindMediaErrorHandlers() {
+      resultImage.onerror = () => {
+        setMediaFallback("画像の読み込みに失敗しました。");
+      };
+
+      resultVideo.onerror = () => {
+        setMediaFallback("動画の読み込みに失敗しました。");
+      };
+
+      resultVideo.addEventListener("stalled", () => {
+        showMessage("動画の読み込みが不安定です。通信状態を確認してください。");
+      });
+    }
+
     function renderMedia(result) {
-      if (result.type === "video" && result.video_url) {
-        resultVideo.src = result.video_url;
+      clearMediaFallback();
+
+      const type = result?.type;
+      const imageUrl = result?.image_url || "";
+      const videoUrl = result?.video_url || "";
+      const thumbnailUrl = result?.thumbnail_url || "";
+
+      if (type === "video") {
+        if (!videoUrl || !isSafeHttpUrl(videoUrl)) {
+          setMediaFallback("動画URLが無効です。");
+          return;
+        }
+
+        resultVideo.poster = isSafeHttpUrl(thumbnailUrl) ? thumbnailUrl : "";
+        resultVideo.src = videoUrl;
         resultVideo.style.display = "block";
         resultImage.style.display = "none";
-      } else {
-        resultImage.src = result.image_url || "";
-        resultImage.style.display = "block";
-        resultVideo.style.display = "none";
+        return;
       }
+
+      if (!imageUrl || !isSafeHttpUrl(imageUrl)) {
+        setMediaFallback("画像URLが無効です。");
+        return;
+      }
+
+      resultImage.src = imageUrl;
+      resultImage.alt = result?.title ? `${result.title} の画像` : "結果画像";
+      resultImage.style.display = "block";
+      resultVideo.style.display = "none";
     }
 
     function renderMeta(result) {
       const items = [
         ["HP", result.hp],
         ["ATK", result.atk],
-        ["DEF", result.def],
+        ["DEF", result.def ?? result.defense],
         ["SPD", result.spd],
         ["LUK", result.luk],
         ["総排出", result.draw_count],
@@ -310,36 +434,30 @@
 
       metaEl.innerHTML = items.map(([label, value]) => `
         <div class="meta-item">
-          <span>${label}</span>
-          <strong>${value ?? "-"}</strong>
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value ?? "-")}</strong>
         </div>
       `).join("");
     }
 
-    function renderPage(data) {
-      payload = data;
-      const result = data.result;
-      const info = data.info || {};
+    function shouldShowOffer(info) {
+      if (!authUser?.user_id) return false;
+      if (!info?.owner_user_id) return false;
+      if (info.owner_user_id === authUser.user_id) return false;
+      if (info.is_new_owner === true) return false;
+      return true;
+    }
 
-      renderMedia(result);
-      renderMeta(result);
-
-      rarityBadge.textContent = result.rarity || "N";
-      ownerBadge.textContent = `所有者: ${info.owner_user_id || "-"}`;
-      expBadge.textContent = `EXP +${info.exp_gained || 0}`;
-      titleEl.textContent = result.title || "ガチャ結果";
-      subEl.textContent = `${result.creator_name || "投稿者不明"} / ${result.genre || "未分類"} / ${result.type === "video" ? "動画" : "画像"}`;
-      descriptionEl.textContent = result.description || "説明なし";
-
-      if (info.is_new_owner) {
-        resultMessage.innerHTML = `初発見。あなたがこの作品の所有者になりました。<br>EXP +${info.exp_gained || 0}`;
-        offerArea.classList.remove("show");
-      } else {
-        resultMessage.innerHTML = `この作品は既に誰かが所有しています。<br>今回は所有権は移りませんが、EXP +${info.exp_gained || 0} を獲得しました。`;
+    function renderOfferArea(info) {
+      if (shouldShowOffer(info)) {
         offerArea.classList.add("show");
+      } else {
+        offerArea.classList.remove("show");
       }
+    }
 
-      if (result.link_url) {
+    function renderAuthorLink(result) {
+      if (result.link_url && isSafeHttpUrl(result.link_url)) {
         authorLinkButton.href = result.link_url;
         authorLinkButton.style.pointerEvents = "auto";
         authorLinkButton.style.opacity = "1";
@@ -350,52 +468,132 @@
       }
     }
 
+    function renderPage(data) {
+      payload = data;
+
+      const result = data.result || {};
+      const info = data.info || {};
+
+      renderMedia(result);
+      renderMeta(result);
+      renderAuthorLink(result);
+      renderOfferArea(info);
+
+      rarityBadge.textContent = result.rarity || "N";
+      ownerBadge.textContent = `所有者: ${info.owner_user_id || "-"}`;
+      expBadge.textContent = `EXP +${info.exp_gained || 0}`;
+      titleEl.textContent = result.title || "ガチャ結果";
+      subEl.textContent = `${result.creator_name || "投稿者不明"} / ${result.genre || "未分類"} / ${result.type === "video" ? "動画" : "画像"}`;
+      descriptionEl.textContent = result.description || "説明なし";
+
+      if (info.is_new_owner === true) {
+        resultMessage.innerHTML = `初発見。あなたがこの作品の所有者になりました。<br>EXP +${escapeHtml(info.exp_gained || 0)}`;
+      } else {
+        resultMessage.innerHTML = `この作品は既に誰かが所有しています。<br>今回は所有権は移りませんが、EXP +${escapeHtml(info.exp_gained || 0)} を獲得しました。`;
+      }
+    }
+
+    function disableActionButtons(disabled) {
+      likeButton.disabled = disabled || !authUser?.user_id || !hasValidResultId(payload);
+      battleButton.disabled = disabled || !authUser?.user_id || !hasValidResultId(payload);
+      offerButton.disabled = disabled || !authUser?.user_id || !hasValidResultId(payload);
+    }
+
     function shareToX() {
-      if (!payload) return;
+      if (!payload || !payload.result) return;
+
       const result = payload.result;
       const info = payload.info || {};
-      const text = `【${result.rarity || "N"}】${result.title}\n${info.is_new_owner ? "初所有GET" : "既所有発見"} / EXP +${info.exp_gained || 0}\n#美女ガチャクエスト #AIガチャ`;
+
+      const statusText = info.is_new_owner === true ? "初所有GET" : "既所有発見";
+      const text =
+        `【${result.rarity || "N"}】${result.title || "無題"}\n` +
+        `${statusText} / EXP +${info.exp_gained || 0}\n` +
+        `#美女ガチャクエスト #AIガチャ`;
+
       const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
       window.open(url, "_blank", "noopener,noreferrer");
     }
 
     async function likeCurrent() {
-      if (!payload || !authUser) return;
+      if (isBusyLike) return;
+      if (!authUser?.user_id) {
+        showMessage("いいねにはログインが必要です。");
+        return;
+      }
+      if (!hasValidResultId(payload)) {
+        showMessage("作品IDが無効です。");
+        return;
+      }
+
       try {
-        const data = await api(`/works/${payload.result.id}/like`, {
+        isBusyLike = true;
+        disableActionButtons(true);
+
+        const workId = payload.result.id;
+
+        const data = await api(`/works/${encodeURIComponent(workId)}/like`, {
           method: "POST",
-          body: JSON.stringify({
-            user_id: authUser.user_id,
-            work_id: payload.result.id
-          })
+          body: JSON.stringify({})
         });
+
         showMessage(data.message || "いいねしました");
       } catch (error) {
-        showMessage(error.message);
+        showMessage(error.message || "いいねに失敗しました。");
+      } finally {
+        isBusyLike = false;
+        disableActionButtons(false);
       }
     }
 
     async function battleCurrent() {
-      if (!payload || !authUser) return;
+      if (isBusyBattle) return;
+      if (!authUser?.user_id) {
+        showMessage("バトル参加にはログインが必要です。");
+        return;
+      }
+      if (!hasValidResultId(payload)) {
+        showMessage("作品IDが無効です。");
+        return;
+      }
+
       try {
+        isBusyBattle = true;
+        disableActionButtons(true);
+
+        const workId = payload.result.id;
+
         const data = await api(`/battle/entry`, {
           method: "POST",
           body: JSON.stringify({
-            user_id: authUser.user_id,
-            work_id: payload.result.id
+            work_id: workId
           })
         });
+
         showMessage(data.message || "バトル参加しました");
       } catch (error) {
-        showMessage(error.message);
+        showMessage(error.message || "バトル参加に失敗しました。");
+      } finally {
+        isBusyBattle = false;
+        disableActionButtons(false);
       }
     }
 
     async function sendOffer() {
-      if (!payload || !authUser) return;
+      if (isBusyOffer) return;
+
+      if (!authUser?.user_id) {
+        showMessage("オファー送信にはログインが必要です。");
+        return;
+      }
+      if (!hasValidResultId(payload)) {
+        showMessage("作品IDが無効です。");
+        return;
+      }
 
       const points = Number(offerPointInput.value || 0);
-      const ownerId = payload.info?.owner_user_id;
+      const ownerId = payload?.info?.owner_user_id;
+      const workId = payload?.result?.id;
 
       if (!ownerId) {
         showMessage("所有者情報がありません。");
@@ -405,39 +603,64 @@
         showMessage("自分の所有作品にはオファーできません。");
         return;
       }
-      if (points < 10) {
-        showMessage("オファーptは10以上にしてください。");
+      if (points < 10 || !Number.isInteger(points)) {
+        showMessage("オファーptは10以上の整数にしてください。");
         return;
       }
 
       try {
+        isBusyOffer = true;
+        disableActionButtons(true);
+
         const data = await api("/offers", {
           method: "POST",
           body: JSON.stringify({
-            from_user_id: authUser.user_id,
-            to_user_id: ownerId,
-            work_id: payload.result.id,
+            work_id: workId,
             offer_points: points
           })
         });
+
         showMessage(data.message || "オファーを送信しました。");
         offerPointInput.value = "";
       } catch (error) {
-        showMessage(error.message);
+        showMessage(error.message || "オファー送信に失敗しました。");
+      } finally {
+        isBusyOffer = false;
+        disableActionButtons(false);
       }
     }
 
+    function setInitialStateForNoResult(message) {
+      resultMessage.textContent = message;
+      titleEl.textContent = "ガチャ結果";
+      subEl.textContent = "読み込みに失敗しました";
+      descriptionEl.textContent = "説明なし";
+      offerArea.classList.remove("show");
+      likeButton.disabled = true;
+      battleButton.disabled = true;
+      offerButton.disabled = true;
+      setMediaFallback("表示できる結果データがありません。");
+    }
+
     function boot() {
+      bindMediaErrorHandlers();
+      hideMessage();
+
       authUser = readJSON(AUTH_STORAGE_KEY);
       payload = readJSON(RESULT_STORAGE_KEY);
 
       if (!payload) {
-        resultMessage.textContent = "ガチャ結果がありません。index.html から引いてください。";
-        offerArea.classList.remove("show");
+        setInitialStateForNoResult("ガチャ結果がありません。index.html から引いてください。");
+        return;
+      }
+
+      if (!hasValidResultId(payload)) {
+        setInitialStateForNoResult("結果データが不正です。作品IDが見つかりません。");
         return;
       }
 
       renderPage(payload);
+      disableActionButtons(false);
 
       shareButton.addEventListener("click", shareToX);
       likeButton.addEventListener("click", likeCurrent);
