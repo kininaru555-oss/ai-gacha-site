@@ -35,6 +35,12 @@
       padding: 12px;
       border-radius: 12px;
       font-weight: bold;
+      border: 1px solid transparent;
+    }
+
+    .top-links a.active {
+      background: #2563eb;
+      border-color: rgba(255,255,255,0.18);
     }
 
     .toolbar {
@@ -52,6 +58,14 @@
     .toolbar label {
       font-size: 13px;
       color: #aeb5c2;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toolbar select,
+    .toolbar input[type="checkbox"] {
+      accent-color: #2563eb;
     }
 
     .toolbar select {
@@ -71,6 +85,8 @@
       font-size: 13px;
       line-height: 1.7;
       border: 1px solid rgba(255,255,255,0.06);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .message.show {
@@ -106,6 +122,9 @@
       width: 100%;
       aspect-ratio: 3/4;
       background: #090b10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .thumb img,
@@ -113,6 +132,16 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    .thumb-fallback {
+      color: #9ca3af;
+      font-size: 12px;
+      padding: 14px;
+      text-align: center;
+      line-height: 1.6;
     }
 
     .body {
@@ -210,6 +239,11 @@
       text-decoration: none;
     }
 
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
     .btn-buy { background: #16a34a; }
     .btn-offer { background: #db2777; }
     .btn-link { background: #2563eb; }
@@ -223,6 +257,54 @@
       color: #9ca3af;
       font-size: 14px;
       padding: 10px 0;
+      line-height: 1.8;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 999;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .modal-sub {
+      color: #aeb5c2;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #101218;
+      color: #fff;
+      margin-bottom: 12px;
     }
 
     @media (max-width: 900px) {
@@ -270,6 +352,11 @@
         <option value="power_desc">戦闘力が高い順</option>
         <option value="total_exp_desc">累計EXPが多い順</option>
       </select>
+
+      <label for="hideMineCheckbox">
+        <input id="hideMineCheckbox" type="checkbox" />
+        自分の出品を非表示
+      </label>
     </div>
 
     <div id="systemMessage" class="message"></div>
@@ -277,17 +364,38 @@
     <div id="listingList" class="list"></div>
   </div>
 
+  <div id="offerModalOverlay" class="modal-overlay" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-title">オファー送信</div>
+      <div class="modal-sub">30pt以上の整数で入力してください。送信者や宛先はサーバー側で確定する必要があります。</div>
+      <input id="offerPointsInput" type="number" min="30" step="1" inputmode="numeric" placeholder="例: 100" />
+      <div class="buttons">
+        <button id="offerConfirmButton" class="btn-offer" type="button">送信する</button>
+        <button id="offerCancelButton" class="btn-disabled" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script>
-    const API_BASE = window.APP_CONFIG.API_BASE;
-    const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
+    const API_BASE = window.APP_CONFIG?.API_BASE || "";
+    const AUTH_STORAGE_KEY = window.APP_CONFIG?.AUTH_STORAGE_KEY || "auth";
 
     const listingList = document.getElementById("listingList");
     const systemMessage = document.getElementById("systemMessage");
     const sortSelect = document.getElementById("sortSelect");
+    const hideMineCheckbox = document.getElementById("hideMineCheckbox");
+
+    const offerModalOverlay = document.getElementById("offerModalOverlay");
+    const offerPointsInput = document.getElementById("offerPointsInput");
+    const offerConfirmButton = document.getElementById("offerConfirmButton");
+    const offerCancelButton = document.getElementById("offerCancelButton");
 
     let authUser = null;
     let rawListings = [];
+    let busyKeys = new Set();
+    let offerTarget = null;
+    let videosObserver = null;
 
     function readAuth() {
       try {
@@ -296,6 +404,23 @@
       } catch {
         return null;
       }
+    }
+
+    function getAuthToken(auth) {
+      if (!auth || typeof auth !== "object") return "";
+      return auth.access_token || auth.token || auth.id_token || "";
+    }
+
+    function getAuthHeaders(extraHeaders = {}) {
+      const token = getAuthToken(authUser);
+      const headers = {
+        "Content-Type": "application/json",
+        ...extraHeaders
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      return headers;
     }
 
     function showMessage(text) {
@@ -310,16 +435,15 @@
 
     async function api(path, options = {}) {
       const res = await fetch(`${API_BASE}${path}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {})
-        },
-        ...options
+        method: options.method || "GET",
+        headers: getAuthHeaders(options.headers || {}),
+        credentials: "include",
+        body: options.body
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.detail || "APIエラー");
+        throw new Error(data.detail || data.message || "APIエラー");
       }
       return data;
     }
@@ -337,12 +461,32 @@
       return escapeHtml(value);
     }
 
+    function isHttpUrl(value) {
+      return typeof value === "string" && /^https?:\/\//i.test(value);
+    }
+
+    function beginBusy(key) {
+      if (busyKeys.has(key)) return false;
+      busyKeys.add(key);
+      return true;
+    }
+
+    function endBusy(key) {
+      busyKeys.delete(key);
+    }
+
+    function formatPoints(value) {
+      const n = Number(value || 0);
+      return Number.isFinite(n) ? `${n.toLocaleString("ja-JP")} pt` : "0 pt";
+    }
+
     function getCardPower(item) {
       if (typeof item.card_power === "number") return item.card_power;
+      if (typeof item.power === "number") return item.power;
       return (
         Number(item.hp || 0) +
         Number(item.atk || 0) +
-        Number(item.def || 0) +
+        Number(item.def ?? item.defense || 0) +
         Number(item.spd || 0) +
         Number(item.luk || 0)
       );
@@ -379,71 +523,93 @@
       return copied;
     }
 
+    function mediaHtml(item) {
+      if (item.video_url && isHttpUrl(item.video_url)) {
+        const poster = isHttpUrl(item.thumbnail_url) ? ` poster="${escapeAttr(item.thumbnail_url)}"` : "";
+        return `<video class="js-lazy-video" data-src="${escapeAttr(item.video_url)}" muted playsinline preload="none"${poster}></video>`;
+      }
+
+      if (item.image_url && isHttpUrl(item.image_url)) {
+        return `<img src="${escapeAttr(item.image_url)}" alt="${escapeAttr(item.title || "カード画像")}" loading="lazy" />`;
+      }
+
+      if (item.thumbnail_url && isHttpUrl(item.thumbnail_url)) {
+        return `<img src="${escapeAttr(item.thumbnail_url)}" alt="${escapeAttr(item.title || "カード画像")}" loading="lazy" />`;
+      }
+
+      return `<div class="thumb-fallback">メディアなし</div>`;
+    }
+
     function renderListings(items) {
       if (!items.length) {
-        listingList.innerHTML = `<div class="empty">現在、出品中の作品はありません。マイページから自分の育成カードを出品できます。</div>`;
+        listingList.innerHTML = `
+          <div class="empty">
+            現在、出品中の作品はありません。<br>
+            <a href="mypage.html" style="color:#93c5fd;text-decoration:underline;">マイページから出品しよう</a>
+          </div>
+        `;
         return;
       }
 
       listingList.innerHTML = items.map(item => {
-        const isMine = authUser && authUser.user_id && item.seller_user_id === authUser.user_id;
+        const currentUserId = authUser?.user_id || "";
+        const sellerId = item.seller_user_id || "";
+        const isMine = currentUserId && sellerId === currentUserId;
+        const sellerLabel = item.seller_name || sellerId || "不明";
         const cardPower = getCardPower(item);
 
         return `
           <div class="item">
             <div class="thumb">
-              ${item.video_url
-                ? `<video src="${escapeAttr(item.video_url)}" muted playsinline preload="metadata"></video>`
-                : `<img src="${escapeAttr(item.image_url || "")}" alt="${escapeAttr(item.title)}" />`
-              }
+              ${mediaHtml(item)}
             </div>
 
             <div class="body">
               <div class="badge-row">
                 <div class="badge">${escapeHtml(item.rarity || "N")}</div>
                 ${item.is_legend ? `<div class="badge legend">LEGEND</div>` : ""}
-                <div class="badge">Lv ${item.level ?? 1}</div>
-                <div class="badge wins">勝利 ${item.win_count ?? 0}</div>
-                <div class="badge power">戦闘力 ${cardPower}</div>
+                <div class="badge">Lv ${escapeHtml(item.level ?? 1)}</div>
+                <div class="badge wins">勝利 ${escapeHtml(item.win_count ?? 0)}</div>
+                <div class="badge power">戦闘力 ${escapeHtml(cardPower)}</div>
               </div>
 
-              <div class="title">${escapeHtml(item.title)}</div>
+              <div class="title">${escapeHtml(item.title || "無題")}</div>
 
               <div class="muted">
                 作者: ${escapeHtml(item.creator_name || "不明")}<br>
-                所有者: ${escapeHtml(item.seller_user_id)}<br>
-                総排出: ${item.draw_count ?? 0}<br>
-                累計EXP: ${item.total_exp ?? 0} / 総バトル: ${item.battle_count ?? 0}
+                出品者: ${escapeHtml(sellerLabel)}<br>
+                総排出: ${escapeHtml(item.draw_count ?? 0)}<br>
+                累計EXP: ${escapeHtml(item.total_exp ?? 0)} / 総バトル: ${escapeHtml(item.battle_count ?? 0)}
               </div>
 
               <div class="stats-grid">
                 <div class="stat-box">
                   <span>HP</span>
-                  <strong>${item.hp ?? "-"}</strong>
+                  <strong>${escapeHtml(item.hp ?? "-")}</strong>
                 </div>
                 <div class="stat-box">
                   <span>ATK</span>
-                  <strong>${item.atk ?? "-"}</strong>
+                  <strong>${escapeHtml(item.atk ?? "-")}</strong>
                 </div>
                 <div class="stat-box">
                   <span>DEF</span>
-                  <strong>${item.def ?? "-"}</strong>
+                  <strong>${escapeHtml(item.def ?? item.defense ?? "-")}</strong>
                 </div>
                 <div class="stat-box">
                   <span>SPD</span>
-                  <strong>${item.spd ?? "-"}</strong>
+                  <strong>${escapeHtml(item.spd ?? "-")}</strong>
                 </div>
                 <div class="stat-box">
                   <span>LUK</span>
-                  <strong>${item.luk ?? "-"}</strong>
+                  <strong>${escapeHtml(item.luk ?? "-")}</strong>
                 </div>
                 <div class="stat-box">
                   <span>現在EXP</span>
-                  <strong>${item.exp ?? 0}</strong>
+                  <strong>${escapeHtml(item.exp ?? 0)}</strong>
                 </div>
               </div>
 
-              <div class="price">${item.price_points} pt</div>
+              <div class="price">${formatPoints(item.price_points)}</div>
 
               <div class="muted">
                 取引成立時：運営 30% ／ 所有者 35% ／ クリエイター 35%
@@ -453,12 +619,12 @@
                 ${
                   isMine
                     ? `<button class="btn-disabled" type="button" disabled>自分の出品</button>`
-                    : `<button class="btn-buy" onclick="buyItem(${item.listing_id})" type="button">購入</button>`
+                    : `<button class="btn-buy js-buy" data-listing-id="${escapeAttr(item.listing_id)}" type="button">購入</button>`
                 }
                 ${
                   isMine
                     ? ``
-                    : `<button class="btn-offer" onclick="offerItem(${item.work_id}, '${escapeAttr(item.seller_user_id)}')" type="button">オファー</button>`
+                    : `<button class="btn-offer js-offer" data-work-id="${escapeAttr(item.work_id)}" data-listing-id="${escapeAttr(item.listing_id)}" type="button">オファー</button>`
                 }
                 ${
                   item.link_url
@@ -470,89 +636,214 @@
           </div>
         `;
       }).join("");
+
+      bindMediaFallbacks();
+      setupLazyVideos();
+    }
+
+    function bindMediaFallbacks() {
+      listingList.querySelectorAll("img").forEach((img) => {
+        img.onerror = () => {
+          const parent = img.parentElement;
+          if (!parent) return;
+          parent.innerHTML = `<div class="thumb-fallback">画像を読み込めませんでした</div>`;
+        };
+      });
+
+      listingList.querySelectorAll("video").forEach((video) => {
+        video.onerror = () => {
+          const parent = video.parentElement;
+          if (!parent) return;
+          parent.innerHTML = `<div class="thumb-fallback">動画を読み込めませんでした</div>`;
+        };
+      });
+    }
+
+    function setupLazyVideos() {
+      if (videosObserver) {
+        videosObserver.disconnect();
+        videosObserver = null;
+      }
+
+      const videos = listingList.querySelectorAll(".js-lazy-video");
+      if (!videos.length) return;
+
+      if (!("IntersectionObserver" in window)) {
+        videos.forEach((video) => {
+          const src = video.dataset.src;
+          if (src) {
+            video.src = src;
+            video.setAttribute("preload", "metadata");
+          }
+        });
+        return;
+      }
+
+      videosObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const video = entry.target;
+          const src = video.dataset.src;
+          if (src && !video.src) {
+            video.src = src;
+            video.setAttribute("preload", "metadata");
+          }
+          videosObserver.unobserve(video);
+        });
+      }, { rootMargin: "200px 0px" });
+
+      videos.forEach((video) => videosObserver.observe(video));
     }
 
     function applyRender() {
       const mode = sortSelect.value || "new";
-      const sorted = sortListings(rawListings, mode);
+      let items = [...rawListings];
+
+      if (hideMineCheckbox.checked && authUser?.user_id) {
+        items = items.filter((item) => item.seller_user_id !== authUser.user_id);
+      }
+
+      const sorted = sortListings(items, mode);
       renderListings(sorted);
     }
 
     async function loadListings() {
       clearMessage();
+
       try {
         const data = await api("/market/listings");
         rawListings = data.items || [];
         applyRender();
       } catch (error) {
-        showMessage(error.message || "マーケットの読み込みに失敗しました。しばらく待ってから再読み込みしてください。");
+        showMessage(error.message || "マーケットの読み込みに失敗しました。");
       }
     }
 
     async function buyItem(listingId) {
-      if (!authUser || !authUser.user_id) {
+      if (!authUser || !getAuthToken(authUser)) {
         showMessage("購入にはログインが必要です。トップページからログインしてください。");
         return;
       }
+
+      const key = `buy:${listingId}`;
+      if (!beginBusy(key)) return;
 
       try {
         const data = await api("/market/buy", {
           method: "POST",
           body: JSON.stringify({
-            buyer_user_id: authUser.user_id,
-            listing_id: listingId
+            listing_id: Number(listingId)
           })
         });
-        showMessage(data.message || "購入しました！");
+        showMessage(data.message || "購入しました。");
         await loadListings();
       } catch (error) {
-        showMessage(error.message);
+        showMessage(error.message || "購入に失敗しました。");
+      } finally {
+        endBusy(key);
       }
     }
 
-    async function offerItem(workId, sellerId) {
-      if (!authUser || !authUser.user_id) {
-        showMessage("オファーにはログインが必要です。トップページからログインしてください。");
+    function openOfferModal(workId, listingId) {
+      offerTarget = {
+        workId: Number(workId),
+        listingId: Number(listingId)
+      };
+      offerPointsInput.value = "";
+      offerModalOverlay.classList.add("show");
+      offerModalOverlay.setAttribute("aria-hidden", "false");
+      offerPointsInput.focus();
+    }
+
+    function closeOfferModal() {
+      offerTarget = null;
+      offerPointsInput.value = "";
+      offerModalOverlay.classList.remove("show");
+      offerModalOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    async function confirmOffer() {
+      if (!authUser || !getAuthToken(authUser)) {
+        showMessage("オファーにはログインが必要です。");
+        return;
+      }
+      if (!offerTarget) return;
+
+      const offerPoints = Number(offerPointsInput.value || 0);
+      if (!Number.isInteger(offerPoints) || offerPoints < 30) {
+        showMessage("オファーは30pt以上の整数で送信してください。");
         return;
       }
 
-      if (sellerId === authUser.user_id) {
-        showMessage("自分が出品した作品にはオファーを送れません。");
-        return;
-      }
-
-      const points = prompt("何ptでオファーしますか？（最低30pt）", "100");
-      if (!points) return;
-
-      const offerPoints = Number(points);
-      if (!Number.isFinite(offerPoints) || offerPoints < 30) {
-        showMessage("オファーは30pt以上で送信してください。");
-        return;
-      }
+      const key = `offer:${offerTarget.listingId}`;
+      if (!beginBusy(key)) return;
 
       try {
         const data = await api("/offers", {
           method: "POST",
           body: JSON.stringify({
-            from_user_id: authUser.user_id,
-            to_user_id: sellerId,
-            work_id: workId,
+            work_id: offerTarget.workId,
             offer_points: offerPoints
           })
         });
-        showMessage(data.message || "オファーを送信しました！");
+        showMessage(data.message || "オファーを送信しました。");
+        closeOfferModal();
       } catch (error) {
-        showMessage(error.message);
+        showMessage(error.message || "オファー送信に失敗しました。");
+      } finally {
+        endBusy(key);
       }
     }
 
-    window.buyItem = buyItem;
-    window.offerItem = offerItem;
+    function bindListingDelegation() {
+      listingList.addEventListener("click", async (e) => {
+        const buyBtn = e.target.closest(".js-buy");
+        if (buyBtn) {
+          const listingId = buyBtn.dataset.listingId;
+          if (listingId) {
+            await buyItem(listingId);
+          }
+          return;
+        }
+
+        const offerBtn = e.target.closest(".js-offer");
+        if (offerBtn) {
+          const workId = offerBtn.dataset.workId;
+          const listingId = offerBtn.dataset.listingId;
+          if (workId && listingId) {
+            openOfferModal(workId, listingId);
+          }
+        }
+      });
+    }
+
+    function bindOfferModal() {
+      offerConfirmButton.addEventListener("click", confirmOffer);
+      offerCancelButton.addEventListener("click", closeOfferModal);
+
+      offerModalOverlay.addEventListener("click", (e) => {
+        if (e.target === offerModalOverlay) {
+          closeOfferModal();
+        }
+      });
+
+      offerPointsInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          confirmOffer();
+        } else if (e.key === "Escape") {
+          closeOfferModal();
+        }
+      });
+    }
 
     function boot() {
       authUser = readAuth();
 
       sortSelect.addEventListener("change", applyRender);
+      hideMineCheckbox.addEventListener("change", applyRender);
+
+      bindListingDelegation();
+      bindOfferModal();
 
       loadListings();
     }
