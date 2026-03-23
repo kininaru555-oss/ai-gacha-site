@@ -2,68 +2,80 @@ const API_BASE = window.APP_CONFIG.API_BASE;
 const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
 const RESULT_STORAGE_KEY = window.APP_CONFIG.RESULT_STORAGE_KEY;
 const POST_SUCCESS_NOTICE_KEY = window.APP_CONFIG.POST_SUCCESS_NOTICE_KEY;
+
+const userIdInput = document.getElementById("userIdInput");
+const passwordInput = document.getElementById("passwordInput");
+const loginButton = document.getElementById("loginButton");
+const logoutButton = document.getElementById("logoutButton");
+const loginStatus = document.getElementById("loginStatus");
+
+const pointsText = document.getElementById("pointsText");
+const expText = document.getElementById("expText");
+const levelText = document.getElementById("levelText");
+const freeDrawText = document.getElementById("freeDrawText");
+const reviveText = document.getElementById("reviveText");
+const ballText = document.getElementById("ballText");
+
+const pointsBox = document.getElementById("pointsBox");
+const expBox = document.getElementById("expBox");
+const levelBox = document.getElementById("levelBox");
+const freeDrawBox = document.getElementById("freeDrawBox");
+
+const freeDrawButton = document.getElementById("freeDrawButton");
+const paidDrawButton = document.getElementById("paidDrawButton");
+
+const placeholder = document.getElementById("placeholder");
+const resultImage = document.getElementById("resultImage");
+const resultVideo = document.getElementById("resultVideo");
+
+const systemMessage = document.getElementById("systemMessage");
+const rewardNotice = document.getElementById("rewardNotice");
+const rewardNoticeText = document.getElementById("rewardNoticeText");
+const rewardDrawButton = document.getElementById("rewardDrawButton");
+
 let authUser = null;
 let isDrawing = false;
 let previousFreeDrawCount = null;
+let previousPointCount = null;
 
-// DOM要素をまとめて管理（可読性UP）
-const els = {
-  userIdInput: document.getElementById("userIdInput"),
-  passwordInput: document.getElementById("passwordInput"),
-  loginButton: document.getElementById("loginButton"),
-  logoutButton: document.getElementById("logoutButton"),
-  loginStatus: document.getElementById("loginStatus"),
-  pointsText: document.getElementById("pointsText"),
-  expText: document.getElementById("expText"),
-  levelText: document.getElementById("levelText"),
-  freeDrawText: document.getElementById("freeDrawText"),
-  reviveText: document.getElementById("reviveText"),
-  ballText: document.getElementById("ballText"),
-  freeDrawButton: document.getElementById("freeDrawButton"),
-  paidDrawButton: document.getElementById("paidDrawButton"),
-  placeholder: document.getElementById("placeholder"),
-  resultImage: document.getElementById("resultImage"),
-  resultVideo: document.getElementById("resultVideo"),
-  systemMessage: document.getElementById("systemMessage"),
-  rewardNotice: document.getElementById("rewardNotice"),
-  rewardNoticeText: document.getElementById("rewardNoticeText"),
-  rewardDrawButton: document.getElementById("rewardDrawButton"),
-};
-
-function showMessage(text, isError = false) {
-  els.systemMessage.textContent = text;
-  els.systemMessage.style.color = isError ? "#ff6b6b" : "#4ade80";
-  els.systemMessage.classList.add("show");
+function showMessage(text) {
+  if (!systemMessage) return;
+  systemMessage.textContent = text;
+  systemMessage.classList.add("show");
 }
 
 function clearMessage() {
-  els.systemMessage.textContent = "";
-  els.systemMessage.classList.remove("show");
+  if (!systemMessage) return;
+  systemMessage.textContent = "";
+  systemMessage.classList.remove("show");
 }
 
 function showRewardNotice(text) {
-  if (els.rewardNotice && els.rewardNoticeText) {
-    els.rewardNoticeText.textContent = text;
-    els.rewardNotice.style.display = "block";
+  if (!rewardNotice) return;
+  if (rewardNoticeText) {
+    rewardNoticeText.textContent = text;
+  } else {
+    rewardNotice.textContent = text;
   }
+  rewardNotice.style.display = "block";
 }
 
 function clearRewardNotice() {
-  if (els.rewardNotice) els.rewardNotice.style.display = "none";
-  if (els.rewardNoticeText) els.rewardNoticeText.textContent = "";
+  if (!rewardNotice) return;
+  rewardNotice.style.display = "none";
+  if (rewardNoticeText) rewardNoticeText.textContent = "";
 }
 
 function saveAuth(data) {
-  // passwordは絶対保存しない
-  const safe = { user_id: data.user_id, token: data.token };
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(safe));
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
 }
 
 function loadAuth() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch {
+  } catch (error) {
+    console.warn("auth parse failed", error);
     return null;
   }
 }
@@ -79,181 +91,211 @@ function consumePostSuccessNotice() {
     const data = JSON.parse(raw);
     localStorage.removeItem(POST_SUCCESS_NOTICE_KEY);
     return data;
-  } catch {
+  } catch (error) {
     localStorage.removeItem(POST_SUCCESS_NOTICE_KEY);
     return null;
   }
 }
 
 async function api(path, options = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(authUser?.token ? { "Authorization": `Bearer ${authUser.token}` } : {}),
-    ...(options.headers || {}),
-  };
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
 
-  const res = await fetch(`\( {API_BASE} \){path}`, { ...options, headers });
-  let data;
-  try { data = await res.json(); } catch { data = {}; }
+  const data = await response.json().catch(() => ({}));
 
-  if (!res.ok) {
-    throw new Error(data.detail || data.message || `APIエラー (${res.status})`);
+  if (!response.ok) {
+    throw new Error(data.detail || "APIエラー");
   }
+
   return data;
 }
 
 function updateLoginUI() {
-  if (authUser?.user_id) {
-    els.loginStatus.textContent = `ログイン中: ${authUser.user_id}`;
-    els.logoutButton.style.display = "block";
-    els.loginButton.style.display = "none";
+  if (authUser && authUser.user_id) {
+    loginStatus.textContent = `ログイン中: ${authUser.user_id}`;
+    logoutButton.style.display = "block";
+    userIdInput.value = authUser.user_id || "";
   } else {
-    els.loginStatus.textContent = "未ログイン";
-    els.logoutButton.style.display = "none";
-    els.loginButton.style.display = "block";
+    loginStatus.textContent = "未ログイン";
+    logoutButton.style.display = "none";
   }
 }
 
-function updateDrawButtons() {
-  if (!authUser) {
-    els.freeDrawButton.disabled = true;
-    els.paidDrawButton.disabled = true;
-    return;
-  }
-
-  const hasFree = (authUser.free_draw_count ?? 0) > 0;
-  const hasPoints = (authUser.points ?? 0) >= 30;
-
-  els.freeDrawButton.disabled = !hasFree;
-  els.paidDrawButton.disabled = !hasPoints;
-
-  els.freeDrawButton.textContent = hasFree ? "無料ガチャ" : "無料回数0";
-  els.paidDrawButton.textContent = hasPoints ? "30ptガチャ" : "pt不足";
+function flashBox(element) {
+  if (!element) return;
+  element.classList.add("flash");
+  setTimeout(() => {
+    element.classList.remove("flash");
+  }, 1200);
 }
 
 function animateFreeDrawIncrease(oldValue, newValue) {
-  if (oldValue == null || newValue <= oldValue) return;
-  if (els.freeDrawText?.parentElement) {
-    const box = els.freeDrawText.parentElement;
-    box.classList.add("flash");
-    setTimeout(() => box.classList.remove("flash"), 1200);
+  if (oldValue === null || oldValue === undefined) return;
+  if (newValue > oldValue) {
+    flashBox(freeDrawBox);
   }
 }
 
-function updateStatusUI(user = {}) {
-  els.pointsText.textContent    = user.points ?? 0;
-  els.expText.textContent       = user.exp ?? 0;
-  els.levelText.textContent     = user.level ?? 1;
-  const newFree = user.free_draw_count ?? 0;
-  els.freeDrawText.textContent  = newFree;
-  els.reviveText.textContent    = user.revive_item_count ?? 0;
-  els.ballText.textContent      = `${user.ball_count ?? 0} / 7`;
+function animatePointsIncrease(oldValue, newValue) {
+  if (oldValue === null || oldValue === undefined) return;
+  if (newValue > oldValue) {
+    flashBox(pointsBox);
+  }
+}
 
-  animateFreeDrawIncrease(previousFreeDrawCount, newFree);
-  previousFreeDrawCount = newFree;
+function updateStatusUI(user) {
+  if (!user) return;
 
-  updateDrawButtons();
+  const newPoints = user.points ?? 0;
+  const newFreeDrawCount = user.free_draw_count ?? 0;
+
+  pointsText.textContent = newPoints;
+  expText.textContent = user.exp ?? 0;
+  levelText.textContent = user.level ?? 1;
+  freeDrawText.textContent = newFreeDrawCount;
+  reviveText.textContent = user.revive_item_count ?? 0;
+  ballText.textContent = `${user.ball_count ?? 0} / 7`;
+
+  animatePointsIncrease(previousPointCount, newPoints);
+  animateFreeDrawIncrease(previousFreeDrawCount, newFreeDrawCount);
+
+  previousPointCount = newPoints;
+  previousFreeDrawCount = newFreeDrawCount;
 }
 
 function clearPreview() {
-  els.resultImage.style.display = "none";
-  els.resultVideo.style.display = "none";
-  els.resultImage.src = "";
-  els.resultVideo.pause();
-  els.resultVideo.removeAttribute("src");
-  els.resultVideo.load();
-  els.placeholder.style.display = "block";
+  if (resultImage) {
+    resultImage.style.display = "none";
+    resultImage.src = "";
+  }
+
+  if (resultVideo) {
+    resultVideo.style.display = "none";
+    resultVideo.pause();
+    resultVideo.removeAttribute("src");
+    resultVideo.load();
+  }
+
+  if (placeholder) {
+    placeholder.style.display = "block";
+  }
 }
 
 function previewResult(result) {
   if (!result) return;
-  els.placeholder.style.display = "none";
+
+  if (placeholder) {
+    placeholder.style.display = "none";
+  }
 
   if (result.type === "video" && result.video_url) {
-    els.resultVideo.src = result.video_url;
-    els.resultVideo.style.display = "block";
-    els.resultImage.style.display = "none";
+    resultVideo.src = result.video_url;
+    resultVideo.style.display = "block";
+    resultImage.style.display = "none";
   } else {
-    els.resultImage.src = result.image_url || "";
-    els.resultImage.style.display = "block";
-    els.resultVideo.style.display = "none";
+    resultImage.src = result.image_url || "";
+    resultImage.style.display = "block";
+    resultVideo.style.display = "none";
   }
 }
 
 async function refreshUser() {
-  if (!authUser?.user_id) return;
-  try {
-    const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
-    authUser = { ...authUser, ...data };
-    saveAuth(authUser);
-    updateStatusUI(authUser);
-    updateLoginUI();
-  } catch (err) {
-    console.error("ユーザー更新失敗", err);
-  }
+  if (!authUser || !authUser.user_id) return;
+  const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
+  authUser = { ...authUser, ...data };
+  saveAuth(authUser);
+  updateStatusUI(authUser);
+  updateLoginUI();
+}
+
+async function loadUserStatus() {
+  if (!authUser || !authUser.user_id) return;
+  await refreshUser();
 }
 
 async function handleLogin() {
-  const userId = els.userIdInput.value.trim();
-  const password = els.passwordInput.value.trim();
+  const userId = (userIdInput.value || "").trim();
+  const password = (passwordInput.value || "").trim();
 
   if (!userId || !password) {
-    showMessage("ユーザーIDとパスワードを入力してください", true);
+    showMessage("ユーザーIDとパスワードを入力してください。");
     return;
   }
 
   try {
-    els.loginButton.disabled = true;
-    els.loginButton.textContent = "ログイン中...";
     clearMessage();
+    loginButton.disabled = true;
+    loginButton.textContent = "ログイン中...";
 
     const data = await api("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ user_id: userId, password })
+      body: JSON.stringify({
+        user_id: userId,
+        password: password
+      })
     });
 
     authUser = data;
     saveAuth(authUser);
+
+    previousPointCount = authUser.points ?? 0;
     previousFreeDrawCount = authUser.free_draw_count ?? 0;
+
     updateLoginUI();
-    await refreshUser();
-    showMessage("ログイン成功！");
-
-    // 投稿成功通知があれば表示
-    const notice = consumePostSuccessNotice();
-    if (notice?.message) showRewardNotice(notice.message);
-
-  } catch (err) {
-    showMessage(err.message || "ログインに失敗しました", true);
+    updateStatusUI(authUser);
+    showMessage("ログインしました。");
+  } catch (error) {
+    showMessage(error.message || "ログインに失敗しました。");
   } finally {
-    els.loginButton.disabled = false;
-    els.loginButton.textContent = "ログイン / 新規作成";
+    loginButton.disabled = false;
+    loginButton.textContent = "ログイン / 新規登録";
   }
 }
 
 function handleLogout() {
   authUser = null;
   previousFreeDrawCount = null;
+  previousPointCount = null;
   clearAuth();
   clearRewardNotice();
   localStorage.removeItem(POST_SUCCESS_NOTICE_KEY);
+
   updateLoginUI();
-  updateStatusUI();
+  updateStatusUI({
+    points: 0,
+    exp: 0,
+    level: 1,
+    free_draw_count: 0,
+    revive_item_count: 0,
+    ball_count: 0
+  });
+
   clearPreview();
-  showMessage("ログアウトしました");
+  showMessage("ログアウトしました。");
 }
 
 async function drawGacha(type) {
-  if (isDrawing || !authUser) return;
+  if (isDrawing) return;
 
-  isDrawing = true;
-  clearMessage();
-
-  const btn = type === "paid" ? els.paidDrawButton : els.freeDrawButton;
-  btn.disabled = true;
-  btn.textContent = "ガチャ中...";
+  if (!authUser || !authUser.user_id) {
+    showMessage("先にログインしてください。");
+    return;
+  }
 
   try {
+    isDrawing = true;
+    clearMessage();
+
+    freeDrawButton.disabled = true;
+    paidDrawButton.disabled = true;
+    freeDrawButton.textContent = "ガチャ中...";
+    paidDrawButton.textContent = "ガチャ中...";
+
     const path = type === "paid"
       ? `/gacha/paid/${encodeURIComponent(authUser.user_id)}`
       : `/gacha/free/${encodeURIComponent(authUser.user_id)}`;
@@ -265,21 +307,15 @@ async function drawGacha(type) {
 
     await refreshUser();
 
-    // 少し演出待機してから結果ページへ
-    setTimeout(() => {
-      location.href = "result.html";
-    }, 800);
-
-  } catch (err) {
-    let msg = "ガチャに失敗しました";
-    if (err.message.includes("points")) msg = "ポイントが不足しています";
-    if (err.message.includes("free"))  msg = "無料回数がありません";
-    showMessage(msg, true);
+    location.href = "result.html";
+  } catch (error) {
+    showMessage(error.message || "ガチャに失敗しました。");
   } finally {
     isDrawing = false;
-    btn.disabled = false;
-    btn.textContent = type === "paid" ? "30ptガチャ" : "無料ガチャ";
-    updateDrawButtons();
+    freeDrawButton.disabled = false;
+    paidDrawButton.disabled = false;
+    freeDrawButton.textContent = "無料ガチャを引く";
+    paidDrawButton.textContent = "30ptガチャを引く";
   }
 }
 
@@ -288,190 +324,153 @@ async function drawFreeFromNotice() {
   await drawGacha("free");
 }
 
-function init() {
-  authUser = loadAuth();
-  updateLoginUI();
+function handleStripeResult() {
+  const params = new URLSearchParams(window.location.search);
+  const success = params.get("success");
+  const cancel = params.get("cancel");
 
-  if (authUser) {
-    previousFreeDrawCount = authUser.free_draw_count ?? 0;
-    refreshUser().then(() => {
-      const notice = consumePostSuccessNotice();
-      if (notice?.message) showRewardNotice(notice.message);
-    });
-  } else {
-    updateStatusUI();
+  if (success === "1") {
+    showMessage("決済が完了しました。ポイントが反映されています。");
+    if (typeof loadUserStatus === "function") {
+      loadUserStatus().then(() => {
+        flashBox(pointsBox);
+      }).catch(() => {});
+    } else {
+      flashBox(pointsBox);
+    }
+    history.replaceState({}, "", location.pathname);
   }
 
-  clearPreview();
-
-  els.loginButton.addEventListener("click", handleLogin);
-  els.logoutButton.addEventListener("click", handleLogout);
-  els.freeDrawButton.addEventListener("click", () => drawGacha("free"));
-  els.paidDrawButton.addEventListener("click", () => drawGacha("paid"));
-
-  if (els.rewardDrawButton) {
-    els.rewardDrawButton.addEventListener("click", drawFreeFromNotice);
-  }
-
-  els.passwordInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") handleLogin();
-  });
-}
-
-document.addEventListener("DOMContentLoaded", init);}
-
-function clearPreview() {
-  elements.resultImage.style.display = "none";
-  elements.resultVideo.style.display = "none";
-  elements.resultImage.src = "";
-  elements.resultVideo.pause();
-  elements.resultVideo.removeAttribute("src");
-  elements.resultVideo.load();
-  elements.placeholder.style.display = "block";
-  elements.stage.classList.remove("ssr", "rare");
-}
-
-function previewResult(result) {
-  if (!result) return;
-  elements.placeholder.style.display = "none";
-
-  if (result.type === "video" && result.video_url) {
-    elements.resultVideo.src = result.video_url;
-    elements.resultVideo.style.display = "block";
-    elements.resultImage.style.display = "none";
-  } else if (result.image_url) {
-    elements.resultImage.src = result.image_url;
-    elements.resultImage.style.display = "block";
-    elements.resultVideo.style.display = "none";
-  }
-
-  // レアリティによるクラス付与（CSSで光らせたい場合）
-  if (result.rarity === "SSR") {
-    elements.stage.classList.add("ssr");
-  } else if (result.rarity === "RARE") {
-    elements.stage.classList.add("rare");
+  if (cancel === "1") {
+    showMessage("決済がキャンセルされました。");
+    history.replaceState({}, "", location.pathname);
   }
 }
 
-async function refreshUser() {
-  if (!authUser?.user_id) return;
+async function buyPoints(type) {
   try {
-    const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
-    authUser = { ...authUser, ...data };
-    saveAuth(authUser);
-    updateStatusUI(authUser);
-    updateDrawButtons();
-  } catch (err) {
-    console.error("ユーザー情報更新失敗", err);
-  }
-}
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const auth = raw ? JSON.parse(raw) : null;
 
-async function handleLogin() {
-  const userId = elements.userIdInput.value.trim();
-  const password = elements.passwordInput.value.trim();
+    if (!auth || !auth.user_id) {
+      showMessage("先にログインしてください。");
+      return;
+    }
 
-  if (!userId || !password) {
-    showMessage("ユーザーIDとパスワードを入力してください", true);
-    return;
-  }
-
-  try {
-    elements.loginButton.disabled = true;
-    elements.loginButton.textContent = "ログイン中...";
     clearMessage();
 
-    const data = await api("/auth/login", {
+    const response = await fetch(`${API_BASE}/create-checkout-session`, {
       method: "POST",
-      body: JSON.stringify({ user_id: userId, password }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_id: auth.user_id,
+        type: type
+      })
     });
 
-    authUser = data;
-    saveAuth(authUser);
-    updateLoginUI();
-    await refreshUser();
-    showMessage("ログイン成功！");
-  } catch (err) {
-    showMessage(err.message || "ログインに失敗しました", true);
-  } finally {
-    elements.loginButton.disabled = false;
-    elements.loginButton.textContent = "ログイン / 新規作成";
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.detail || "決済セッション作成に失敗しました");
+    }
+
+    if (!data.url) {
+      throw new Error("決済URLを取得できませんでした");
+    }
+
+    window.location.href = data.url;
+  } catch (error) {
+    showMessage(error.message || "決済開始に失敗しました。");
   }
 }
 
-function handleLogout() {
-  authUser = null;
-  clearAuth();
-  updateLoginUI();
-  updateStatusUI();
-  updateDrawButtons();
-  clearPreview();
-  showMessage("ログアウトしました");
-}
+function injectPointPurchaseButtons() {
+  const existing = document.getElementById("pointPurchaseCard");
+  if (existing) return;
 
-async function drawGacha(type) {
-  if (isDrawing || !authUser) return;
+  const cards = document.querySelectorAll(".card");
+  if (!cards || cards.length < 3) return;
 
-  isDrawing = true;
-  clearMessage();
+  const purchaseCard = document.createElement("div");
+  purchaseCard.className = "card";
+  purchaseCard.id = "pointPurchaseCard";
+  purchaseCard.innerHTML = `
+    <h2>ポイント購入</h2>
+    <p class="sub">初回購入はポイント50%増量です。</p>
+    <div class="button-group">
+      <button id="buy300Button" class="btn-link" type="button">300pt / ¥300（初回 450pt）</button>
+      <button id="buy1000Button" class="btn-link" type="button">1100pt / ¥1000（初回 1650pt）</button>
+    </div>
+  `;
 
-  const btn = type === "paid" ? elements.paidDrawButton : elements.freeDrawButton;
-  btn.disabled = true;
-  btn.textContent = "ガチャ中...";
-  elements.stage.classList.add("animating");
+  const targetCard = cards[2];
+  targetCard.parentNode.insertBefore(purchaseCard, targetCard.nextSibling);
 
-  try {
-    const path = type === "paid"
-      ? `/gacha/paid/${encodeURIComponent(authUser.user_id)}`
-      : `/gacha/free/${encodeURIComponent(authUser.user_id)}`;
+  const buy300Button = document.getElementById("buy300Button");
+  const buy1000Button = document.getElementById("buy1000Button");
 
-    const data = await api(path, { method: "POST" });
-
-    previewResult(data.result);
-    localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(data));
-
-    await refreshUser();
-
-    // 演出を少し見せてから結果ページへ
-    setTimeout(() => {
-      location.href = "result.html";
-    }, 1200);
-
-  } catch (err) {
-    let msg = "ガチャに失敗しました";
-    if (err.message.includes("points")) msg = "ポイントが不足しています";
-    if (err.message.includes("free"))  msg = "無料回数がありません";
-    showMessage(msg, true);
-  } finally {
-    isDrawing = false;
-    btn.disabled = false;
-    btn.textContent = type === "paid" ? "30ptガチャ" : "無料ガチャ";
-    elements.stage.classList.remove("animating");
-    updateDrawButtons();
+  if (buy300Button) {
+    buy300Button.addEventListener("click", () => buyPoints("300"));
+  }
+  if (buy1000Button) {
+    buy1000Button.addEventListener("click", () => buyPoints("1000"));
   }
 }
 
-function init() {
+function boot() {
+  injectPointPurchaseButtons();
+
   authUser = loadAuth();
   updateLoginUI();
 
   if (authUser) {
-    refreshUser().catch(() => {});
+    previousPointCount = authUser.points ?? 0;
+    previousFreeDrawCount = authUser.free_draw_count ?? 0;
+
+    refreshUser()
+      .then(() => {
+        const notice = consumePostSuccessNotice();
+        if (notice && notice.message) {
+          showRewardNotice(notice.message);
+        } else {
+          clearRewardNotice();
+        }
+      })
+      .catch((error) => {
+        console.warn("refreshUser failed", error);
+      });
   } else {
-    updateStatusUI();
-    updateDrawButtons();
+    updateStatusUI({
+      points: 0,
+      exp: 0,
+      level: 1,
+      free_draw_count: 0,
+      revive_item_count: 0,
+      ball_count: 0
+    });
+    clearRewardNotice();
   }
 
   clearPreview();
 
-  // イベントリスナー
-  elements.loginButton.addEventListener("click", handleLogin);
-  elements.logoutButton.addEventListener("click", handleLogout);
-  elements.freeDrawButton.addEventListener("click", () => drawGacha("free"));
-  elements.paidDrawButton.addEventListener("click", () => drawGacha("paid"));
+  loginButton.addEventListener("click", handleLogin);
+  logoutButton.addEventListener("click", handleLogout);
+  freeDrawButton.addEventListener("click", () => drawGacha("free"));
+  paidDrawButton.addEventListener("click", () => drawGacha("paid"));
 
-  elements.passwordInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") handleLogin();
+  if (rewardDrawButton) {
+    rewardDrawButton.addEventListener("click", drawFreeFromNotice);
+  }
+
+  passwordInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      handleLogin();
+    }
   });
+
+  handleStripeResult();
 }
 
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", boot);
