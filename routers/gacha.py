@@ -1,94 +1,131 @@
 """
-routers/gacha.py — ガチャ
+routers/gacha.py — ガチャ（SQLite + トランザクション対応版）
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from database import get_db
+from auth_utils import CurrentUser, get_current_user
+from db import get_db_connection
 from helpers import (
     ensure_user,
     ensure_work,
     weighted_draw,
-    get_ownership,
-    transfer_ownership,
-    create_owned_card_if_missing,
-    gain_duplicate_exp,
-    update_user_level,
+    get_work_owner,
     serialize_work,
+    update_user_level,
+    record_point_transaction,   # ← point_transactions記録用
 )
+from models import SuccessResponse  # ← 必要に応じて
 
 router = APIRouter(tags=["gacha"])
 
 
-def apply_paid_gacha_creator_fee(conn, work_id: int):
+def apply_paid_gacha_creator_fee(conn, work_id: int, drawer_user_id: str):
     """
-    有料ガチャ時のみ、著作権者へ閲覧料 10円 を royalty_balance に加算する。
-    ポイントには加算しない。
+    有料ガチャ時：著作権者に royalty_balance +10
+    ポイントには加算せず、履歴のみ記録
     """
     work = ensure_work(conn, work_id)
-    creator_id = work["creator_id"]
+    creator_id = work.get("creator_user_id") or work.get("creator_id")
 
-    with conn.cursor() as cur:
-        cur.execute("""
-            UPDATE users
-            SET royalty_balance = royalty_balance + 10
-            WHERE user_id = %s
-        """, (creator_id,))
+    if not creator_id:
+        return None
+
+    conn.execute(
+        """
+        UPDATE users
+        SET royalty_balance = COALESCE(royalty_balance, 0) + 10
+        WHERE user_id = ?
+        """,
+        (creator_id,)
+    )
+
+    # 履歴（ポイント変動ではないが、参考記録）
+    record_point_transaction(
+        conn,
+        creator_id,
+        10,
+        "gacha_creator_fee",
+        reference_id=work_id,
+        description="有料ガチャ閲覧料"
+    )
 
     return {
         "creator_user_id": creator_id,
         "creator_fee_yen": 10,
-        "operator_keep_points": 20,
     }
 
 
-def process_gacha(conn, user_id: str, draw_type: str) -> dict:
+def process_gacha(conn, current_user: CurrentUser, draw_type: str) -> dict:
     """
-    ガチャ本体は1種類のみ。
-    draw_type は支払い方法の違いだけを表す。
-    - free: 無料ガチャ回数を使う
-    - paid: 30ptを使う
+    共通ガチャ処理（free / paid）
     """
-    work = weighted_draw(conn, user_id)
+    work = weighted_draw(conn, current_user.user_id)
+    if not work:
+        raise HTTPException(status_code=500, detail="ガチャ排出に失敗しました")
 
-    with conn.cursor() as cur:
-        cur.execute("""
-            UPDATE works
-            SET draw_count = draw_count + 1
-            WHERE id = %s
-        """, (work["id"],))
+    work_id = work["id"]
 
-    owner = get_ownership(conn, work["id"])
-    is_new_owner = owner is None
+    # draw_count +1
+    conn.execute(
+        "UPDATE works SET draw_count = COALESCE(draw_count, 0) + 1 WHERE id = ?",
+        (work_id,)
+    )
+
+    owner_id = get_work_owner(conn, work_id)
+    is_new_owner = owner_id is None
+
+    exp_gained = 0
+    owner_user_id = current_user.user_id
 
     if is_new_owner:
-        transfer_ownership(conn, work["id"], user_id)
-        create_owned_card_if_missing(conn, user_id, work)
+        # 所有権移転
+        if table_exists(conn, "work_owners"):
+            conn.execute(
+                "INSERT OR REPLACE INTO work_owners (work_id, owner_user_id) VALUES (?, ?)",
+                (work_id, current_user.user_id)
+            )
+        else:
+            # worksテーブルにowner列がある場合
+            owner_col = next((c for c in get_columns(conn, "works") if c in ["owner_user_id", "current_owner_user_id"]), None)
+            if owner_col:
+                conn.execute(
+                    f"UPDATE works SET {owner_col} = ? WHERE id = ?",
+                    (current_user.user_id, work_id)
+                )
 
-        exp_gained = work["exp_reward"]
+        # 初回獲得EXP
+        exp_gained = safe_int(work.get("exp_reward", 5))
 
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE users
-                SET exp = exp + %s
-                WHERE user_id = %s
-            """, (exp_gained, user_id))
+        conn.execute(
+            "UPDATE users SET exp = COALESCE(exp, 0) + ? WHERE user_id = ?",
+            (exp_gained, current_user.user_id)
+        )
+        update_user_level(conn, current_user.user_id)
 
-        update_user_level(conn, user_id)
-        owner_user_id = user_id
     else:
-        exp_gained = gain_duplicate_exp(conn, user_id, work)
-        owner_user_id = owner["owner_id"]
+        # 重複獲得 → 日次重複EXP
+        # ※ gain_duplicate_exp は旧設計のため、簡易版に置き換え可能
+        exp_gained = min(10, max(3, int(safe_int(work.get("exp_reward", 5)) * 0.3)))
+        # 日次上限などのチェックは省略（必要なら追加）
+
+        conn.execute(
+            "UPDATE users SET exp = COALESCE(exp, 0) + ? WHERE user_id = ?",
+            (exp_gained, current_user.user_id)
+        )
+        update_user_level(conn, current_user.user_id)
+
+        owner_user_id = owner_id
 
     gacha_fee_info = None
-
-    # 有料ガチャ時のみ、著作権者へ10円の閲覧料
     if draw_type == "paid":
-        gacha_fee_info = apply_paid_gacha_creator_fee(conn, work["id"])
+        gacha_fee_info = apply_paid_gacha_creator_fee(conn, work_id, current_user.user_id)
 
-    work = ensure_work(conn, work["id"])
+    # 最新のwork情報を取得
+    work = ensure_work(conn, work_id)
 
     return {
-        "message": "ガチャ完了" if draw_type == "free" else "ポイントガチャ完了",
+        "ok": True,
+        "message": "ガチャ完了" if draw_type == "free" else "有料ガチャ完了",
         "result": serialize_work(work),
         "info": {
             "draw_type": draw_type,
@@ -96,41 +133,74 @@ def process_gacha(conn, user_id: str, draw_type: str) -> dict:
             "owner_user_id": owner_user_id,
             "exp_gained": exp_gained,
             "creator_fee": gacha_fee_info,
-        },
+        }
     }
 
 
-@router.post("/gacha/free/{user_id}")
-def gacha_free(user_id: str):
-    with get_db() as conn:
-        user = ensure_user(conn, user_id)
+@router.post("/gacha/free", response_model=SuccessResponse)
+def gacha_free(current_user: CurrentUser = Depends(get_current_user)):
+    conn = get_db_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
 
-        if user["free_draw_count"] <= 0:
+        user = ensure_user(conn, current_user.user_id)
+        free_count = safe_int(user.get("free_draw_count", 0))
+
+        if free_count <= 0:
+            conn.rollback()
             raise HTTPException(status_code=400, detail="無料ガチャ回数がありません")
 
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE users
-                SET free_draw_count = free_draw_count - 1
-                WHERE user_id = %s
-            """, (user_id,))
+        conn.execute(
+            "UPDATE users SET free_draw_count = free_draw_count - 1 WHERE user_id = ?",
+            (current_user.user_id,)
+        )
 
-        return process_gacha(conn, user_id, "free")
+        result = process_gacha(conn, current_user, "free")
+
+        conn.commit()
+        return result
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="ガチャ処理に失敗しました") from e
+    finally:
+        conn.close()
 
 
-@router.post("/gacha/paid/{user_id}")
-def gacha_paid(user_id: str):
-    with get_db() as conn:
-        user = ensure_user(conn, user_id)
+@router.post("/gacha/paid", response_model=SuccessResponse)
+def gacha_paid(current_user: CurrentUser = Depends(get_current_user)):
+    conn = get_db_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
 
-        if user["points"] < 30:
-            raise HTTPException(status_code=400, detail="ポイント不足です（30pt必要）")
+        user = ensure_user(conn, current_user.user_id)
+        points = safe_int(user.get("points", 0))
 
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE users
-                SET points = points - 30
-                WHERE user_id = %s
-            """, (user_id,))
+        if points < 30:
+            conn.rollback()
+            raise HTTPException(status_code=400, detail="ポイントが不足しています（30pt必要）")
 
-        return process_gacha(conn, user_id, "paid")
+        conn.execute(
+            "UPDATE users SET points = points - 30 WHERE user_id = ?",
+            (current_user.user_id,)
+        )
+
+        # ポイント消費履歴
+        record_point_transaction(
+            conn,
+            current_user.user_id,
+            -30,
+            "gacha_paid",
+            description="有料ガチャ（30pt）"
+        )
+
+        result = process_gacha(conn, current_user, "paid")
+
+        conn.commit()
+        return result
+
+    except Exception as e:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
