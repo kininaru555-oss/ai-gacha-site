@@ -60,6 +60,7 @@
 
     .btn-upload { background: #2563eb; }
     .btn-auto { background: #7c3aed; }
+    .btn-hash { background: #0f766e; }
     .btn-submit { background: #16a34a; }
     .btn-nav { background: #374151; }
 
@@ -150,8 +151,9 @@
 
     <button class="btn-upload" id="uploadBtn" type="button">画像/動画アップロード</button>
     <button class="btn-auto" id="autoStatButton" type="button">画像から自動ステータス生成</button>
+    <button class="btn-hash" id="hashButton" type="button">コンテンツハッシュ自動生成</button>
 
-    <div id="loading">ステータス生成中...</div>
+    <div id="loading">処理中...</div>
 
     <input id="userId" placeholder="ユーザーID（必須）" required>
     <input id="creatorName" placeholder="投稿者名（表示名）（必須）" required>
@@ -199,7 +201,8 @@
     <input id="contentHash" placeholder="コンテンツハッシュ（必須）" required>
 
     <div class="small-note">
-      Cloudinaryアップロード後に自動生成ボタンを押すと、画像特徴からHP / ATK / DEF / SPD / LUKを自動入力できます。
+      Cloudinaryアップロード後に「自動ステータス生成」を押すと、画像特徴から HP / ATK / DEF / SPD / LUK を自動入力できます。<br>
+      動画投稿では自動ステータス生成は使わず、手入力または既定値になります。
     </div>
 
     <button class="btn-submit" id="submitBtn" type="button">投稿する</button>
@@ -214,8 +217,10 @@
 <script>
 const API_BASE = "http://127.0.0.1:8000";
 const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL";
+const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
 
 let uploadedAsset = null;
+let isSubmitting = false;
 
 // Cloudinary Widget
 const widget = cloudinary.createUploadWidget({
@@ -229,13 +234,32 @@ const widget = cloudinary.createUploadWidget({
   if (!error && result && result.event === "success") {
     uploadedAsset = result.info;
     renderPreview();
-    showMessage("アップロード完了！ 自動生成ボタンを押せます。", false);
+    showMessage("アップロード完了。自動ステータス生成または投稿できます。", false);
   } else if (error) {
     showMessage("アップロードエラー: " + (error.message || "不明"), true);
   }
 });
 
 document.getElementById("uploadBtn").addEventListener("click", () => widget.open());
+
+// 初期化
+document.addEventListener("DOMContentLoaded", () => {
+  loadAuthUser();
+});
+
+// ログイン済みユーザーIDを補完
+function loadAuthUser() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return;
+    const auth = JSON.parse(raw);
+    if (auth && auth.user_id && !val("userId")) {
+      document.getElementById("userId").value = auth.user_id;
+    }
+  } catch (e) {
+    console.warn("auth load failed", e);
+  }
+}
 
 // プレビュー表示
 function renderPreview() {
@@ -252,6 +276,43 @@ function renderPreview() {
   }
 }
 
+// Cloudinary URLの簡易検証
+function isValidCloudinaryUrl(url) {
+  return typeof url === "string" && /^https:\/\/res\.cloudinary\.com\//.test(url);
+}
+
+// SHA-256 ハッシュ生成
+async function sha256Hex(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// コンテンツハッシュ自動生成
+document.getElementById("hashButton").addEventListener("click", async () => {
+  try {
+    if (!uploadedAsset) {
+      throw new Error("先に画像または動画をアップロードしてください");
+    }
+
+    const base = [
+      uploadedAsset.public_id || "",
+      uploadedAsset.secure_url || "",
+      uploadedAsset.resource_type || "",
+      val("title"),
+      val("creatorName")
+    ].join("|");
+
+    const hash = await sha256Hex(base);
+    document.getElementById("contentHash").value = hash;
+    showMessage("コンテンツハッシュを自動生成しました。", false);
+  } catch (e) {
+    showMessage(e.message || "ハッシュ生成に失敗しました", true);
+  }
+});
+
 // 自動ステータス生成
 document.getElementById("autoStatButton").addEventListener("click", async () => {
   const btn = document.getElementById("autoStatButton");
@@ -262,8 +323,13 @@ document.getElementById("autoStatButton").addEventListener("click", async () => 
       throw new Error("画像をアップロードした後に実行してください");
     }
 
+    if (!isValidCloudinaryUrl(uploadedAsset.secure_url)) {
+      throw new Error("Cloudinaryの画像URLではありません");
+    }
+
     btn.disabled = true;
     loading.style.display = "block";
+    loading.textContent = "ステータス生成中...";
 
     const res = await fetch(`${API_BASE}/ai/generate-stats`, {
       method: "POST",
@@ -301,9 +367,18 @@ document.getElementById("autoStatButton").addEventListener("click", async () => 
 
 // 投稿処理
 document.getElementById("submitBtn").addEventListener("click", async () => {
+  const submitBtn = document.getElementById("submitBtn");
+  const loading = document.getElementById("loading");
+
   try {
+    if (isSubmitting) return;
+
     if (!uploadedAsset) {
       throw new Error("ファイルをアップロードしてください");
+    }
+
+    if (!isValidCloudinaryUrl(uploadedAsset.secure_url)) {
+      throw new Error("CloudinaryのアップロードURLではありません");
     }
 
     const requiredFields = [
@@ -319,6 +394,11 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         throw new Error(`「${field.label}」は必須です`);
       }
     }
+
+    isSubmitting = true;
+    submitBtn.disabled = true;
+    loading.style.display = "block";
+    loading.textContent = "投稿登録中...";
 
     const payload = {
       creator_user_id: val("userId"),
@@ -362,21 +442,23 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
 
     // Apps Script 監査ログ送信
     if (APPS_SCRIPT_URL && APPS_SCRIPT_URL !== "YOUR_APPS_SCRIPT_URL") {
-      fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          ...payload,
-          uploaded_secure_url: uploadedAsset.secure_url || "",
-          uploaded_public_id: uploadedAsset.public_id || "",
-          uploaded_resource_type: uploadedAsset.resource_type || "",
-          uploaded_format: uploadedAsset.format || "",
-          uploaded_bytes: uploadedAsset.bytes || 0,
-          logged_at: new Date().toISOString()
-        })
-      }).catch(err => {
+      try {
+        await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            ...payload,
+            uploaded_secure_url: uploadedAsset.secure_url || "",
+            uploaded_public_id: uploadedAsset.public_id || "",
+            uploaded_resource_type: uploadedAsset.resource_type || "",
+            uploaded_format: uploadedAsset.format || "",
+            uploaded_bytes: uploadedAsset.bytes || 0,
+            logged_at: new Date().toISOString()
+          })
+        });
+      } catch (err) {
         console.warn("Apps Script log failed:", err);
-      });
+      }
     }
 
     showMessage("投稿が完了しました。投稿者には無料ガチャ1回が付与されます。", false);
@@ -384,6 +466,10 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
 
   } catch (e) {
     showMessage(e.message || "投稿中にエラーが発生しました", true);
+  } finally {
+    isSubmitting = false;
+    submitBtn.disabled = false;
+    loading.style.display = "none";
   }
 });
 
@@ -408,7 +494,7 @@ function resetForm() {
   renderPreview();
 
   const ids = [
-    "userId", "creatorName", "title", "description", "genre",
+    "creatorName", "title", "description", "genre",
     "hp", "atk", "def", "spd", "luk",
     "rarity", "linkUrl", "xUrl", "boothUrl",
     "chichipuiUrl", "dlsiteUrl", "contentHash"
@@ -417,14 +503,12 @@ function resetForm() {
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (el.tagName === "SELECT") {
-      el.value = "";
-    } else {
-      el.value = "";
-    }
+    el.value = "";
   });
+
+  loadAuthUser();
 }
 </script>
 
 </body>
-  </html>
+          </html>
