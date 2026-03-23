@@ -22,7 +22,7 @@
 
     .top-links {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0,1fr));
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -47,6 +47,13 @@
       color: #aeb5c2;
       font-size: 13px;
       line-height: 1.8;
+      margin-bottom: 8px;
+    }
+
+    .update-time {
+      color: #93a0b5;
+      font-size: 12px;
+      line-height: 1.6;
       margin-bottom: 16px;
     }
 
@@ -59,6 +66,8 @@
       font-size: 13px;
       line-height: 1.7;
       border: 1px solid rgba(255,255,255,0.06);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .message.show {
@@ -97,18 +106,49 @@
       background: #0b0d12;
       border-radius: 12px;
       overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
     }
 
-    .thumb img, .thumb video {
+    .thumb img,
+    .thumb video {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    .thumb-fallback {
+      width: 100%;
+      height: 100%;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+      line-height: 1.6;
     }
 
     .title {
       font-size: 18px;
       font-weight: bold;
       margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .title a {
+      color: #fff;
+      text-decoration: none;
+    }
+
+    .title a:hover {
+      text-decoration: underline;
     }
 
     .meta {
@@ -131,6 +171,7 @@
       background: #263042;
       font-size: 12px;
       font-weight: bold;
+      max-width: 100%;
     }
 
     .badge.legend {
@@ -168,19 +209,13 @@
       padding: 8px 0;
     }
 
-    @media (max-width: 900px) {
-      .top-links {
-        grid-template-columns: repeat(3, minmax(0,1fr));
-      }
-    }
-
     @media (max-width: 720px) {
-      .top-links {
-        grid-template-columns: repeat(2, minmax(0,1fr));
-      }
-
       .item-grid {
         grid-template-columns: 1fr;
+      }
+
+      .thumb {
+        max-width: 180px;
       }
     }
   </style>
@@ -197,10 +232,14 @@
     </div>
 
     <div class="page-title">クリエイターランキング TOP10</div>
+
     <div class="sub">
       排出数・いいね・育成状況・代表カードの強さをもとに算出しています。<br>
-      運営作品はランキング対象外です。気になったクリエイターはそのまま販売ページへ移動できます。
+      スコアは「排出数・いいね・育成・代表カード性能」を合算した指標です。<br>
+      運営作品はランキング対象外です。気になったクリエイターは販売ページや作品一覧へ移動できます。
     </div>
+
+    <div id="updateTime" class="update-time">最終更新: -</div>
 
     <div id="systemMessage" class="message"></div>
     <div id="rankingList" class="list"></div>
@@ -209,13 +248,19 @@
 
   <script src="config.js"></script>
   <script>
-    const API_BASE = window.APP_CONFIG.API_BASE;
+    const API_BASE = window.APP_CONFIG?.API_BASE || "";
     const rankingList = document.getElementById("rankingList");
     const systemMessage = document.getElementById("systemMessage");
+    const updateTimeEl = document.getElementById("updateTime");
 
     function showMessage(text) {
       systemMessage.textContent = text;
       systemMessage.classList.add("show");
+    }
+
+    function hideMessage() {
+      systemMessage.textContent = "";
+      systemMessage.classList.remove("show");
     }
 
     function escapeHtml(value) {
@@ -231,107 +276,180 @@
       return escapeHtml(value);
     }
 
+    function isHttpUrl(value) {
+      return typeof value === "string" && /^https?:\/\//i.test(value);
+    }
+
+    function formatDateTime(value) {
+      const date = value ? new Date(value) : new Date();
+      if (Number.isNaN(date.getTime())) {
+        return new Date().toLocaleString("ja-JP");
+      }
+      return date.toLocaleString("ja-JP");
+    }
+
     async function api(path) {
-      const res = await fetch(`${API_BASE}${path}`);
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         throw new Error(data.detail || "APIエラー");
       }
       return data;
     }
 
-    function firstLink(item) {
-      return item.link_url || item.booth_url || item.fanbox_url || item.skeb_url || item.pixiv_url || "";
+    function creatorMarketUrl(item) {
+      const creatorId = item?.creator_id || item?.creator_name || "";
+      return creatorId ? `market.html?creator=${encodeURIComponent(creatorId)}` : "market.html";
+    }
+
+    function buildLinkButtons(item) {
+      const links = [];
+
+      if (isHttpUrl(item.link_url)) {
+        links.push({ label: "販売ページへ", url: item.link_url });
+      }
+      if (isHttpUrl(item.booth_url)) {
+        links.push({ label: "BOOTH", url: item.booth_url });
+      }
+      if (isHttpUrl(item.fanbox_url)) {
+        links.push({ label: "FANBOX", url: item.fanbox_url });
+      }
+      if (isHttpUrl(item.skeb_url)) {
+        links.push({ label: "Skeb", url: item.skeb_url });
+      }
+      if (isHttpUrl(item.pixiv_url)) {
+        links.push({ label: "pixiv", url: item.pixiv_url });
+      }
+
+      return links.map(link => {
+        return `<a class="btn-link" href="${escapeAttr(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}</a>`;
+      }).join("");
+    }
+
+    function mediaHtml(topCard, creatorName) {
+      if (!topCard) {
+        return `<div class="thumb-fallback">代表カードなし</div>`;
+      }
+
+      if (topCard.video_url && isHttpUrl(topCard.video_url)) {
+        const poster = isHttpUrl(topCard.thumbnail_url) ? ` poster="${escapeAttr(topCard.thumbnail_url)}"` : "";
+        return `<video src="${escapeAttr(topCard.video_url)}" muted playsinline loop preload="metadata"${poster}></video>`;
+      }
+
+      if (topCard.image_url && isHttpUrl(topCard.image_url)) {
+        return `<img src="${escapeAttr(topCard.image_url)}" alt="${escapeAttr(topCard.title || creatorName || "代表カード")}" />`;
+      }
+
+      if (topCard.thumbnail_url && isHttpUrl(topCard.thumbnail_url)) {
+        return `<img src="${escapeAttr(topCard.thumbnail_url)}" alt="${escapeAttr(topCard.title || creatorName || "代表カード")}" />`;
+      }
+
+      return `<div class="thumb-fallback">代表カード画像なし</div>`;
+    }
+
+    function bindMediaFallbacks() {
+      const images = document.querySelectorAll(".thumb img");
+      const videos = document.querySelectorAll(".thumb video");
+
+      images.forEach((img) => {
+        img.onerror = () => {
+          const parent = img.parentElement;
+          if (!parent) return;
+          parent.innerHTML = `<div class="thumb-fallback">画像を読み込めませんでした</div>`;
+        };
+      });
+
+      videos.forEach((video) => {
+        video.onerror = () => {
+          const parent = video.parentElement;
+          if (!parent) return;
+          parent.innerHTML = `<div class="thumb-fallback">動画を読み込めませんでした</div>`;
+        };
+      });
     }
 
     function renderRanking(items) {
-      if (!items.length) {
+      if (!Array.isArray(items) || !items.length) {
         rankingList.innerHTML = `<div class="empty">ランキング対象のクリエイターがまだいません。</div>`;
         return;
       }
 
       rankingList.innerHTML = items.map(item => {
-        const topCard = item.top_card;
-        const link = firstLink(item);
+        const topCard = item?.top_card || null;
+        const creatorName = item?.creator_name || item?.creator_id || "不明";
+        const creatorUrl = creatorMarketUrl(item);
+        const buttonsHtml = buildLinkButtons(item);
 
         return `
           <div class="item">
-            <div class="rank">#${item.rank}</div>
+            <div class="rank">#${escapeHtml(item.rank ?? "-")}</div>
 
             <div class="item-grid">
               <div class="thumb">
-                ${
-                  topCard
-                    ? topCard.video_url
-                      ? `<video src="${escapeAttr(topCard.video_url)}" muted playsinline preload="metadata"></video>`
-                      : `<img src="${escapeAttr(topCard.image_url || "")}" alt="${escapeAttr(topCard.title || item.creator_name)}" />`
-                    : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;">No Card</div>`
-                }
+                ${mediaHtml(topCard, creatorName)}
               </div>
 
               <div>
                 <div class="badge-row">
-                  <div class="badge score">スコア ${item.score ?? 0}</div>
-                  <div class="badge">作品 ${item.total_works ?? 0}</div>
-                  <div class="badge">いいね ${item.total_likes ?? 0}</div>
-                  <div class="badge">排出 ${item.total_draws ?? 0}</div>
-                  <div class="badge">平均Lv ${item.avg_level ?? 0}</div>
+                  <div class="badge score">スコア ${escapeHtml(item.score ?? 0)}</div>
+                  <div class="badge">作品 ${escapeHtml(item.total_works ?? 0)}</div>
+                  <div class="badge">いいね ${escapeHtml(item.total_likes ?? 0)}</div>
+                  <div class="badge">排出 ${escapeHtml(item.total_draws ?? 0)}</div>
+                  <div class="badge">平均Lv ${escapeHtml(item.avg_level ?? 0)}</div>
                   ${
-                    item.legend_count > 0
-                      ? `<div class="badge legend">LEGEND ${item.legend_count}</div>`
+                    (item.legend_count ?? 0) > 0
+                      ? `<div class="badge legend">LEGEND ${escapeHtml(item.legend_count)}</div>`
                       : ``
                   }
                 </div>
 
-                <div class="title">${escapeHtml(item.creator_name || item.creator_id || "不明")}</div>
+                <div class="title">
+                  <a href="${escapeAttr(creatorUrl)}">${escapeHtml(creatorName)}</a>
+                </div>
 
                 <div class="meta">
                   代表カード: ${escapeHtml(topCard?.title || "なし")}<br>
-                  代表カード戦闘力: ${topCard?.card_power ?? 0}<br>
-                  代表カードLv: ${topCard?.level ?? 0}<br>
+                  代表カード戦闘力: ${escapeHtml(topCard?.card_power ?? 0)}<br>
+                  代表カードLv: ${escapeHtml(topCard?.level ?? 0)}<br>
                   代表カードレア度: ${escapeHtml(topCard?.rarity || "-")}${topCard?.is_legend ? " / LEGEND" : ""}
                 </div>
 
                 <div class="buttons">
-                  ${
-                    link
-                      ? `<a class="btn-link" href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer">販売ページへ</a>`
-                      : ``
-                  }
-                  ${
-                    item.booth_url
-                      ? `<a class="btn-link" href="${escapeAttr(item.booth_url)}" target="_blank" rel="noopener noreferrer">BOOTH</a>`
-                      : ``
-                  }
-                  ${
-                    item.fanbox_url
-                      ? `<a class="btn-link" href="${escapeAttr(item.fanbox_url)}" target="_blank" rel="noopener noreferrer">FANBOX</a>`
-                      : ``
-                  }
-                  ${
-                    item.skeb_url
-                      ? `<a class="btn-link" href="${escapeAttr(item.skeb_url)}" target="_blank" rel="noopener noreferrer">Skeb</a>`
-                      : ``
-                  }
-                  ${
-                    item.pixiv_url
-                      ? `<a class="btn-link" href="${escapeAttr(item.pixiv_url)}" target="_blank" rel="noopener noreferrer">pixiv</a>`
-                      : ``
-                  }
+                  <a class="btn-link" href="${escapeAttr(creatorUrl)}">作品一覧へ</a>
+                  ${buttonsHtml}
                 </div>
               </div>
             </div>
           </div>
         `;
       }).join("");
+
+      bindMediaFallbacks();
+    }
+
+    function renderUpdatedAt(data) {
+      const updatedAt = data?.updated_at || data?.generated_at || data?.cached_at || null;
+      updateTimeEl.textContent = `最終更新: ${formatDateTime(updatedAt)}`;
     }
 
     async function loadRanking() {
       try {
+        hideMessage();
+
         const data = await api("/creators/ranking");
+        renderUpdatedAt(data);
         renderRanking(data.items || []);
       } catch (error) {
+        updateTimeEl.textContent = `最終更新: ${formatDateTime()}`;
         showMessage(error.message || "ランキングの読み込みに失敗しました。");
+        rankingList.innerHTML = `<div class="empty">ランキングを表示できませんでした。</div>`;
       }
     }
 
