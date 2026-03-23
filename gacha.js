@@ -1,8 +1,7 @@
-const API_BASE = "http://127.0.0.1:8000";
-const AUTH_STORAGE_KEY = "gacha_app_auth_v1";
-const RESULT_STORAGE_KEY = "gacha_last_result";
-const POST_SUCCESS_NOTICE_KEY = "gacha_post_success_notice";
-
+const API_BASE = window.APP_CONFIG.API_BASE;
+const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
+const RESULT_STORAGE_KEY = window.APP_CONFIG.RESULT_STORAGE_KEY;
+const POST_SUCCESS_NOTICE_KEY = window.APP_CONFIG.POST_SUCCESS_NOTICE_KEY;
 let authUser = null;
 let isDrawing = false;
 let previousFreeDrawCount = null;
