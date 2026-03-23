@@ -1275,3 +1275,539 @@ def buy_revive(payload: UserOnlyRequest):
         "revive_item_count": user["revive_items"],
         "points": user["points"]
     }
+# =========================================================
+# Routes Part 2
+# =========================================================
+@app.post("/offers")
+def send_offer(payload: OfferRequest):
+    conn = get_db()
+    cur = conn.cursor()
+
+    ensure_user(conn, payload.from_user_id)
+    ensure_user(conn, payload.to_user_id)
+    ensure_work(conn, payload.work_id)
+
+    owner = get_ownership(conn, payload.work_id)
+    if not owner:
+        conn.close()
+        raise HTTPException(status_code=400, detail="未所有作品にはオファーできません")
+    if owner["owner_id"] != payload.to_user_id:
+        conn.close()
+        raise HTTPException(status_code=400, detail="宛先が現在の所有者ではありません")
+    if payload.from_user_id == payload.to_user_id:
+        conn.close()
+        raise HTTPException(status_code=400, detail="自分の作品にはオファーできません")
+
+    sender = ensure_user(conn, payload.from_user_id)
+    if sender["points"] < payload.offer_points:
+        conn.close()
+        raise HTTPException(status_code=400, detail="ポイント不足です")
+
+    cur.execute("""
+        INSERT INTO offers(work_id, from_user, to_user, points, status)
+        VALUES(?,?,?,?,?)
+    """, (payload.work_id, payload.from_user_id, payload.to_user_id, payload.offer_points, "pending"))
+    conn.commit()
+    conn.close()
+    return {"message": "オファーを送信しました"}
+
+
+@app.get("/offers/{user_id}")
+def get_offers(user_id: str):
+    conn = get_db()
+    ensure_user(conn, user_id)
+    cur = conn.cursor()
+
+    incoming = cur.execute("""
+        SELECT o.*, w.title AS work_title
+        FROM offers o
+        JOIN works w ON w.id = o.work_id
+        WHERE o.to_user=?
+        ORDER BY o.id DESC
+    """, (user_id,)).fetchall()
+
+    outgoing = cur.execute("""
+        SELECT o.*, w.title AS work_title
+        FROM offers o
+        JOIN works w ON w.id = o.work_id
+        WHERE o.from_user=?
+        ORDER BY o.id DESC
+    """, (user_id,)).fetchall()
+
+    res = {
+        "incoming": [dict(x) for x in incoming],
+        "outgoing": [dict(x) for x in outgoing]
+    }
+    conn.close()
+    return res
+
+
+@app.post("/offers/{offer_id}/accept")
+def accept_offer(offer_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+
+    offer = cur.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()
+    if not offer:
+        conn.close()
+        raise HTTPException(status_code=404, detail="オファーが存在しません")
+    if offer["status"] != "pending":
+        conn.close()
+        raise HTTPException(status_code=400, detail="このオファーは処理済みです")
+
+    owner = get_ownership(conn, offer["work_id"])
+    if not owner or owner["owner_id"] != offer["to_user"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現在の所有者が一致しません")
+
+    shares = distribute_points(
+        conn,
+        offer["work_id"],
+        offer["from_user"],
+        offer["to_user"],
+        offer["points"],
+        "offer"
+    )
+    transfer_ownership(conn, offer["work_id"], offer["from_user"])
+
+    work = ensure_work(conn, offer["work_id"])
+    create_owned_card_if_missing(conn, offer["from_user"], work)
+
+    cur.execute("UPDATE offers SET status='accepted' WHERE id=?", (offer_id,))
+    cur.execute(
+        "UPDATE offers SET status='cancelled' WHERE work_id=? AND status='pending' AND id<>?",
+        (offer["work_id"], offer_id)
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "オファーを承認しました。所有権を移転しました。",
+        "shares": shares
+    }
+
+
+@app.post("/offers/{offer_id}/reject")
+def reject_offer(offer_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+
+    offer = cur.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()
+    if not offer:
+        conn.close()
+        raise HTTPException(status_code=404, detail="オファーが存在しません")
+    if offer["status"] != "pending":
+        conn.close()
+        raise HTTPException(status_code=400, detail="このオファーは処理済みです")
+
+    cur.execute("UPDATE offers SET status='rejected' WHERE id=?", (offer_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "オファーを拒否しました"}
+
+
+@app.post("/market/list")
+def list_market(payload: MarketListRequest):
+    conn = get_db()
+    cur = conn.cursor()
+
+    ensure_user(conn, payload.user_id)
+    ensure_work(conn, payload.work_id)
+
+    owner = get_ownership(conn, payload.work_id)
+    if not owner or owner["owner_id"] != payload.user_id:
+        conn.close()
+        raise HTTPException(status_code=400, detail="所有者のみ出品できます")
+
+    open_listing = cur.execute("""
+        SELECT * FROM market
+        WHERE work_id=? AND status='open'
+        LIMIT 1
+    """, (payload.work_id,)).fetchone()
+
+    if open_listing:
+        conn.close()
+        raise HTTPException(status_code=400, detail="すでに公開売却中です")
+
+    cur.execute("""
+        INSERT INTO market(work_id, seller, price, status)
+        VALUES(?,?,?,?)
+    """, (payload.work_id, payload.user_id, payload.price_points, "open"))
+    conn.commit()
+    conn.close()
+    return {"message": "公開売却に出品しました"}
+
+
+@app.get("/market/listings")
+def get_market_listings():
+    conn = get_db()
+    cur = conn.cursor()
+
+    rows = cur.execute("""
+        SELECT
+            m.id AS listing_id,
+            m.work_id,
+            m.seller AS seller_user_id,
+            m.price AS price_points,
+            w.title,
+            w.creator_name,
+            w.image_url,
+            w.video_url,
+            w.link_url,
+            w.draw_count,
+            oc.rarity,
+            oc.hp,
+            oc.atk,
+            oc.def,
+            oc.level,
+            oc.is_legend
+        FROM market m
+        JOIN works w ON w.id = m.work_id
+        LEFT JOIN owned_cards oc ON oc.work_id = m.work_id AND oc.user_id = m.seller
+        WHERE m.status='open'
+        ORDER BY m.id DESC
+    """).fetchall()
+
+    items = [dict(x) for x in rows]
+    conn.close()
+    return {"items": items}
+
+
+@app.post("/market/buy")
+def buy_market(payload: MarketBuyRequest):
+    conn = get_db()
+    cur = conn.cursor()
+
+    ensure_user(conn, payload.buyer_user_id)
+
+    listing = cur.execute("SELECT * FROM market WHERE id=?", (payload.listing_id,)).fetchone()
+    if not listing:
+        conn.close()
+        raise HTTPException(status_code=404, detail="出品が存在しません")
+    if listing["status"] != "open":
+        conn.close()
+        raise HTTPException(status_code=400, detail="この出品は購入できません")
+    if listing["seller"] == payload.buyer_user_id:
+        conn.close()
+        raise HTTPException(status_code=400, detail="自分の出品は購入できません")
+
+    owner = get_ownership(conn, listing["work_id"])
+    if not owner or owner["owner_id"] != listing["seller"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現在の所有者が一致しません")
+
+    shares = distribute_points(
+        conn,
+        listing["work_id"],
+        payload.buyer_user_id,
+        listing["seller"],
+        listing["price"],
+        "market"
+    )
+    transfer_ownership(conn, listing["work_id"], payload.buyer_user_id)
+
+    work = ensure_work(conn, listing["work_id"])
+    create_owned_card_if_missing(conn, payload.buyer_user_id, work)
+
+    cur.execute("UPDATE market SET status='sold' WHERE id=?", (payload.listing_id,))
+    cur.execute("UPDATE offers SET status='cancelled' WHERE work_id=? AND status='pending'", (listing["work_id"],))
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "購入しました。所有権を移転しました。",
+        "shares": shares
+    }
+
+
+@app.post("/withdraw/request")
+def withdraw_request(payload: WithdrawRequestIn):
+    conn = get_db()
+    cur = conn.cursor()
+    user = ensure_user(conn, payload.user_id)
+
+    if payload.amount < 1000:
+        conn.close()
+        raise HTTPException(status_code=400, detail="1000以上から出金申請できます")
+    if user["royalty_balance"] < payload.amount:
+        conn.close()
+        raise HTTPException(status_code=400, detail="出金可能残高が不足しています")
+
+    cur.execute("""
+        UPDATE users
+        SET royalty_balance = royalty_balance - ?
+        WHERE user_id=?
+    """, (payload.amount, payload.user_id))
+
+    cur.execute("""
+        INSERT INTO withdraw_requests(user_id, amount, status)
+        VALUES(?,?,?)
+    """, (payload.user_id, payload.amount, "pending"))
+    conn.commit()
+    conn.close()
+
+    return {"message": "出金申請を受け付けました"}
+
+
+@app.post("/legend/activate")
+def legend_activate(payload: LegendRequest):
+    conn = get_db()
+    cur = conn.cursor()
+
+    ensure_user(conn, payload.user_id)
+    owner = get_ownership(conn, payload.work_id)
+    if not owner or owner["owner_id"] != payload.user_id:
+        conn.close()
+        raise HTTPException(status_code=400, detail="所有作品のみレジェンド化できます")
+
+    if count_ball_codes(conn, payload.user_id) < 7:
+        conn.close()
+        raise HTTPException(status_code=400, detail="トラゴンボウル7種が揃っていません")
+
+    card = get_owned_card(conn, payload.user_id, payload.work_id)
+    if not card:
+        conn.close()
+        raise HTTPException(status_code=404, detail="所有カードがありません")
+    if card["is_legend"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="すでにレジェンド化済みです")
+
+    cur.execute("""
+        UPDATE owned_cards
+        SET is_legend=1,
+            legend_at=?,
+            rarity='LEGEND',
+            hp = hp + 15,
+            atk = atk + 15,
+            def = def + 15,
+            spd = spd + 10,
+            luk = luk + 10
+        WHERE id=?
+    """, (datetime.utcnow().isoformat(), card["id"]))
+
+    cur.execute("UPDATE works SET rarity='LEGEND' WHERE id=?", (payload.work_id,))
+
+    ball_rows = cur.execute("""
+        SELECT o.work_id
+        FROM ownership o
+        JOIN works w ON w.id = o.work_id
+        WHERE o.owner_id=? AND w.is_ball=1
+    """, (payload.user_id,)).fetchall()
+
+    for row in ball_rows:
+        cur.execute("DELETE FROM ownership WHERE work_id=?", (row["work_id"],))
+
+    conn.commit()
+    conn.close()
+    return {"message": "レジェンド化しました。トラゴンボウル7個は消費されました。"}
+
+
+@app.get("/balls/{user_id}")
+def get_balls(user_id: str):
+    conn = get_db()
+    ensure_user(conn, user_id)
+    cur = conn.cursor()
+
+    rows = cur.execute("""
+        SELECT w.id AS work_id, w.title, w.ball_code, w.image_url
+        FROM ownership o
+        JOIN works w ON w.id = o.work_id
+        WHERE o.owner_id=? AND w.is_ball=1
+        ORDER BY w.ball_code ASC
+    """, (user_id,)).fetchall()
+
+    items = [dict(x) for x in rows]
+    conn.close()
+    return {"count": len(items), "items": items}
+
+
+@app.get("/works")
+def get_works():
+    conn = get_db()
+    cur = conn.cursor()
+    rows = cur.execute("SELECT * FROM works WHERE is_active=1 ORDER BY id DESC").fetchall()
+    items = [serialize_work(x) for x in rows]
+    conn.close()
+    return {"works": items}
+
+
+@app.post("/ai/generate-stats")
+def ai_generate_stats(payload: AutoStatRequest):
+    try:
+        stats = generate_auto_stats(
+            image_url=payload.image_url,
+            title=payload.title,
+            description=payload.description,
+            genre=payload.genre
+        )
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"自動ステータス生成失敗: {str(e)}")
+
+
+@app.post("/admin/works/create")
+def admin_create_work(payload: AdminCreateWorkRequest):
+    conn = get_db()
+    cur = conn.cursor()
+
+    ensure_user(conn, payload.creator_user_id)
+
+    if not payload.content_hash.strip():
+        conn.close()
+        raise HTTPException(status_code=400, detail="content_hash は必須です")
+
+    dup = cur.execute(
+        "SELECT id FROM works WHERE content_hash=? LIMIT 1",
+        (payload.content_hash.strip(),)
+    ).fetchone()
+    if dup:
+        conn.close()
+        raise HTTPException(status_code=400, detail="同一コンテンツは禁止です")
+
+    if payload.is_ball and payload.ball_code.strip():
+        dup_ball = cur.execute(
+            "SELECT id FROM works WHERE ball_code=? LIMIT 1",
+            (payload.ball_code.strip(),)
+        ).fetchone()
+        if dup_ball:
+            conn.close()
+            raise HTTPException(status_code=400, detail="同じball_codeは使えません")
+
+    if payload.type == "image" and not payload.image_url.strip():
+        conn.close()
+        raise HTTPException(status_code=400, detail="imageタイプには image_url が必要です")
+
+    if payload.type == "video" and not payload.video_url.strip():
+        conn.close()
+        raise HTTPException(status_code=400, detail="videoタイプには video_url が必要です")
+
+    hp = payload.hp
+    atk = payload.atk
+    defense = payload.defense
+    spd = payload.spd
+    luk = payload.luk
+
+    if payload.type == "image" and (
+        hp is None or atk is None or defense is None or spd is None or luk is None
+    ):
+        try:
+            auto_stats = generate_auto_stats(
+                image_url=payload.image_url,
+                title=payload.title,
+                description=payload.description,
+                genre=payload.genre,
+            )
+            hp = hp if hp is not None else auto_stats["hp"]
+            atk = atk if atk is not None else auto_stats["atk"]
+            defense = defense if defense is not None else auto_stats["defense"]
+            spd = spd if spd is not None else auto_stats["spd"]
+            luk = luk if luk is not None else auto_stats["luk"]
+        except Exception:
+            hp = hp if hp is not None else 10
+            atk = atk if atk is not None else 10
+            defense = defense if defense is not None else 10
+            spd = spd if spd is not None else 10
+            luk = luk if luk is not None else 10
+    else:
+        hp = hp if hp is not None else 10
+        atk = atk if atk is not None else 10
+        defense = defense if defense is not None else 10
+        spd = spd if spd is not None else 10
+        luk = luk if luk is not None else 10
+
+    cur.execute("""
+        INSERT INTO works(
+            title, creator_id, creator_name, description, genre, type,
+            image_url, video_url, thumbnail_url, link_url, x_url, booth_url, chichipui_url, dlsite_url,
+            rarity, hp, atk, def, spd, luk, exp_reward,
+            is_active, is_ball, ball_code, content_hash
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (
+        payload.title,
+        payload.creator_user_id,
+        payload.creator_name,
+        payload.description,
+        payload.genre,
+        payload.type,
+        payload.image_url,
+        payload.video_url,
+        payload.thumbnail_url,
+        payload.link_url,
+        payload.x_url,
+        payload.booth_url,
+        payload.chichipui_url,
+        payload.dlsite_url,
+        payload.rarity,
+        int(hp),
+        int(atk),
+        int(defense),
+        int(spd),
+        int(luk),
+        int(payload.exp_reward),
+        1,
+        int(payload.is_ball),
+        payload.ball_code,
+        payload.content_hash.strip(),
+    ))
+
+    cur.execute("""
+        UPDATE users
+        SET free_draw_count = free_draw_count + 1
+        WHERE user_id=?
+    """, (payload.creator_user_id,))
+
+    conn.commit()
+    work_id = cur.lastrowid
+
+    work = cur.execute("SELECT * FROM works WHERE id=?", (work_id,)).fetchone()
+    user = ensure_user(conn, payload.creator_user_id)
+
+    result = {
+        "message": "作品を登録しました。投稿者に無料ガチャ1回を付与しました。",
+        "work": serialize_work(work),
+        "creator_free_draw_count": user["free_draw_count"]
+    }
+    conn.close()
+    return result
+
+
+@app.post("/admin/points/add/{user_id}")
+def admin_add_points(user_id: str, points: int):
+    conn = get_db()
+    cur = conn.cursor()
+    ensure_user(conn, user_id)
+
+    if points <= 0:
+        conn.close()
+        raise HTTPException(status_code=400, detail="ポイントは1以上にしてください")
+
+    cur.execute("UPDATE users SET points = points + ? WHERE user_id=?", (points, user_id))
+    conn.commit()
+    user = ensure_user(conn, user_id)
+    conn.close()
+
+    return {
+        "message": f"{user_id} に {points}pt 追加しました",
+        "points": user["points"]
+    }
+
+
+@app.post("/admin/free-draw/add/{user_id}")
+def admin_add_free_draw(user_id: str, count: int = 1):
+    conn = get_db()
+    cur = conn.cursor()
+    ensure_user(conn, user_id)
+
+    if count <= 0:
+        conn.close()
+        raise HTTPException(status_code=400, detail="回数は1以上にしてください")
+
+    cur.execute("UPDATE users SET free_draw_count = free_draw_count + ? WHERE user_id=?", (count, user_id))
+    conn.commit()
+    user = ensure_user(conn, user_id)
+    conn.close()
+
+    return {
+        "message": f"{user_id} に無料ガチャ {count} 回追加しました",
+        "free_draw_count": user["free_draw_count"]
+    }
