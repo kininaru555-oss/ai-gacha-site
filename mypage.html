@@ -735,4 +735,60 @@
     }
 
     async function withdrawRequest() {
-      const amount = Number(document.getElementById("withdrawInput"
+      const amount = Number(document.getElementById("withdrawInput").value || 0);
+      if (amount < 1000) {
+        showMessage("出金は1,000pt以上から申請できます。");
+        return;
+      }
+
+      try {
+        const data = await api(`/withdraw/request`, {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: authUser.user_id,
+            amount
+          })
+        });
+        showMessage(data.message || "出金申請を受け付けました。確認後、順次処理いたします。");
+      } catch (error) {
+        showMessage(error.message);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    window.acceptOffer = acceptOffer;
+    window.rejectOffer = rejectOffer;
+    window.battleCard = battleCard;
+    window.listCard = listCard;
+    window.legendCard = legendCard;
+
+    function boot() {
+      authUser = readAuth();
+      if (!authUser || !authUser.user_id) {
+        showMessage("マイページを利用するにはログインが必要です。トップページからログインしてください。");
+        return;
+      }
+
+      document.getElementById("buyReviveButton").addEventListener("click", buyRevive);
+      document.getElementById("adXpButton").addEventListener("click", getAdXp);
+      document.getElementById("withdrawButton").addEventListener("click", withdrawRequest);
+
+      refreshAll();
+    }
+
+    document.addEventListener("DOMContentLoaded", boot);
+  </script>
+</body>
+</html>
