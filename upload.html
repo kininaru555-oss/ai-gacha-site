@@ -460,7 +460,13 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         console.warn("Apps Script log failed:", err);
       }
     }
-    showMessage("投稿が完了しました。投稿者には無料ガチャ1回が付与されます。まもなくガチャページへ戻ります。", false);
+    localStorage.setItem("gacha_post_success_notice", JSON.stringify({
+  type: "post_reward",
+  message: "投稿ありがとうございます。無料ガチャ回数が1回追加されました。",
+  at: Date.now()
+}));
+
+showMessage("投稿が完了しました。投稿者には無料ガチャ1回が付与されます。まもなくガチャページへ戻ります。", false);
 resetForm();
 redirectToIndexAfterSuccess(2000);
   
