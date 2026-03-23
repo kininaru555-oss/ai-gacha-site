@@ -3,7 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
 import random
+import io
 from datetime import datetime, date
+from typing import Optional
+
+import requests
+import numpy as np
+from PIL import Image, ImageFilter
 
 app = FastAPI(title="Bijo Gacha Quest API")
 
@@ -57,6 +63,7 @@ def init_db():
         type TEXT DEFAULT 'image',
         image_url TEXT DEFAULT '',
         video_url TEXT DEFAULT '',
+        thumbnail_url TEXT DEFAULT '',
         link_url TEXT DEFAULT '',
         x_url TEXT DEFAULT '',
         booth_url TEXT DEFAULT '',
@@ -185,85 +192,11 @@ def init_db():
     )
     """)
 
-    conn.commit()
-    conn.close()
-
-
-def seed_data():
-    conn = get_db()
-    cur = conn.cursor()
-
-    # users
-    cur.execute("INSERT OR IGNORE INTO users(user_id,password,points,free_draw_count) VALUES('admin','admin123',9999,99)")
-    cur.execute("INSERT OR IGNORE INTO users(user_id,password,points,free_draw_count) VALUES('creator1','1234',100,3)")
-    cur.execute("INSERT OR IGNORE INTO users(user_id,password,points,free_draw_count) VALUES('creator2','1234',100,3)")
-
-    # sample normal works
-    base_works = [
-        (
-            "月下の魔導姫", "creator1", "投稿者1", "銀髪の二次元美少女イラスト", "ファンタジー",
-            "image", "https://res.cloudinary.com/demo/image/upload/sample.jpg", "",
-            "https://example.com/creator1", "https://x.com", "https://booth.pm",
-            "https://www.chichi-pui.com/", "", "N", 18, 12, 11, 10, 8, 8, 0, "", "hash-1"
-        ),
-        (
-            "深紅の踊り子", "creator1", "投稿者1", "華やかな二次元キャラ", "和風",
-            "image", "https://res.cloudinary.com/demo/image/upload/sample.jpg", "",
-            "https://example.com/creator1", "", "", "", "", "R", 20, 16, 12, 15, 10, 10, 0, "", "hash-2"
-        ),
-        (
-            "電脳天使ユリナ", "creator2", "投稿者2", "近未来系の二次元動画カード", "SF",
-            "video", "", "https://www.w3schools.com/html/mov_bbb.mp4",
-            "https://example.com/creator2", "", "", "", "", "SR", 22, 20, 16, 18, 12, 15, 0, "", "hash-3"
-        ),
-        (
-            "運営限定・白銀神姫", "admin", "運営", "運営カード。経験値ボーナス対象。", "限定",
-            "image", "https://res.cloudinary.com/demo/image/upload/sample.jpg", "",
-            "https://example.com/admin", "", "", "", "", "SSR", 28, 26, 22, 18, 16, 25, 0, "", "hash-4"
-        ),
-    ]
-
-    for w in base_works:
-        cur.execute("""
-        INSERT OR IGNORE INTO works(
-            title, creator_id, creator_name, description, genre, type,
-            image_url, video_url, link_url, x_url, booth_url, chichipui_url, dlsite_url,
-            rarity, hp, atk, def, spd, luk, exp_reward, is_ball, ball_code, content_hash
-        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, w)
-
-    # 7 balls
-    for i in range(1, 8):
-        cur.execute("""
-        INSERT OR IGNORE INTO works(
-            title, creator_id, creator_name, description, genre, type,
-            image_url, video_url, link_url, rarity, hp, atk, def, spd, luk,
-            exp_reward, is_ball, ball_code, content_hash
-        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (
-            f"トラゴンボウル {i}",
-            "admin",
-            "運営",
-            "7つ集めるとレジェンド化できます。",
-            "アイテム",
-            "image",
-            "https://res.cloudinary.com/demo/image/upload/sample.jpg",
-            "",
-            "",
-            "R",
-            5, 5, 5, 5, 5,
-            3,
-            1,
-            f"BALL_{i}",
-            f"ball-hash-{i}"
-        ))
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_works_content_hash_unique ON works(content_hash)")
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_works_ball_code_unique ON works(ball_code)")
 
     conn.commit()
     conn.close()
-
-
-init_db()
-seed_data()
 
 
 # =========================================================
@@ -316,8 +249,43 @@ class LikeRequest(BaseModel):
     work_id: int
 
 
+class AdminCreateWorkRequest(BaseModel):
+    creator_user_id: str
+    creator_name: str
+    title: str
+    description: str = ""
+    genre: str = ""
+    type: str = "image"
+    image_url: str = ""
+    video_url: str = ""
+    thumbnail_url: str = ""
+    link_url: str = ""
+    x_url: str = ""
+    booth_url: str = ""
+    chichipui_url: str = ""
+    dlsite_url: str = ""
+    rarity: str = "N"
+    hp: Optional[int] = None
+    atk: Optional[int] = None
+    defense: Optional[int] = None
+    spd: Optional[int] = None
+    luk: Optional[int] = None
+    exp_reward: int = 5
+    is_official: int = 0
+    content_hash: str
+    is_ball: int = 0
+    ball_code: str = ""
+
+
+class AutoStatRequest(BaseModel):
+    image_url: str
+    title: str = ""
+    description: str = ""
+    genre: str = ""
+
+
 # =========================================================
-# Helpers
+# Basic Helpers
 # =========================================================
 def row_to_dict(row):
     return dict(row) if row else None
@@ -486,6 +454,7 @@ def serialize_work(work):
         "type": work["type"],
         "image_url": work["image_url"],
         "video_url": work["video_url"],
+        "thumbnail_url": work["thumbnail_url"],
         "link_url": work["link_url"],
         "x_url": work["x_url"],
         "booth_url": work["booth_url"],
@@ -548,8 +517,14 @@ def distribute_points(conn, work_id: int, buyer_user_id: str, seller_user_id: st
     creator_share = remain - seller_share
 
     cur.execute("UPDATE users SET points = points - ? WHERE user_id=?", (total_points, buyer_user_id))
-    cur.execute("UPDATE users SET points = points + ?, royalty_balance = royalty_balance + ? WHERE user_id=?", (seller_share, seller_share, seller_user_id))
-    cur.execute("UPDATE users SET points = points + ?, royalty_balance = royalty_balance + ? WHERE user_id=?", (creator_share, creator_share, creator_id))
+    cur.execute(
+        "UPDATE users SET points = points + ?, royalty_balance = royalty_balance + ? WHERE user_id=?",
+        (seller_share, seller_share, seller_user_id)
+    )
+    cur.execute(
+        "UPDATE users SET points = points + ?, royalty_balance = royalty_balance + ? WHERE user_id=?",
+        (creator_share, creator_share, creator_id)
+    )
 
     cur.execute("""
         INSERT INTO transactions(
@@ -645,7 +620,245 @@ def steal_random_ball_if_any(conn, loser_id: str, winner_id: str):
 
 
 # =========================================================
-# Routes
+# Auto Stat AI Helpers
+# =========================================================
+def clamp_stat(value: float, min_value: int = 5, max_value: int = 99) -> int:
+    return max(min_value, min(max_value, int(round(value))))
+
+
+def fetch_image_from_url(image_url: str, timeout: int = 20) -> Image.Image:
+    res = requests.get(image_url, timeout=timeout)
+    res.raise_for_status()
+    return Image.open(io.BytesIO(res.content)).convert("RGB")
+
+
+def normalize(value: float, src_min: float, src_max: float, dst_min: float = 0.0, dst_max: float = 1.0) -> float:
+    if src_max - src_min == 0:
+        return dst_min
+    ratio = (value - src_min) / (src_max - src_min)
+    ratio = max(0.0, min(1.0, ratio))
+    return dst_min + ratio * (dst_max - dst_min)
+
+
+def compute_image_features(img: Image.Image):
+    img_small = img.resize((256, 256))
+    arr = np.asarray(img_small).astype(np.float32) / 255.0
+
+    r = arr[:, :, 0]
+    g = arr[:, :, 1]
+    b = arr[:, :, 2]
+
+    brightness = float(arr.mean())
+    contrast = float(arr.std())
+
+    rgb_mean = arr.mean(axis=2, keepdims=True)
+    saturation_like = float(np.abs(arr - rgb_mean).mean())
+
+    red_bias = float((r - (g + b) / 2.0).mean())
+    blue_bias = float((b - (r + g) / 2.0).mean())
+    dark_ratio = float((arr.mean(axis=2) < 0.25).mean())
+    bright_ratio = float((arr.mean(axis=2) > 0.75).mean())
+
+    gray = img_small.convert("L")
+    gray_arr = np.asarray(gray).astype(np.float32) / 255.0
+
+    edge_img = gray.filter(ImageFilter.FIND_EDGES)
+    edge_arr = np.asarray(edge_img).astype(np.float32) / 255.0
+    edge_strength = float(edge_arr.mean())
+
+    sharpness = float(
+        np.abs(np.diff(gray_arr, axis=0)).mean() +
+        np.abs(np.diff(gray_arr, axis=1)).mean()
+    )
+
+    return {
+        "brightness": brightness,
+        "contrast": contrast,
+        "saturation_like": saturation_like,
+        "red_bias": red_bias,
+        "blue_bias": blue_bias,
+        "dark_ratio": dark_ratio,
+        "bright_ratio": bright_ratio,
+        "edge_strength": edge_strength,
+        "sharpness": sharpness,
+    }
+
+
+def keyword_bonus(text: str):
+    rules = {
+        "hp": {
+            "天使": 6, "姫": 5, "神": 7, "聖": 5, "癒し": 4, "花": 3, "月": 2, "光": 3
+        },
+        "atk": {
+            "炎": 7, "剣": 6, "戦": 6, "魔王": 6, "竜": 5, "雷": 5, "爆": 6, "紅": 4
+        },
+        "defense": {
+            "盾": 7, "鎧": 7, "城": 5, "要塞": 8, "闇": 4, "黒": 3, "鋼": 6
+        },
+        "spd": {
+            "風": 7, "雷": 6, "電脳": 7, "忍": 7, "瞬": 6, "流": 4, "羽": 3
+        },
+         "luk": {
+            "奇跡": 8, "夢": 5, "虹": 6, "星": 5, "月": 3, "運命": 7, "秘宝": 6
+        },
+    }
+
+    result = {
+        "hp": 0,
+        "atk": 0,
+        "defense": 0,
+        "spd": 0,
+        "luk": 0,
+    }
+
+    joined = text or ""
+    for stat_name, mapping in rules.items():
+        for word, bonus in mapping.items():
+            if word in joined:
+                result[stat_name] += bonus
+
+    return result
+
+
+def generate_auto_stats(image_url: str, title: str = "", description: str = "", genre: str = ""):
+    img = fetch_image_from_url(image_url)
+    f = compute_image_features(img)
+
+    hp = (
+        20
+        + normalize(f["brightness"], 0.2, 0.9, 0, 20)
+        + normalize(f["bright_ratio"], 0.0, 0.7, 0, 10)
+        + normalize(f["contrast"], 0.05, 0.35, 0, 8)
+    )
+
+    atk = (
+        20
+        + normalize(f["red_bias"], -0.2, 0.2, 0, 18)
+        + normalize(f["contrast"], 0.05, 0.35, 0, 12)
+        + normalize(f["saturation_like"], 0.02, 0.25, 0, 10)
+    )
+
+    defense = (
+        20
+        + normalize(f["dark_ratio"], 0.0, 0.8, 0, 18)
+        + normalize(f["blue_bias"], -0.2, 0.2, 0, 12)
+        + normalize(f["edge_strength"], 0.01, 0.18, 0, 8)
+    )
+
+    spd = (
+        20
+        + normalize(f["edge_strength"], 0.01, 0.18, 0, 18)
+        + normalize(f["sharpness"], 0.005, 0.25, 0, 14)
+        + normalize(f["contrast"], 0.05, 0.35, 0, 6)
+    )
+
+    luk = (
+        20
+        + normalize(f["saturation_like"], 0.02, 0.25, 0, 14)
+        + normalize(f["bright_ratio"], 0.0, 0.7, 0, 8)
+        + random.randint(0, 9)
+    )
+
+    bonus = keyword_bonus(f"{title} {description} {genre}")
+    hp += bonus["hp"]
+    atk += bonus["atk"]
+    defense += bonus["defense"]
+    spd += bonus["spd"]
+    luk += bonus["luk"]
+
+    return {
+        "hp": clamp_stat(hp),
+        "atk": clamp_stat(atk),
+        "defense": clamp_stat(defense),
+        "spd": clamp_stat(spd),
+        "luk": clamp_stat(luk),
+        "debug": f,
+    }
+
+
+# =========================================================
+# Seed
+# =========================================================
+def seed_data():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("INSERT OR IGNORE INTO users(user_id,password,points,free_draw_count) VALUES('admin','admin123',9999,99)")
+    cur.execute("INSERT OR IGNORE INTO users(user_id,password,points,free_draw_count) VALUES('creator1','1234',100,3)")
+    cur.execute("INSERT OR IGNORE INTO users(user_id,password,points,free_draw_count) VALUES('creator2','1234',100,3)")
+
+    base_works = [
+        (
+            "月下の魔導姫", "creator1", "投稿者1", "銀髪の二次元美少女イラスト", "ファンタジー",
+            "image", "https://res.cloudinary.com/demo/image/upload/sample.jpg", "", "",
+            "https://example.com/creator1", "https://x.com", "https://booth.pm",
+            "https://www.chichi-pui.com/", "", "N", 18, 12, 11, 10, 8, 8, 0, "", "hash-1"
+        ),
+        (
+            "深紅の踊り子", "creator1", "投稿者1", "華やかな二次元キャラ", "和風",
+            "image", "https://res.cloudinary.com/demo/image/upload/sample.jpg", "", "",
+            "https://example.com/creator1", "", "", "", "", "R", 20, 16, 12, 15, 10, 10, 0, "", "hash-2"
+        ),
+        (
+            "電脳天使ユリナ", "creator2", "投稿者2", "近未来系の二次元動画カード", "SF",
+            "video", "", "https://www.w3schools.com/html/mov_bbb.mp4", "",
+            "https://example.com/creator2", "", "", "", "", "SR", 22, 20, 16, 18, 12, 15, 0, "", "hash-3"
+        ),
+        (
+            "運営限定・白銀神姫", "admin", "運営", "運営カード。経験値ボーナス対象。", "限定",
+            "image", "https://res.cloudinary.com/demo/image/upload/sample.jpg", "", "",
+            "https://example.com/admin", "", "", "", "", "SSR", 28, 26, 22, 18, 16, 25, 0, "", "hash-4"
+        ),
+    ]
+
+    for w in base_works:
+        cur.execute("""
+        INSERT OR IGNORE INTO works(
+            title, creator_id, creator_name, description, genre, type,
+            image_url, video_url, thumbnail_url, link_url, x_url, booth_url, chichipui_url, dlsite_url,
+            rarity, hp, atk, def, spd, luk, exp_reward, is_ball, ball_code, content_hash
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, w)
+
+    for i in range(1, 8):
+        cur.execute("""
+        INSERT OR IGNORE INTO works(
+            title, creator_id, creator_name, description, genre, type,
+            image_url, video_url, thumbnail_url, link_url, x_url, booth_url, chichipui_url, dlsite_url,
+            rarity, hp, atk, def, spd, luk, exp_reward, is_ball, ball_code, content_hash
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            f"トラゴンボウル {i}",
+            "admin",
+            "運営",
+            "7つ集めるとレジェンド化できます。",
+            "アイテム",
+            "image",
+            "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "R",
+            5, 5, 5, 5, 5,
+            3,
+            1,
+            f"BALL_{i}",
+            f"ball-hash-{i}"
+        ))
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+seed_data()
+
+# =========================================================
+# Routes Part 1
 # =========================================================
 @app.get("/")
 def root():
@@ -692,6 +905,7 @@ def get_user(user_id: str):
     conn = get_db()
     reset_daily_duplicate_exp_if_needed(conn, user_id)
     user = ensure_user(conn, user_id)
+
     result = {
         "user_id": user["user_id"],
         "points": user["points"],
@@ -727,7 +941,6 @@ def process_gacha(conn, user_id: str, draw_type: str):
         exp_gained = gain_duplicate_exp(conn, user_id, work)
         owner_user_id = owner["owner_id"]
 
-    # paid gacha creator reward
     if draw_type == "paid":
         cur.execute("""
             UPDATE users
@@ -791,10 +1004,13 @@ def like_work(work_id: int, payload: LikeRequest):
     conn = get_db()
     cur = conn.cursor()
     ensure_user(conn, payload.user_id)
-    work = ensure_work(conn, work_id)
+    ensure_work(conn, work_id)
 
     try:
-        cur.execute("INSERT INTO like_logs(user_id, work_id) VALUES(?,?)", (payload.user_id, work_id))
+        cur.execute(
+            "INSERT INTO like_logs(user_id, work_id) VALUES(?,?)",
+            (payload.user_id, work_id)
+        )
         cur.execute("UPDATE works SET like_count = like_count + 1 WHERE id=?", (work_id,))
         conn.commit()
     except sqlite3.IntegrityError:
@@ -850,7 +1066,10 @@ def battle_entry(payload: BattleEntryRequest):
     """, (payload.user_id,)).fetchone()
 
     if not waiting:
-        cur.execute("INSERT INTO battle_queue(user_id, work_id) VALUES(?,?)", (payload.user_id, payload.work_id))
+        cur.execute(
+            "INSERT INTO battle_queue(user_id, work_id) VALUES(?,?)",
+            (payload.user_id, payload.work_id)
+        )
         conn.commit()
         conn.close()
         return {"message": "対戦待機に入りました。次の参加者とバトルします。"}
@@ -858,6 +1077,7 @@ def battle_entry(payload: BattleEntryRequest):
     opp_user_id = waiting["user_id"]
     opp_work_id = waiting["work_id"]
     opp_card = get_owned_card(conn, opp_user_id, opp_work_id)
+
     if not opp_card:
         cur.execute("DELETE FROM battle_queue WHERE id=?", (waiting["id"],))
         conn.commit()
@@ -888,20 +1108,21 @@ def battle_entry(payload: BattleEntryRequest):
 
     extra = []
 
-    # base exp
     cur.execute("UPDATE owned_cards SET exp = exp + ? WHERE id=?", (exp_me, my_card["id"]))
     cur.execute("UPDATE owned_cards SET exp = exp + ? WHERE id=?", (exp_opp, opp_card["id"]))
     cur.execute("UPDATE users SET exp = exp + ? WHERE user_id=?", (exp_me, payload.user_id))
     cur.execute("UPDATE users SET exp = exp + ? WHERE user_id=?", (exp_opp, opp_user_id))
 
-    # lose streak + 3 losses bonus
     if result_me == "lose":
         cur.execute("""
             UPDATE owned_cards
             SET lose_streak_count = lose_streak_count + 1
             WHERE id=?
         """, (my_card["id"],))
-        updated = cur.execute("SELECT lose_streak_count FROM owned_cards WHERE id=?", (my_card["id"],)).fetchone()
+        updated = cur.execute(
+            "SELECT lose_streak_count FROM owned_cards WHERE id=?",
+            (my_card["id"],)
+        ).fetchone()
         if updated["lose_streak_count"] >= 3:
             cur.execute("""
                 UPDATE owned_cards
@@ -919,7 +1140,10 @@ def battle_entry(payload: BattleEntryRequest):
             SET lose_streak_count = lose_streak_count + 1
             WHERE id=?
         """, (opp_card["id"],))
-        updated = cur.execute("SELECT lose_streak_count FROM owned_cards WHERE id=?", (opp_card["id"],)).fetchone()
+        updated = cur.execute(
+            "SELECT lose_streak_count FROM owned_cards WHERE id=?",
+            (opp_card["id"],)
+        ).fetchone()
         if updated["lose_streak_count"] >= 3:
             cur.execute("""
                 UPDATE owned_cards
@@ -930,7 +1154,6 @@ def battle_entry(payload: BattleEntryRequest):
     elif result_opp == "win":
         cur.execute("UPDATE owned_cards SET lose_streak_count = 0 WHERE id=?", (opp_card["id"],))
 
-    # revive item
     my_user = ensure_user(conn, payload.user_id)
     opp_user = ensure_user(conn, opp_user_id)
 
@@ -942,7 +1165,6 @@ def battle_entry(payload: BattleEntryRequest):
         cur.execute("UPDATE users SET revive_items = revive_items - 1 WHERE user_id=?", (opp_user_id,))
         result_opp = "draw"
 
-    # ball steal
     ball_stolen = None
     if result_me == "win":
         ball_stolen = steal_random_ball_if_any(conn, opp_user_id, payload.user_id)
@@ -950,10 +1172,8 @@ def battle_entry(payload: BattleEntryRequest):
         ball_stolen = steal_random_ball_if_any(conn, payload.user_id, opp_user_id)
 
     if ball_stolen:
-        extra.append(f"トラゴンボウル奪取:
-        {ball_stolen}")
+        extra.append(f"トラゴンボウル奪取: {ball_stolen}")
 
- # level up
     level_up_card_if_needed(conn, my_card["id"])
     level_up_card_if_needed(conn, opp_card["id"])
     update_user_level(conn, payload.user_id)
@@ -1004,6 +1224,7 @@ def get_battle_logs(user_id: str):
         "reward_exp": r["reward_exp"],
         "created_at": r["created_at"]
     } for r in rows]
+
     conn.close()
     return {"logs": items}
 
@@ -1013,11 +1234,14 @@ def reward_ad_xp(payload: UserOnlyRequest):
     conn = get_db()
     cur = conn.cursor()
     ensure_user(conn, payload.user_id)
+
     cur.execute("UPDATE users SET exp = exp + 20 WHERE user_id=?", (payload.user_id,))
     conn.commit()
     update_user_level(conn, payload.user_id)
+
     user = ensure_user(conn, payload.user_id)
     conn.close()
+
     return {
         "message": "広告報酬でEXP 20 を付与しました",
         "exp": user["exp"],
@@ -1037,10 +1261,12 @@ def buy_revive(payload: UserOnlyRequest):
 
     cur.execute("""
         UPDATE users
-        SET points = points - 100, revive_items = revive_items + 1
+        SET points = points - 100,
+            revive_items = revive_items + 1
         WHERE user_id=?
     """, (payload.user_id,))
     conn.commit()
+
     user = ensure_user(conn, payload.user_id)
     conn.close()
 
@@ -1049,373 +1275,3 @@ def buy_revive(payload: UserOnlyRequest):
         "revive_item_count": user["revive_items"],
         "points": user["points"]
     }
-
-
-@app.post("/offers")
-def send_offer(payload: OfferRequest):
-    conn = get_db()
-    cur = conn.cursor()
-
-    ensure_user(conn, payload.from_user_id)
-    ensure_user(conn, payload.to_user_id)
-    ensure_work(conn, payload.work_id)
-
-    owner = get_ownership(conn, payload.work_id)
-    if not owner:
-        conn.close()
-        raise HTTPException(status_code=400, detail="未所有作品にはオファーできません")
-    if owner["owner_id"] != payload.to_user_id:
-        conn.close()
-        raise HTTPException(status_code=400, detail="宛先が現在の所有者ではありません")
-    if payload.from_user_id == payload.to_user_id:
-        conn.close()
-        raise HTTPException(status_code=400, detail="自分の作品にはオファーできません")
-
-    sender = ensure_user(conn, payload.from_user_id)
-    if sender["points"] < payload.offer_points:
-        conn.close()
-        raise HTTPException(status_code=400, detail="ポイント不足です")
-
-    cur.execute("""
-        INSERT INTO offers(work_id, from_user, to_user, points, status)
-        VALUES(?,?,?,?,?)
-    """, (payload.work_id, payload.from_user_id, payload.to_user_id, payload.offer_points, "pending"))
-    conn.commit()
-    conn.close()
-    return {"message": "オファーを送信しました"}
-
-
-@app.get("/offers/{user_id}")
-def get_offers(user_id: str):
-    conn = get_db()
-    ensure_user(conn, user_id)
-    cur = conn.cursor()
-
-    incoming = cur.execute("""
-        SELECT o.*, w.title AS work_title
-        FROM offers o
-        JOIN works w ON w.id = o.work_id
-        WHERE o.to_user=?
-        ORDER BY o.id DESC
-    """, (user_id,)).fetchall()
-
-    outgoing = cur.execute("""
-        SELECT o.*, w.title AS work_title
-        FROM offers o
-        JOIN works w ON w.id = o.work_id
-        WHERE o.from_user=?
-        ORDER BY o.id DESC
-    """, (user_id,)).fetchall()
-
-    res = {
-        "incoming": [dict(x) for x in incoming],
-        "outgoing": [dict(x) for x in outgoing]
-    }
-    conn.close()
-    return res
-
-
-@app.post("/offers/{offer_id}/accept")
-def accept_offer(offer_id: int):
-    conn = get_db()
-    cur = conn.cursor()
-
-    offer = cur.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()
-    if not offer:
-        conn.close()
-        raise HTTPException(status_code=404, detail="オファーが存在しません")
-    if offer["status"] != "pending":
-        conn.close()
-        raise HTTPException(status_code=400, detail="このオファーは処理済みです")
-
-    owner = get_ownership(conn, offer["work_id"])
-    if not owner or owner["owner_id"] != offer["to_user"]:
-        conn.close()
-        raise HTTPException(status_code=400, detail="現在の所有者が一致しません")
-
-    shares = distribute_points(conn, offer["work_id"], offer["from_user"], offer["to_user"], offer["points"], "offer")
-    transfer_ownership(conn, offer["work_id"], offer["from_user"])
-
-    work = ensure_work(conn, offer["work_id"])
-    create_owned_card_if_missing(conn, offer["from_user"], work)
-
-    cur.execute("UPDATE offers SET status='accepted' WHERE id=?", (offer_id,))
-    cur.execute("UPDATE offers SET status='cancelled' WHERE work_id=? AND status='pending' AND id<>?", (offer["work_id"], offer_id))
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "オファーを承認しました。所有権を移転しました。",
-        "shares": shares
-    }
-
-
-@app.post("/offers/{offer_id}/reject")
-def reject_offer(offer_id: int):
-    conn = get_db()
-    cur = conn.cursor()
-    offer = cur.execute("SELECT * FROM offers WHERE id=?", (offer_id,)).fetchone()
-    if not offer:
-        conn.close()
-        raise HTTPException(status_code=404, detail="オファーが存在しません")
-    if offer["status"] != "pending":
-        conn.close()
-        raise HTTPException(status_code=400, detail="このオファーは処理済みです")
-
-    cur.execute("UPDATE offers SET status='rejected' WHERE id=?", (offer_id,))
-    conn.commit()
-    conn.close()
-    return {"message": "オファーを拒否しました"}
-
-
-@app.post("/market/list")
-def list_market(payload: MarketListRequest):
-    conn = get_db()
-    cur = conn.cursor()
-    ensure_user(conn, payload.user_id)
-    ensure_work(conn, payload.work_id)
-
-    owner = get_ownership(conn, payload.work_id)
-    if not owner or owner["owner_id"] != payload.user_id:
-        conn.close()
-        raise HTTPException(status_code=400, detail="所有者のみ出品できます")
-
-    open_listing = cur.execute("""
-        SELECT * FROM market
-        WHERE work_id=? AND status='open'
-        LIMIT 1
-    """, (payload.work_id,)).fetchone()
-
-    if open_listing:
-        conn.close()
-        raise HTTPException(status_code=400, detail="すでに公開売却中です")
-
-    cur.execute("""
-        INSERT INTO market(work_id, seller, price, status)
-        VALUES(?,?,?,?)
-    """, (payload.work_id, payload.user_id, payload.price_points, "open"))
-    conn.commit()
-    conn.close()
-    return {"message": "公開売却に出品しました"}
-
-    
-@app.get("/market/listings")
-def get_market_listings():
-    conn = get_db()
-    cur = conn.cursor()
-    rows = cur.execute("""
-        SELECT
-            m.id AS listing_id,
-            m.work_id,
-            m.seller AS seller_user_id,
-            m.price AS price_points,
-            w.title,
-            w.creator_name,
-            w.image_url,
-            w.video_url,
-            w.link_url,
-            w.draw_count,
-            oc.rarity,
-            oc.hp,
-            oc.atk,
-            oc.def,
-            oc.level,
-            oc.is_legend
-        FROM market m
-        JOIN works w ON w.id = m.work_id
-        LEFT JOIN owned_cards oc ON oc.work_id = m.work_id AND oc.user_id = m.seller
-        WHERE m.status='open'
-        ORDER BY m.id DESC
-    """).fetchall()
-
-    items = [dict(x) for x in rows]
-    conn.close()
-    return {"items": items}
-
-
-@app.post("/market/buy")
-def buy_market(payload: MarketBuyRequest):
-    conn = get_db()
-    cur = conn.cursor()
-
-    ensure_user(conn, payload.buyer_user_id)
-
-    listing = cur.execute("SELECT * FROM market WHERE id=?", (payload.listing_id,)).fetchone()
-    if not listing:
-        conn.close()
-        raise HTTPException(status_code=404, detail="出品が存在しません")
-    if listing["status"] != "open":
-        conn.close()
-        raise HTTPException(status_code=400, detail="この出品は購入できません")
-    if listing["seller"] == payload.buyer_user_id:
-        conn.close()
-        raise HTTPException(status_code=400, detail="自分の出品は購入できません")
-
-    owner = get_ownership(conn, listing["work_id"])
-    if not owner or owner["owner_id"] != listing["seller"]:
-        conn.close()
-        raise HTTPException(status_code=400, detail="現在の所有者が一致しません")
-
-    shares = distribute_points(conn, listing["work_id"], payload.buyer_user_id, listing["seller"], listing["price"], "market")
-    transfer_ownership(conn, listing["work_id"], payload.buyer_user_id)
-
-    work = ensure_work(conn, listing["work_id"])
-    create_owned_card_if_missing(conn, payload.buyer_user_id, work)
-
-    cur.execute("UPDATE market SET status='sold' WHERE id=?", (payload.listing_id,))
-    cur.execute("UPDATE offers SET status='cancelled' WHERE work_id=? AND status='pending'", (listing["work_id"],))
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "購入しました。所有権を移転しました。",
-        "shares": shares
-    }
-
-
-@app.post("/withdraw/request")
-def withdraw_request(payload: WithdrawRequestIn):
-    conn = get_db()
-    cur = conn.cursor()
-    user = ensure_user(conn, payload.user_id)
-
-    if payload.amount < 1000:
-        conn.close()
-        raise HTTPException(status_code=400, detail="1000以上から出金申請できます")
-    if user["royalty_balance"] < payload.amount:
-        conn.close()
-        raise HTTPException(status_code=400, detail="出金可能残高が不足しています")
-
-    cur.execute("""
-        UPDATE users
-        SET royalty_balance = royalty_balance - ?
-        WHERE user_id=?
-    """, (payload.amount, payload.user_id))
-
-    cur.execute("""
-        INSERT INTO withdraw_requests(user_id, amount, status)
-        VALUES(?,?,?)
-    """, (payload.user_id, payload.amount, "pending"))
-    conn.commit()
-    conn.close()
-
-    return {"message": "出金申請を受け付けました"}
-
-
-@app.post("/legend/activate")
-def legend_activate(payload: LegendRequest):
-    conn = get_db()
-    cur = conn.cursor()
-
-    ensure_user(conn, payload.user_id)
-    owner = get_ownership(conn, payload.work_id)
-    if not owner or owner["owner_id"] != payload.user_id:
-        conn.close()
-        raise HTTPException(status_code=400, detail="所有作品のみレジェンド化できます")
-
-    if count_ball_codes(conn, payload.user_id) < 7:
-        conn.close()
-        raise HTTPException(status_code=400, detail="トラゴンボウル7種が揃っていません")
-
-    card = get_owned_card(conn, payload.user_id, payload.work_id)
-    if not card:
-        conn.close()
-        raise HTTPException(status_code=404, detail="所有カードがありません")
-    if card["is_legend"]:
-        conn.close()
-        raise HTTPException(status_code=400, detail="すでにレジェンド化済みです")
-
-    # power up card
-    cur.execute("""
-        UPDATE owned_cards
-        SET is_legend=1,
-            legend_at=?,
-            rarity='LEGEND',
-            hp = hp + 15,
-            atk = atk + 15,
-            def = def + 15,
-            spd = spd + 10,
-            luk = luk + 10
-        WHERE id=?
-    """, (datetime.utcnow().isoformat(), card["id"]))
-
-    cur.execute("UPDATE works SET rarity='LEGEND' WHERE id=?", (payload.work_id,))
-
-    # consume 7 balls
-    ball_rows = cur.execute("""
-        SELECT o.work_id
-        FROM ownership o
-        JOIN works w ON w.id = o.work_id
-        WHERE o.owner_id=? AND w.is_ball=1
-    """, (payload.user_id,)).fetchall()
-
-    for row in ball_rows:
-        cur.execute("DELETE FROM ownership WHERE work_id=?", (row["work_id"],))
-
-    conn.commit()
-    conn.close()
-    return {"message": "レジェンド化しました。トラゴンボウル7個は消費されました。"}
-
-
-@app.get("/balls/{user_id}")
-def get_balls(user_id: str):
-    conn = get_db()
-    ensure_user(conn, user_id)
-    cur = conn.cursor()
-
-    rows = cur.execute("""
-        SELECT w.id AS work_id, w.title, w.ball_code, w.image_url
-        FROM ownership o
-        JOIN works w ON w.id = o.work_id
-        WHERE o.owner_id=? AND w.is_ball=1
-        ORDER BY w.ball_code ASC
-    """, (user_id,)).fetchall()
-
-    items = [dict(x) for x in rows]
-    conn.close()
-    return {"count": len(items), "items": items}
-
-
-@app.get("/works")
-def get_works():
-    conn = get_db()
-    cur = conn.cursor()
-    rows = cur.execute("SELECT * FROM works WHERE is_active=1 ORDER BY id DESC").fetchall()
-    items = [serialize_work(x) for x in rows]
-    conn.close()
-    return {"works": items}
-
-
-@app.post("/admin/points/add/{user_id}")
-def admin_add_points(user_id: str, points: int):
-    conn = get_db()
-    cur = conn.cursor()
-    ensure_user(conn, user_id)
-    if points <= 0:
-        conn.close()
-        raise HTTPException(status_code=400, detail="ポイントは1以上にしてください")
-
-    cur.execute("UPDATE users SET points = points + ? WHERE user_id=?", (points, user_id))
-    conn.commit()
-    user = ensure_user(conn, user_id)
-    conn.close()
-    return {"message": f"{user_id} に {points}pt 追加しました", "points": user["points"]}
-
-
-@app.post("/admin/free-draw/add/{user_id}")
-def admin_add_free_draw(user_id: str, count: int = 1):
-    conn = get_db()
-    cur = conn.cursor()
-    ensure_user(conn, user_id)
-    if count <= 0:
-        conn.close()
-        raise HTTPException(status_code=400, detail="回数は1以上にしてください")
-
-    cur.execute("UPDATE users SET free_draw_count = free_draw_count + ? WHERE user_id=?", (count, user_id))
-    conn.commit()
-    user = ensure_user(conn, user_id)
-    conn.close()
-    return {"message": f"{user_id} に無料ガチャ {count} 回追加しました", "free_draw_count": user["free_draw_count"]}
-
-
-        
