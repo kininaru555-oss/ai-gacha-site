@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>クリエイターランキング</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #0f1115;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .top-links {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .top-links a {
+      background: #374151;
+      color: #fff;
+      text-decoration: none;
+      text-align: center;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      color: #aeb5c2;
+      font-size: 13px;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+
+    .message {
+      display: none;
+      margin-bottom: 16px;
+      background: #101218;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .item {
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .item-grid {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .thumb {
+      width: 100%;
+      aspect-ratio: 3/4;
+      background: #0b0d12;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .thumb img, .thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .rank {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .meta {
+      color: #cfd6e2;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #263042;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .badge.legend {
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .btn-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: bold;
+      text-decoration: none;
+      background: #2563eb;
+    }
+
+    .empty {
+      color: #9ca3af;
+      font-size: 14px;
+      padding: 8px 0;
+    }
+
+    @media (max-width: 720px) {
+      .top-links {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .item-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="top-links">
+      <a href="index.html">ガチャ</a>
+      <a href="market.html">公開売却</a>
+      <a href="mypage.html">マイページ</a>
+      <a href="upload.html">作品投稿</a>
+    </div>
+
+    <div class="page-title">クリエイターランキング TOP10</div>
+    <div class="sub">
+      排出数・いいね・育成状況・代表カードの強さをもとに算出しています。<br>
+      気になったクリエイターは、そのまま販売ページへ移動できます。
+    </div>
+
+    <div id="systemMessage" class="message"></div>
+    <div id="rankingList" class="list"></div>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const API_BASE = window.APP_CONFIG.API_BASE;
+    const rankingList = document.getElementById("rankingList");
+    const systemMessage = document.getElementById("systemMessage");
+
+    function showMessage(text) {
+      systemMessage.textContent = text;
+      systemMessage.classList.add("show");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    async function api(path) {
+      const res = await fetch(`${API_BASE}${path}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || "APIエラー");
+      }
+      return data;
+    }
+
+    function firstLink(item) {
+      return item.link_url || item.booth_url || item.fanbox_url || item.skeb_url || item.pixiv_url || "";
+    }
+
+    function renderRanking(items) {
+      if (!items.length) {
+        rankingList.innerHTML = `<div class="empty">ランキング対象のクリエイターがまだいません。</div>`;
+        return;
+      }
+
+      rankingList.innerHTML = items.map(item => {
+        const topCard = item.top_card;
+        const link = firstLink(item);
+
+        return `
+          <div class="item">
+            <div class="rank">#${item.rank}</div>
+
+            <div class="item-grid">
+              <div class="thumb">
+                ${
+                  topCard
+                    ? topCard.video_url
+                      ? `<video src="${escapeAttr(topCard.video_url)}" muted playsinline preload="metadata"></video>`
+                      : `<img src="${escapeAttr(topCard.image_url || "")}" alt="${escapeAttr(topCard.title || item.creator_name)}" />`
+                    : `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;">No Card</div>`
+                }
+              </div>
+
+              <div>
+                <div class="badge-row">
+                  <div class="badge">スコア ${item.score}</div>
+                  <div class="badge">作品 ${item.total_works}</div>
+                  <div class="badge">いいね ${item.total_likes}</div>
+                  <div class="badge">排出 ${item.total_draws}</div>
+                  <div class="badge">平均Lv ${item.avg_level}</div>
+                  ${
+                    item.legend_count > 0
+                      ? `<div class="badge legend">LEGEND ${item.legend_count}</div>`
+                      : ``
+                  }
+                </div>
+
+                <div class="title">${escapeHtml(item.creator_name || item.creator_id)}</div>
+
+                <div class="meta">
+                  代表カード: ${escapeHtml(topCard?.title || "なし")}<br>
+                  代表カード戦闘力: ${topCard?.card_power ?? 0}<br>
+                  代表カードLv: ${topCard?.level ?? 0}<br>
+                  代表カードレア度: ${escapeHtml(topCard?.rarity || "-")}
+                  ${topCard?.is_legend ? " / LEGEND" : ""}
+                </div>
+
+                <div class="buttons">
+                  ${
+                    link
+                      ? `<a class="btn-link" href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer">販売ページへ</a>`
+                      : ``
+                  }
+                  ${
+                    item.booth_url
+                      ? `<a class="btn-link" href="${escapeAttr(item.booth_url)}" target="_blank" rel="noopener noreferrer">BOOTH</a>`
+                      : ``
+                  }
+                  ${
+                    item.fanbox_url
+                      ? `<a class="btn-link" href="${escapeAttr(item.fanbox_url)}" target="_blank" rel="noopener noreferrer">FANBOX</a>`
+                      : ``
+                  }
+                  ${
+                    item.pixiv_url
+                      ? `<a class="btn-link" href="${escapeAttr(item.pixiv_url)}" target="_blank" rel="noopener noreferrer">pixiv</a>`
+                      : ``
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function loadRanking() {
+      try {
+        const data = await api("/creators/ranking");
+        renderRanking(data.items || []);
+      } catch (error) {
+        showMessage(error.message || "ランキングの読み込みに失敗しました。");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadRanking);
+  </script>
+</body>
+</html>
