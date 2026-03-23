@@ -75,6 +75,119 @@ def get_user_works(user_id: str):
         return {"works": items}
 
 
+@router.get("/creators/ranking")
+def get_creator_ranking(limit: int = 10):
+    limit = max(1, min(limit, 10))
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    w.creator_id,
+                    w.creator_name,
+                    COALESCE(MAX(NULLIF(w.link_url, '')), '') AS link_url,
+                    COALESCE(MAX(NULLIF(w.booth_url, '')), '') AS booth_url,
+                    COALESCE(MAX(NULLIF(w.fanbox_url, '')), '') AS fanbox_url,
+                    COALESCE(MAX(NULLIF(w.skeb_url, '')), '') AS skeb_url,
+                    COALESCE(MAX(NULLIF(w.pixiv_url, '')), '') AS pixiv_url,
+                    SUM(COALESCE(w.like_count, 0)) AS total_likes,
+                    SUM(COALESCE(w.draw_count, 0)) AS total_draws,
+                    COUNT(*) AS total_works
+                FROM works w
+                WHERE w.is_active = 1
+                  AND w.creator_id <> 'admin'
+                GROUP BY w.creator_id, w.creator_name
+            """)
+            creators = cur.fetchall()
+
+        results = []
+
+        for creator in creators:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        oc.*,
+                        w.title,
+                        w.image_url,
+                        w.video_url
+                    FROM owned_cards oc
+                    JOIN works w ON w.id = oc.work_id
+                    WHERE w.creator_id = %s
+                    ORDER BY
+                        (COALESCE(oc.hp, 0) + COALESCE(oc.atk, 0) + COALESCE(oc.def, 0) + COALESCE(oc.spd, 0) + COALESCE(oc.luk, 0)) DESC,
+                        oc.level DESC,
+                        COALESCE(oc.total_exp, 0) DESC
+                    LIMIT 1
+                """, (creator["creator_id"],))
+                top_card = cur.fetchone()
+
+                cur.execute("""
+                    SELECT
+                        COALESCE(AVG(oc.level), 0) AS avg_level,
+                        COALESCE(SUM(CASE WHEN oc.is_legend = 1 THEN 1 ELSE 0 END), 0) AS legend_count
+                    FROM owned_cards oc
+                    JOIN works w ON w.id = oc.work_id
+                    WHERE w.creator_id = %s
+                """, (creator["creator_id"],))
+                stats = cur.fetchone()
+
+            best_power = 0
+            top_card_data = None
+
+            if top_card:
+                best_power = (
+                    (top_card.get("hp") or 0) +
+                    (top_card.get("atk") or 0) +
+                    (top_card.get("def") or 0) +
+                    (top_card.get("spd") or 0) +
+                    (top_card.get("luk") or 0)
+                )
+                top_card_data = {
+                    "title": top_card["title"],
+                    "image_url": top_card["image_url"],
+                    "video_url": top_card["video_url"],
+                    "level": top_card["level"],
+                    "rarity": top_card["rarity"],
+                    "is_legend": bool(top_card["is_legend"]),
+                    "card_power": best_power,
+                }
+
+            score = int(
+                (creator["total_likes"] or 0) * 3 +
+                (creator["total_draws"] or 0) * 2 +
+                float(stats["avg_level"] or 0) * 10 +
+                best_power * 0.5 +
+                int(stats["legend_count"] or 0) * 50
+            )
+
+            results.append({
+                "creator_id": creator["creator_id"],
+                "creator_name": creator["creator_name"],
+                "link_url": creator["link_url"],
+                "booth_url": creator["booth_url"],
+                "fanbox_url": creator["fanbox_url"],
+                "skeb_url": creator["skeb_url"],
+                "pixiv_url": creator["pixiv_url"],
+                "total_likes": int(creator["total_likes"] or 0),
+                "total_draws": int(creator["total_draws"] or 0),
+                "total_works": int(creator["total_works"] or 0),
+                "avg_level": round(float(stats["avg_level"] or 0), 1),
+                "legend_count": int(stats["legend_count"] or 0),
+                "best_power": best_power,
+                "score": score,
+                "top_card": top_card_data,
+            })
+
+        results.sort(key=lambda x: x["score"], reverse=True)
+
+        top_items = []
+        for i, row in enumerate(results[:limit], start=1):
+            row["rank"] = i
+            top_items.append(row)
+
+        return {"items": top_items}
+
+
 @router.post("/ai/generate-stats")
 def ai_generate_stats(payload: AutoStatRequest):
     try:
@@ -150,10 +263,7 @@ def admin_create_work(payload: AdminCreateWorkRequest):
         spd = int(spd or 10)
         luk = int(luk or 10)
 
-        # 一般投稿は常に N 固定
         rarity_value = "N"
-
-        # 運営投稿だけ任意レア度を許可
         if payload.creator_user_id == "admin":
             rarity_value = (payload.rarity or "N").upper().strip()
 
@@ -203,7 +313,6 @@ def admin_create_work(payload: AdminCreateWorkRequest):
             ))
             work_id = cur.fetchone()["id"]
 
-            # 投稿お礼の無料ガチャ
             cur.execute("""
                 UPDATE users
                 SET free_draw_count = free_draw_count + 1
@@ -261,4 +370,4 @@ def admin_add_free_draw(user_id: str, count: int = 1):
         return {
             "message": f"{user_id} に無料ガチャ {count} 回追加しました",
             "free_draw_count": user["free_draw_count"],
-        }
+            }
