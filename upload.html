@@ -224,6 +224,8 @@ let isSubmitting = false;
 
 // Cloudinary Widget
 const widget = cloudinary.createUploadWidget({
+  cloudName: window.APP_CONFIG.CLOUDINARY_CLOUD_NAME,
+  uploadPreset: window.APP_CONFIG.CLOUDINARY_UPLOAD_PRESET,
   cloudName: "YOUR_CLOUD_NAME",
   uploadPreset: "YOUR_UNSIGNED_PRESET",
   resourceType: "auto",
