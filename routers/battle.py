@@ -12,6 +12,7 @@ from helpers import (
     level_up_card_if_needed,
     update_user_level,
     steal_random_ball_if_any,
+    grant_view_access,
 )
 from models import BattleEntryRequest
 
@@ -30,6 +31,9 @@ def battle_entry(payload: BattleEntryRequest):
         my_card = get_owned_card(conn, payload.user_id, payload.work_id)
         if not my_card:
             raise HTTPException(status_code=404, detail="所有カードがありません")
+
+        # 自分の参加カードは閲覧解放
+        grant_view_access(conn, payload.user_id, payload.work_id, "battle")
 
         with conn.cursor() as cur:
             cur.execute("""
@@ -74,6 +78,18 @@ def battle_entry(payload: BattleEntryRequest):
             log_text = f"相手が上回り敗北。A={score_me:.1f} / B={score_opp:.1f}"
 
         extra = []
+
+        # 勝者に対戦カードの閲覧権付与
+        if result_me == "win":
+            grant_view_access(conn, payload.user_id, payload.work_id, "battle")
+            grant_view_access(conn, payload.user_id, opp_work_id, "battle")
+        elif result_me == "lose":
+            grant_view_access(conn, opp_user_id, opp_work_id, "battle")
+            grant_view_access(conn, opp_user_id, payload.work_id, "battle")
+        else:
+            # 引き分け時は各自の参加カードのみ閲覧維持
+            grant_view_access(conn, payload.user_id, payload.work_id, "battle")
+            grant_view_access(conn, opp_user_id, opp_work_id, "battle")
 
         # 基本EXP加算 + 累計EXP + バトル回数
         with conn.cursor() as cur:
