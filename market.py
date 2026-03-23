@@ -145,10 +145,7 @@ def accept_offer(offer_id: int):
             "offer",
         )
 
-        # 所有権移転
         transfer_ownership(conn, offer["work_id"], offer["from_user"])
-
-        # 育成済みカードそのものを移転
         transfer_owned_card_to_new_owner(
             conn,
             offer["work_id"],
@@ -215,7 +212,6 @@ def list_market(payload: MarketListRequest):
         if not owner or owner["owner_id"] != payload.user_id:
             raise HTTPException(status_code=400, detail="所有者のみ出品できます")
 
-        # 育成済みカードを持っているか確認
         card = get_owned_card(conn, payload.user_id, payload.work_id)
         if not card:
             raise HTTPException(status_code=400, detail="出品対象の所有カードが存在しません")
@@ -324,10 +320,7 @@ def buy_market(payload: MarketBuyRequest):
             "market",
         )
 
-        # 所有権移転
         transfer_ownership(conn, listing["work_id"], payload.buyer_user_id)
-
-        # 育成済みカードそのものを移転
         transfer_owned_card_to_new_owner(
             conn,
             listing["work_id"],
@@ -417,14 +410,12 @@ def legend_activate(payload: LegendRequest):
                 WHERE id = %s
             """, (datetime.utcnow().isoformat(), card["id"]))
 
-            # 作品マスタの rarity は演出用なので、ここで LEGEND にしてもよい
             cur.execute("""
                 UPDATE works
                 SET rarity = 'LEGEND'
                 WHERE id = %s
             """, (payload.work_id,))
 
-            # ボウル全消費
             cur.execute("""
                 SELECT o.work_id
                 FROM ownership o
@@ -512,4 +503,4 @@ def reward_ad_xp(payload: UserOnlyRequest):
             "message": "広告報酬でEXP +20 を獲得しました！",
             "exp": user["exp"],
             "level": user["level"],
-                  }
+}
