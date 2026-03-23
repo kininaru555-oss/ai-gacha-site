@@ -9,6 +9,7 @@ from helpers import (
     ensure_work,
     serialize_work,
     serialize_owned_card,
+    has_view_access,
 )
 from models import LikeRequest, AdminCreateWorkRequest, AutoStatRequest
 from ai_stats import generate_auto_stats
@@ -16,8 +17,37 @@ from ai_stats import generate_auto_stats
 router = APIRouter(tags=["works"])
 
 
+@router.get("/works/{user_id}")
+def get_works(user_id: str):
+    """
+    一覧表示用。
+    user_id ごとに can_view_full を付与して返す。
+    """
+    with get_db() as conn:
+        ensure_user(conn, user_id)
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT * FROM works
+                WHERE is_active = 1
+                ORDER BY id DESC
+            """)
+            rows = cur.fetchall()
+
+        items = []
+        for row in rows:
+            can_view_full = has_view_access(conn, user_id, row["id"])
+            items.append(serialize_work(row, can_view_full=can_view_full))
+
+        return {"works": items}
+
+
 @router.get("/works")
-def get_works():
+def get_works_public():
+    """
+    管理確認や公開一覧の簡易取得用。
+    user_id を持たない場合は full view 権なしで返す。
+    """
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -27,7 +57,7 @@ def get_works():
             """)
             rows = cur.fetchall()
 
-        return {"works": [serialize_work(x) for x in rows]}
+        return {"works": [serialize_work(x, can_view_full=False) for x in rows]}
 
 
 @router.post("/works/{work_id}/like")
@@ -324,7 +354,7 @@ def admin_create_work(payload: AdminCreateWorkRequest):
 
         return {
             "message": "作品を登録しました。投稿のお礼として無料ガチャ1回を付与しました。",
-            "work": serialize_work(work),
+            "work": serialize_work(work, can_view_full=False),
             "creator_free_draw_count": user["free_draw_count"],
         }
 
@@ -370,4 +400,4 @@ def admin_add_free_draw(user_id: str, count: int = 1):
         return {
             "message": f"{user_id} に無料ガチャ {count} 回追加しました",
             "free_draw_count": user["free_draw_count"],
-                     }
+        }
