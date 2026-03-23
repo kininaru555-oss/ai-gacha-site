@@ -3,6 +3,7 @@ helpers.py — DBヘルパー・シリアライザー・ゲームロジック
 """
 import random
 from datetime import datetime, date
+from urllib.parse import urlparse
 
 from fastapi import HTTPException
 
@@ -56,6 +57,75 @@ def has_view_access(conn, user_id: str, work_id: int) -> bool:
             LIMIT 1
         """, (user_id, work_id))
         return cur.fetchone() is not None
+
+
+# ─────────────────────────────────────────────
+# Cloudinary ぼかしURL
+# ─────────────────────────────────────────────
+def _is_cloudinary_url(url: str) -> bool:
+    if not url:
+        return False
+    try:
+        host = urlparse(url).netloc.lower()
+        return "res.cloudinary.com" in host
+    except Exception:
+        return False
+
+
+def build_locked_cloudinary_url(url: str, media_type: str = "image") -> str:
+    """
+    Cloudinary URL の場合だけ、軽い閲覧制限用URLへ変換。
+    image: blur + resize
+    video: ぼかしサムネ or video transform
+    """
+    if not url or not _is_cloudinary_url(url):
+        return url
+
+    marker = "/upload/"
+    if marker not in url:
+        return url
+
+    if media_type == "video":
+        # Cloudinary動画なら軽めの変換
+        transform = "so_0,e_blur:800,w_480,q_auto:low,f_auto"
+    else:
+        transform = "e_blur:900,w_480,q_auto:low,f_auto"
+
+    return url.replace(marker, f"/upload/{transform}/", 1)
+
+
+def resolve_media_access(work: dict, can_view_full: bool) -> dict:
+    """
+    can_view_full に応じて返却URLを調整。
+    Cloudinary以外はURLはそのまま返し、フロントで blur する前提。
+    """
+    media_type = work.get("type", "image")
+    image_url = work.get("image_url", "") or ""
+    video_url = work.get("video_url", "") or ""
+
+    if can_view_full:
+        return {
+            "image_url": image_url,
+            "video_url": video_url,
+            "needs_front_blur": False,
+        }
+
+    if media_type == "video":
+        locked_video_url = build_locked_cloudinary_url(video_url, "video")
+        needs_front_blur = locked_video_url == video_url and bool(video_url)
+        return {
+            "image_url": image_url,
+            "video_url": locked_video_url,
+            "needs_front_blur": needs_front_blur,
+        }
+
+    locked_image_url = build_locked_cloudinary_url(image_url, "image")
+    needs_front_blur = locked_image_url == image_url and bool(image_url)
+    return {
+        "image_url": locked_image_url,
+        "video_url": video_url,
+        "needs_front_blur": needs_front_blur,
+    }
 
 
 # ─────────────────────────────────────────────
@@ -119,10 +189,6 @@ def get_owned_card(conn, user_id: str, work_id: int):
 
 
 def create_owned_card_if_missing(conn, user_id: str, work_row):
-    """
-    所有カードは常に N スタート。
-    作品側の rarity は排出率や演出用であり、育成カードの初期レア度には使わない。
-    """
     existing = get_owned_card(conn, user_id, work_row["id"])
     if existing:
         return existing
@@ -144,22 +210,10 @@ def create_owned_card_if_missing(conn, user_id: str, work_row):
                 total_exp, win_count, battle_count
             ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (
-            user_id,
-            work_row["id"],
-            "N",
-            1,
-            0,
-            hp,
-            atk,
-            ddef,
-            spd,
-            luk,
-            0,
-            0,
-            "",
-            0,
-            0,
-            0,
+            user_id, work_row["id"], "N", 1, 0,
+            hp, atk, ddef, spd, luk,
+            0, 0, "",
+            0, 0, 0,
         ))
 
     return get_owned_card(conn, user_id, work_row["id"])
@@ -221,7 +275,6 @@ def weighted_draw(conn, user_id: str):
         if w["is_ball"]:
             weight += 1
 
-        # 運営作品は20%増し
         if w["creator_id"] == "admin":
             weight = max(1, int(round(weight * 1.2)))
 
@@ -365,6 +418,8 @@ def steal_random_ball_if_any(conn, loser_id: str, winner_id: str):
 # シリアライザー
 # ─────────────────────────────────────────────
 def serialize_work(work: dict, can_view_full: bool = False) -> dict:
+    media = resolve_media_access(work, can_view_full)
+
     return {
         "id": work["id"],
         "title": work["title"],
@@ -373,8 +428,8 @@ def serialize_work(work: dict, can_view_full: bool = False) -> dict:
         "description": work["description"],
         "genre": work["genre"],
         "type": work["type"],
-        "image_url": work["image_url"],
-        "video_url": work["video_url"],
+        "image_url": media["image_url"],
+        "video_url": media["video_url"],
         "thumbnail_url": work["thumbnail_url"],
         "link_url": work["link_url"],
         "x_url": work["x_url"],
@@ -396,6 +451,7 @@ def serialize_work(work: dict, can_view_full: bool = False) -> dict:
         "is_ball": bool(work["is_ball"]),
         "ball_code": work["ball_code"],
         "can_view_full": can_view_full,
+        "needs_front_blur": media["needs_front_blur"],
     }
 
 
@@ -449,4 +505,6 @@ def serialize_owned_card(conn, owned: dict) -> dict:
         "draw_count": work["draw_count"],
         "like_count": work["like_count"],
         "card_power": card_power,
+        "can_view_full": True,
+        "needs_front_blur": False,
     }
