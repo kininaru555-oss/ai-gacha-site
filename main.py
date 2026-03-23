@@ -12,6 +12,22 @@ from PIL import Image, ImageFilter
 from pydantic import BaseModel
 import psycopg
 from psycopg.rows import dict_row
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers.creators import router as creators_router
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 本番は絞る
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(creators_router)
 
 app = FastAPI(title="Bijo Gacha Quest API")
 
