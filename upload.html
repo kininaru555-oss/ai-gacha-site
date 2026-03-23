@@ -460,9 +460,10 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         console.warn("Apps Script log failed:", err);
       }
     }
-
-    showMessage("投稿が完了しました。投稿者には無料ガチャ1回が付与されます。", false);
-    resetForm();
+    showMessage("投稿が完了しました。投稿者には無料ガチャ1回が付与されます。まもなくガチャページへ戻ります。", false);
+resetForm();
+redirectToIndexAfterSuccess(2000);
+  
 
   } catch (e) {
     showMessage(e.message || "投稿中にエラーが発生しました", true);
@@ -476,6 +477,12 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
 function val(id) {
   const el = document.getElementById(id);
   return el ? el.value.trim() : "";
+}
+
+function redirectToIndexAfterSuccess(delay = 2000) {
+  setTimeout(() => {
+    location.href = "index.html";
+  }, delay);
 }
 
 function numOrDefault(id, fallback) {
