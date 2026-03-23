@@ -15,7 +15,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1180px;
       margin: 0 auto;
       padding: 16px;
     }
@@ -37,6 +37,31 @@
       font-weight: bold;
     }
 
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .toolbar label {
+      font-size: 13px;
+      color: #aeb5c2;
+    }
+
+    .toolbar select {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #101218;
+      color: #fff;
+    }
+
     .message {
       display: none;
       margin-bottom: 16px;
@@ -52,9 +77,20 @@
       display: block;
     }
 
+    .market-note {
+      margin-bottom: 16px;
+      background: #171a21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 14px;
+      color: #cfd6e2;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
     .list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 14px;
     }
 
@@ -63,6 +99,7 @@
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 18px;
       overflow: hidden;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.18);
     }
 
     .thumb {
@@ -71,7 +108,8 @@
       background: #090b10;
     }
 
-    .thumb img, .thumb video {
+    .thumb img,
+    .thumb video {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -82,7 +120,7 @@
     }
 
     .title {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: bold;
       margin-bottom: 8px;
     }
@@ -90,12 +128,12 @@
     .muted {
       color: #aeb5c2;
       font-size: 13px;
-      line-height: 1.7;
+      line-height: 1.8;
     }
 
     .price {
       margin-top: 10px;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       color: #4ade80;
     }
@@ -116,11 +154,49 @@
       font-weight: bold;
     }
 
+    .badge.legend {
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    .badge.power {
+      background: #7c3aed;
+    }
+
+    .badge.wins {
+      background: #16a34a;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .stat-box {
+      background: #101218;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .stat-box span {
+      display: block;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    .stat-box strong {
+      font-size: 14px;
+    }
+
     .buttons {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 12px;
+      margin-top: 14px;
     }
 
     button, a {
@@ -137,6 +213,11 @@
     .btn-buy { background: #16a34a; }
     .btn-offer { background: #db2777; }
     .btn-link { background: #2563eb; }
+    .btn-disabled {
+      background: #4b5563;
+      cursor: default;
+      opacity: 0.75;
+    }
 
     .empty {
       color: #9ca3af;
@@ -146,6 +227,10 @@
 
     @media (max-width: 720px) {
       .top-links {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .stats-grid {
         grid-template-columns: repeat(2, minmax(0,1fr));
       }
     }
@@ -161,6 +246,25 @@
       <a href="upload.html">作品投稿</a>
     </div>
 
+    <div class="market-note">
+      マーケットでは、作品の所有権だけでなく <strong>育成済みカード個体</strong> もそのまま取引されます。<br>
+      レベル、勝利数、累計EXP、戦闘力、レジェンド化状態が価値に反映されます。<br>
+      取引成立時の分配は <strong>運営 30% / 所有者 35% / クリエイター 35%</strong> です。
+    </div>
+
+    <div class="toolbar">
+      <label for="sortSelect">並び替え</label>
+      <select id="sortSelect">
+        <option value="new">新着順</option>
+        <option value="price_asc">価格が安い順</option>
+        <option value="price_desc">価格が高い順</option>
+        <option value="level_desc">レベルが高い順</option>
+        <option value="wins_desc">勝利数が多い順</option>
+        <option value="power_desc">戦闘力が高い順</option>
+        <option value="total_exp_desc">累計EXPが多い順</option>
+      </select>
+    </div>
+
     <div id="systemMessage" class="message"></div>
 
     <div id="listingList" class="list"></div>
@@ -173,8 +277,10 @@
 
     const listingList = document.getElementById("listingList");
     const systemMessage = document.getElementById("systemMessage");
+    const sortSelect = document.getElementById("sortSelect");
 
     let authUser = null;
+    let rawListings = [];
 
     function readAuth() {
       try {
@@ -224,65 +330,161 @@
       return escapeHtml(value);
     }
 
+    function getCardPower(item) {
+      if (typeof item.card_power === "number") return item.card_power;
+      return (
+        Number(item.hp || 0) +
+        Number(item.atk || 0) +
+        Number(item.def || 0) +
+        Number(item.spd || 0) +
+        Number(item.luk || 0)
+      );
+    }
+
+    function sortListings(items, mode) {
+      const copied = [...items];
+
+      switch (mode) {
+        case "price_asc":
+          copied.sort((a, b) => (a.price_points || 0) - (b.price_points || 0));
+          break;
+        case "price_desc":
+          copied.sort((a, b) => (b.price_points || 0) - (a.price_points || 0));
+          break;
+        case "level_desc":
+          copied.sort((a, b) => (b.level || 0) - (a.level || 0));
+          break;
+        case "wins_desc":
+          copied.sort((a, b) => (b.win_count || 0) - (a.win_count || 0));
+          break;
+        case "power_desc":
+          copied.sort((a, b) => getCardPower(b) - getCardPower(a));
+          break;
+        case "total_exp_desc":
+          copied.sort((a, b) => (b.total_exp || 0) - (a.total_exp || 0));
+          break;
+        case "new":
+        default:
+          copied.sort((a, b) => (b.listing_id || 0) - (a.listing_id || 0));
+          break;
+      }
+
+      return copied;
+    }
+
     function renderListings(items) {
       if (!items.length) {
-        listingList.innerHTML = `<div class="empty">現在、公開売却中の作品はありません。</div>`;
+        listingList.innerHTML = `<div class="empty">現在、出品中の作品はありません。マイページから自分の育成カードを出品できます。</div>`;
         return;
       }
 
-      listingList.innerHTML = items.map(item => `
-        <div class="item">
-          <div class="thumb">
-            ${item.video_url
-              ? `<video src="${escapeAttr(item.video_url)}" muted playsinline preload="metadata"></video>`
-              : `<img src="${escapeAttr(item.image_url || "")}" alt="${escapeAttr(item.title)}" />`
-            }
+      listingList.innerHTML = items.map(item => {
+        const isMine = authUser && authUser.user_id && item.seller_user_id === authUser.user_id;
+        const cardPower = getCardPower(item);
+
+        return `
+          <div class="item">
+            <div class="thumb">
+              ${item.video_url
+                ? `<video src="${escapeAttr(item.video_url)}" muted playsinline preload="metadata"></video>`
+                : `<img src="${escapeAttr(item.image_url || "")}" alt="${escapeAttr(item.title)}" />`
+              }
+            </div>
+
+            <div class="body">
+              <div class="badge-row">
+                <div class="badge">${escapeHtml(item.rarity || "N")}</div>
+                ${item.is_legend ? `<div class="badge legend">LEGEND</div>` : ""}
+                <div class="badge">Lv ${item.level ?? 1}</div>
+                <div class="badge wins">勝利 ${item.win_count ?? 0}</div>
+                <div class="badge power">戦闘力 ${cardPower}</div>
+              </div>
+
+              <div class="title">${escapeHtml(item.title)}</div>
+
+              <div class="muted">
+                作者: ${escapeHtml(item.creator_name || "不明")}<br>
+                所有者: ${escapeHtml(item.seller_user_id)}<br>
+                総排出: ${item.draw_count ?? 0}<br>
+                累計EXP: ${item.total_exp ?? 0} / 総バトル: ${item.battle_count ?? 0}
+              </div>
+
+              <div class="stats-grid">
+                <div class="stat-box">
+                  <span>HP</span>
+                  <strong>${item.hp ?? "-"}</strong>
+                </div>
+                <div class="stat-box">
+                  <span>ATK</span>
+                  <strong>${item.atk ?? "-"}</strong>
+                </div>
+                <div class="stat-box">
+                  <span>DEF</span>
+                  <strong>${item.def ?? "-"}</strong>
+                </div>
+                <div class="stat-box">
+                  <span>SPD</span>
+                  <strong>${item.spd ?? "-"}</strong>
+                </div>
+                <div class="stat-box">
+                  <span>LUK</span>
+                  <strong>${item.luk ?? "-"}</strong>
+                </div>
+                <div class="stat-box">
+                  <span>現在EXP</span>
+                  <strong>${item.exp ?? 0}</strong>
+                </div>
+              </div>
+
+              <div class="price">${item.price_points} pt</div>
+
+              <div class="muted">
+                取引成立時：運営 30% ／ 所有者 35% ／ クリエイター 35%
+              </div>
+
+              <div class="buttons">
+                ${
+                  isMine
+                    ? `<button class="btn-disabled" type="button" disabled>自分の出品</button>`
+                    : `<button class="btn-buy" onclick="buyItem(${item.listing_id})" type="button">購入</button>`
+                }
+                ${
+                  isMine
+                    ? ``
+                    : `<button class="btn-offer" onclick="offerItem(${item.work_id}, '${escapeAttr(item.seller_user_id)}')" type="button">オファー</button>`
+                }
+                ${
+                  item.link_url
+                    ? `<a class="btn-link" href="${escapeAttr(item.link_url)}" target="_blank" rel="noopener noreferrer">作者リンク</a>`
+                    : ``
+                }
+              </div>
+            </div>
           </div>
-          <div class="body">
-            <div class="badge-row">
-              <div class="badge">${escapeHtml(item.rarity || "N")}</div>
-              ${item.is_legend ? `<div class="badge">LEGEND</div>` : ""}
-              <div class="badge">Lv ${item.level ?? 1}</div>
-            </div>
+        `;
+      }).join("");
+    }
 
-            <div class="title">${escapeHtml(item.title)}</div>
-
-            <div class="muted">
-              作者: ${escapeHtml(item.creator_name || "不明")}<br>
-              所有者: ${escapeHtml(item.seller_user_id)}<br>
-              HP ${item.hp ?? "-"} / ATK ${item.atk ?? "-"} / DEF ${item.def ?? "-"}<br>
-              総排出 ${item.draw_count ?? 0}
-            </div>
-
-            <div class="price">${item.price_points} pt</div>
-
-            <div class="muted">
-              成立時は30%が運営、残り70%を所有者と著作権者で折半
-            </div>
-
-            <div class="buttons">
-              <button class="btn-buy" onclick="buyItem(${item.listing_id})" type="button">購入</button>
-              <button class="btn-offer" onclick="offerItem(${item.work_id}, '${escapeAttr(item.seller_user_id)}')" type="button">オファー</button>
-              ${item.link_url ? `<a class="btn-link" href="${escapeAttr(item.link_url)}" target="_blank" rel="noopener noreferrer">作者リンク</a>` : ""}
-            </div>
-          </div>
-        </div>
-      `).join("");
+    function applyRender() {
+      const mode = sortSelect.value || "new";
+      const sorted = sortListings(rawListings, mode);
+      renderListings(sorted);
     }
 
     async function loadListings() {
       clearMessage();
       try {
         const data = await api("/market/listings");
-        renderListings(data.items || []);
+        rawListings = data.items || [];
+        applyRender();
       } catch (error) {
-        showMessage(error.message || "一覧取得に失敗しました。");
+        showMessage(error.message || "マーケットの読み込みに失敗しました。しばらく待ってから再読み込みしてください。");
       }
     }
 
     async function buyItem(listingId) {
       if (!authUser || !authUser.user_id) {
-        showMessage("先にログインしてください。");
+        showMessage("購入にはログインが必要です。トップページからログインしてください。");
         return;
       }
 
@@ -294,7 +496,7 @@
             listing_id: listingId
           })
         });
-        showMessage(data.message || "購入しました。");
+        showMessage(data.message || "購入しました！");
         await loadListings();
       } catch (error) {
         showMessage(error.message);
@@ -303,17 +505,23 @@
 
     async function offerItem(workId, sellerId) {
       if (!authUser || !authUser.user_id) {
-        showMessage("先にログインしてください。");
+        showMessage("オファーにはログインが必要です。トップページからログインしてください。");
         return;
       }
 
       if (sellerId === authUser.user_id) {
-        showMessage("自分の出品にはオファーできません。");
+        showMessage("自分が出品した作品にはオファーを送れません。");
         return;
       }
 
-      const points = prompt("オファーptを入力してください", "100");
+      const points = prompt("何ptでオファーしますか？（最低30pt）", "100");
       if (!points) return;
+
+      const offerPoints = Number(points);
+      if (!Number.isFinite(offerPoints) || offerPoints < 30) {
+        showMessage("オファーは30pt以上で送信してください。");
+        return;
+      }
 
       try {
         const data = await api("/offers", {
@@ -322,10 +530,10 @@
             from_user_id: authUser.user_id,
             to_user_id: sellerId,
             work_id: workId,
-            offer_points: Number(points)
+            offer_points: offerPoints
           })
         });
-        showMessage(data.message || "オファーを送信しました。");
+        showMessage(data.message || "オファーを送信しました！");
       } catch (error) {
         showMessage(error.message);
       }
@@ -336,6 +544,9 @@
 
     function boot() {
       authUser = readAuth();
+
+      sortSelect.addEventListener("change", applyRender);
+
       loadListings();
     }
 
