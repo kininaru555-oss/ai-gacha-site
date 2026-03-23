@@ -22,7 +22,7 @@
 
     .top-links {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
+      grid-template-columns: repeat(5, minmax(0,1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -225,6 +225,12 @@
       padding: 10px 0;
     }
 
+    @media (max-width: 900px) {
+      .top-links {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+      }
+    }
+
     @media (max-width: 720px) {
       .top-links {
         grid-template-columns: repeat(2, minmax(0,1fr));
@@ -243,6 +249,7 @@
       <a href="index.html">ガチャ</a>
       <a href="result.html">結果</a>
       <a href="mypage.html">マイページ</a>
+      <a href="ranking.html">ランキング</a>
       <a href="upload.html">作品投稿</a>
     </div>
 
