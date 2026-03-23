@@ -22,7 +22,7 @@
 
     .top-links {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
+      grid-template-columns: repeat(5, minmax(0,1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -75,11 +75,18 @@
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 18px;
       padding: 14px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.18);
+    }
+
+    .rank {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 10px;
     }
 
     .item-grid {
       display: grid;
-      grid-template-columns: 90px 1fr;
+      grid-template-columns: 100px 1fr;
       gap: 14px;
       align-items: start;
     }
@@ -96,12 +103,6 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-    }
-
-    .rank {
-      font-size: 22px;
-      font-weight: bold;
-      margin-bottom: 8px;
     }
 
     .title {
@@ -137,6 +138,10 @@
       color: #111827;
     }
 
+    .badge.score {
+      background: #7c3aed;
+    }
+
     .buttons {
       display: flex;
       gap: 8px;
@@ -163,6 +168,12 @@
       padding: 8px 0;
     }
 
+    @media (max-width: 900px) {
+      .top-links {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+      }
+    }
+
     @media (max-width: 720px) {
       .top-links {
         grid-template-columns: repeat(2, minmax(0,1fr));
@@ -179,6 +190,7 @@
 
     <div class="top-links">
       <a href="index.html">ガチャ</a>
+      <a href="result.html">結果</a>
       <a href="market.html">公開売却</a>
       <a href="mypage.html">マイページ</a>
       <a href="upload.html">作品投稿</a>
@@ -187,7 +199,7 @@
     <div class="page-title">クリエイターランキング TOP10</div>
     <div class="sub">
       排出数・いいね・育成状況・代表カードの強さをもとに算出しています。<br>
-      気になったクリエイターは、そのまま販売ページへ移動できます。
+      運営作品はランキング対象外です。気になったクリエイターはそのまま販売ページへ移動できます。
     </div>
 
     <div id="systemMessage" class="message"></div>
@@ -259,11 +271,11 @@
 
               <div>
                 <div class="badge-row">
-                  <div class="badge">スコア ${item.score}</div>
-                  <div class="badge">作品 ${item.total_works}</div>
-                  <div class="badge">いいね ${item.total_likes}</div>
-                  <div class="badge">排出 ${item.total_draws}</div>
-                  <div class="badge">平均Lv ${item.avg_level}</div>
+                  <div class="badge score">スコア ${item.score ?? 0}</div>
+                  <div class="badge">作品 ${item.total_works ?? 0}</div>
+                  <div class="badge">いいね ${item.total_likes ?? 0}</div>
+                  <div class="badge">排出 ${item.total_draws ?? 0}</div>
+                  <div class="badge">平均Lv ${item.avg_level ?? 0}</div>
                   ${
                     item.legend_count > 0
                       ? `<div class="badge legend">LEGEND ${item.legend_count}</div>`
@@ -271,14 +283,13 @@
                   }
                 </div>
 
-                <div class="title">${escapeHtml(item.creator_name || item.creator_id)}</div>
+                <div class="title">${escapeHtml(item.creator_name || item.creator_id || "不明")}</div>
 
                 <div class="meta">
                   代表カード: ${escapeHtml(topCard?.title || "なし")}<br>
                   代表カード戦闘力: ${topCard?.card_power ?? 0}<br>
                   代表カードLv: ${topCard?.level ?? 0}<br>
-                  代表カードレア度: ${escapeHtml(topCard?.rarity || "-")}
-                  ${topCard?.is_legend ? " / LEGEND" : ""}
+                  代表カードレア度: ${escapeHtml(topCard?.rarity || "-")}${topCard?.is_legend ? " / LEGEND" : ""}
                 </div>
 
                 <div class="buttons">
@@ -295,6 +306,11 @@
                   ${
                     item.fanbox_url
                       ? `<a class="btn-link" href="${escapeAttr(item.fanbox_url)}" target="_blank" rel="noopener noreferrer">FANBOX</a>`
+                      : ``
+                  }
+                  ${
+                    item.skeb_url
+                      ? `<a class="btn-link" href="${escapeAttr(item.skeb_url)}" target="_blank" rel="noopener noreferrer">Skeb</a>`
                       : ``
                   }
                   ${
