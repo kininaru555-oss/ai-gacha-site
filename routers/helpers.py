@@ -36,6 +36,29 @@ def ensure_work(conn, work_id: int):
 
 
 # ─────────────────────────────────────────────
+# 閲覧権管理
+# ─────────────────────────────────────────────
+def grant_view_access(conn, user_id: str, work_id: int, granted_by: str = "system"):
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO view_accesses(user_id, work_id, access_type, granted_by)
+            VALUES(%s, %s, 'view', %s)
+            ON CONFLICT (user_id, work_id, access_type) DO NOTHING
+        """, (user_id, work_id, granted_by))
+
+
+def has_view_access(conn, user_id: str, work_id: int) -> bool:
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1
+            FROM view_accesses
+            WHERE user_id=%s AND work_id=%s AND access_type='view'
+            LIMIT 1
+        """, (user_id, work_id))
+        return cur.fetchone() is not None
+
+
+# ─────────────────────────────────────────────
 # EXP / レベル
 # ─────────────────────────────────────────────
 def reset_daily_duplicate_exp_if_needed(conn, user_id: str):
@@ -341,7 +364,7 @@ def steal_random_ball_if_any(conn, loser_id: str, winner_id: str):
 # ─────────────────────────────────────────────
 # シリアライザー
 # ─────────────────────────────────────────────
-def serialize_work(work: dict) -> dict:
+def serialize_work(work: dict, can_view_full: bool = False) -> dict:
     return {
         "id": work["id"],
         "title": work["title"],
@@ -372,6 +395,7 @@ def serialize_work(work: dict) -> dict:
         "likes": work["like_count"],
         "is_ball": bool(work["is_ball"]),
         "ball_code": work["ball_code"],
+        "can_view_full": can_view_full,
     }
 
 
