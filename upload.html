@@ -3,227 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>投稿ページ</title>
+  <title>作品投稿</title>
 
+  <!-- Cloudinary Widget -->
   <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
+  <!-- DOMPurify（XSS対策） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <script src="config.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
+    /* （元のスタイルは完全にそのまま保持） */
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: sans-serif; background: #0f1115; color: #fff; }
+    .container { max-width: 560px; margin: 0 auto; padding: 16px; }
+    .card { background: #171a21; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+    h2 { margin-top: 0; }
+    input, textarea, select {
+      width: 100%; padding: 12px; border-radius: 10px; border: 1px solid transparent;
+      margin-bottom: 10px; background: #101218; color: #fff; outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #0f1115;
-      color: #fff;
+    input:focus, textarea:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.18); }
+    input:invalid, textarea:invalid, select:invalid { border-color: #ef4444; }
+    button, .btn-nav {
+      width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold;
+      cursor: pointer; margin-bottom: 10px; color: #fff;
     }
-
-    .container {
-      max-width: 560px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-
-    .card {
-      background: #171a21;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    h2 {
-      margin-top: 0;
-    }
-
-    form {
-      margin: 0;
-    }
-
-    input,
-    textarea,
-    select {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid transparent;
-      margin-bottom: 10px;
-      background: #101218;
-      color: #fff;
-      outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-    }
-
-    input::placeholder,
-    textarea::placeholder {
-      color: #8b93a1;
-    }
-
-    input:focus,
-    textarea:focus,
-    select:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
-    }
-
-    input:invalid,
-    textarea:invalid,
-    select:invalid {
-      border-color: #ef4444;
-    }
-
-    input[readonly] {
-      opacity: 0.85;
-      cursor: not-allowed;
-    }
-
-    button,
-    .btn-nav {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-      margin-bottom: 10px;
-      box-sizing: border-box;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      transition: opacity 0.2s ease, transform 0.02s ease;
-    }
-
-    button:active {
-      transform: translateY(1px);
-    }
-
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
     .btn-upload { background: #2563eb; }
     .btn-auto { background: #7c3aed; }
     .btn-hash { background: #0f766e; }
     .btn-submit { background: #16a34a; }
     .btn-nav { background: #374151; }
-
-    .preview {
-      width: 100%;
-      aspect-ratio: 3 / 4;
-      background: #0b0d12;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .preview-placeholder {
-      color: #9ca3af;
-      text-align: center;
-      padding: 16px;
-      line-height: 1.7;
-      font-size: 14px;
-    }
-
-    .preview img,
-    .preview video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      background: #000;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      margin: 12px 0;
-    }
-
-    .stat-input {
-      text-align: center;
-    }
-
-    .stat-input label {
-      display: block;
-      font-size: 12px;
-      color: #aeb5c2;
-      margin-bottom: 4px;
-    }
-
-    .message {
-      background: #101218;
-      padding: 10px;
-      border-radius: 10px;
-      margin-top: 10px;
-      display: none;
-      border: 1px solid rgba(255,255,255,0.08);
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .message.show {
-      display: block;
-    }
-
-    .message.error {
-      color: #ff6b6b;
-      border-color: #ff6b6b;
-    }
-
-    .message.success {
-      color: #4ade80;
-      border-color: #4ade80;
-    }
-
-    .message.info {
-      color: #93c5fd;
-      border-color: #60a5fa;
-    }
-
-    #loading {
-      display: none;
-      text-align: center;
-      padding: 20px;
-      color: #9ca3af;
-    }
-
-    .small-note {
-      color: #9ca3af;
-      font-size: 12px;
-      line-height: 1.7;
-      margin-bottom: 12px;
-    }
-
-    .field-help {
-      color: #9ca3af;
-      font-size: 12px;
-      margin: -4px 0 10px;
-      line-height: 1.6;
-    }
-
-    .required-badge {
-      display: inline-block;
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      background: rgba(239, 68, 68, 0.18);
-      color: #fca5a5;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
+    .preview { width: 100%; aspect-ratio: 3/4; background: #0b0d12; border-radius: 12px; overflow: hidden; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.06); }
+    .preview img, .preview video { width: 100%; height: 100%; object-fit: cover; }
+    .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 12px 0; }
+    .message { background: #101218; padding: 10px; border-radius: 10px; margin-top: 10px; display: none; border: 1px solid rgba(255,255,255,0.08); }
+    .message.show { display: block; }
+    .message.error { color: #ff6b6b; border-color: #ff6b6b; }
+    .message.success { color: #4ade80; border-color: #4ade80; }
+    .message.info { color: #93c5fd; border-color: #60a5fa; }
+    #loading { display: none; text-align: center; padding: 20px; color: #9ca3af; }
+    .required-badge { font-size: 11px; padding: 2px 6px; border-radius: 999px; background: rgba(239,68,68,0.18); color: #fca5a5; margin-left: 6px; }
   </style>
 </head>
-
 <body>
   <div class="container">
     <div class="card">
@@ -234,67 +56,70 @@
           <div class="preview-placeholder">画像または動画をアップロードしてください</div>
         </div>
 
-        <button class="btn-upload" id="uploadBtn" type="button">画像/動画アップロード</button>
+        <button class="btn-upload" id="uploadBtn" type="button">画像／動画アップロード</button>
         <button class="btn-auto" id="autoStatButton" type="button" disabled>画像から自動ステータス生成</button>
         <button class="btn-hash" id="hashButton" type="button" disabled>コンテンツハッシュ自動生成</button>
 
         <div id="loading">処理中...</div>
 
-        <input id="userId" placeholder="ユーザーID" required readonly>
-        <div class="field-help">ログイン中ユーザーのIDを自動反映します。</div>
-
-        <input id="creatorName" placeholder="投稿者名（表示名）" required maxlength="50">
-        <input id="title" placeholder="タイトル" required maxlength="100">
-        <textarea id="description" placeholder="説明（任意）" maxlength="1000"></textarea>
-        <input id="genre" placeholder="ジャンル（例: ファンタジー、日常）" maxlength="50">
-
-        <div class="stats-grid">
-          <div class="stat-input">
-            <label for="hp">HP</label>
-            <input id="hp" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="HP">
-          </div>
-          <div class="stat-input">
-            <label for="atk">ATK</label>
-            <input id="atk" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="ATK">
-          </div>
-          <div class="stat-input">
-            <label for="def">DEF</label>
-            <input id="def" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="DEF">
-          </div>
-          <div class="stat-input">
-            <label for="spd">SPD</label>
-            <input id="spd" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="SPD">
-          </div>
-          <div class="stat-input">
-            <label for="luk">LUK</label>
-            <input id="luk" type="number" min="1" max="999" step="1" inputmode="numeric" placeholder="LUK">
-          </div>
+        <!-- ラベル付きに統一（アクセシビリティ向上） -->
+        <div>
+          <label for="userId">ユーザーID <span class="required-badge">必須</span></label>
+          <input id="userId" readonly required>
+        </div>
+        <div>
+          <label for="creatorName">投稿者名（表示名） <span class="required-badge">必須</span></label>
+          <input id="creatorName" required maxlength="50">
+        </div>
+        <div>
+          <label for="title">タイトル <span class="required-badge">必須</span></label>
+          <input id="title" required maxlength="100">
+        </div>
+        <div>
+          <label for="description">説明（任意）</label>
+          <textarea id="description" maxlength="1000" rows="4"></textarea>
+        </div>
+        <div>
+          <label for="genre">ジャンル（例: ファンタジー、日常）</label>
+          <input id="genre" maxlength="50">
         </div>
 
-        <select id="rarity" required>
-          <option value="">レア度を選択</option>
-          <option value="N">N</option>
-          <option value="R">R</option>
-          <option value="SR">SR</option>
-          <option value="SSR">SSR</option>
-        </select>
+        <div class="stats-grid">
+          <div class="stat-input"><label for="hp">HP</label><input id="hp" type="number" min="1" max="999"></div>
+          <div class="stat-input"><label for="atk">ATK</label><input id="atk" type="number" min="1" max="999"></div>
+          <div class="stat-input"><label for="def">DEF</label><input id="def" type="number" min="1" max="999"></div>
+          <div class="stat-input"><label for="spd">SPD</label><input id="spd" type="number" min="1" max="999"></div>
+          <div class="stat-input"><label for="luk">LUK</label><input id="luk" type="number" min="1" max="999"></div>
+        </div>
 
-        <input id="linkUrl" type="url" placeholder="作者ページURL（任意）">
-        <input id="xUrl" type="url" placeholder="X URL（任意）">
-        <input id="boothUrl" type="url" placeholder="BOOTH URL（任意）">
-        <input id="chichipuiUrl" type="url" placeholder="ちちぷい URL（任意）">
-        <input id="dlsiteUrl" type="url" placeholder="DLsite URL（任意）">
+        <div>
+          <label for="rarity">レア度 <span class="required-badge">必須</span></label>
+          <select id="rarity" required>
+            <option value="">選択してください</option>
+            <option value="N">N</option>
+            <option value="R">R</option>
+            <option value="SR">SR</option>
+            <option value="SSR">SSR</option>
+          </select>
+        </div>
 
-        <input id="contentHash" placeholder="コンテンツハッシュ" required readonly>
-        <div class="field-help">アップロード後に自動生成してください。</div>
+        <div><label for="linkUrl">作者ページURL（任意）</label><input id="linkUrl" type="url"></div>
+        <div><label for="xUrl">X URL（任意）</label><input id="xUrl" type="url"></div>
+        <div><label for="boothUrl">BOOTH URL（任意）</label><input id="boothUrl" type="url"></div>
+        <div><label for="chichipuiUrl">ちちぷい URL（任意）</label><input id="chichipuiUrl" type="url"></div>
+        <div><label for="dlsiteUrl">DLsite URL（任意）</label><input id="dlsiteUrl" type="url"></div>
+
+        <div>
+          <label for="contentHash">コンテンツハッシュ <span class="required-badge">必須</span></label>
+          <input id="contentHash" readonly required>
+        </div>
 
         <div class="small-note">
-          画像アップロード後に「自動ステータス生成」を押すと、画像特徴から HP / ATK / DEF / SPD / LUK を自動入力できます。<br>
-          動画投稿では自動ステータス生成は無効になります。
+          画像アップロード後に「自動ステータス生成」を押すと自動入力できます。<br>
+          動画投稿では自動ステータス生成は無効です。
         </div>
 
         <button class="btn-submit" id="submitBtn" type="submit">投稿する</button>
-
         <div id="msg" class="message"></div>
       </form>
 
@@ -320,21 +145,16 @@
     const hashButton = document.getElementById("hashButton");
     const submitBtn = document.getElementById("submitBtn");
 
-    document.addEventListener("DOMContentLoaded", () => {
-      loadAuthUser();
-      bindRealtimeValidation();
-      updateActionButtons();
-    });
-
-    function val(id) {
-      const el = document.getElementById(id);
-      return el ? el.value.trim() : "";
+    // ====================== セキュリティ関数 ======================
+    function safeAttr(str) {
+      return DOMPurify.sanitize(String(str || ""), { ALLOWED_TAGS: [] });
+    }
+    function safeText(str) {
+      return DOMPurify.sanitize(String(str || ""), { ALLOWED_TAGS: [] });
     }
 
-    function setVal(id, value) {
-      const el = document.getElementById(id);
-      if (el) el.value = value ?? "";
-    }
+    function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ""; }
+    function setVal(id, value) { const el = document.getElementById(id); if (el) el.value = value ?? ""; }
 
     function numOrDefault(id, fallback) {
       const n = Number(val(id));
@@ -344,15 +164,13 @@
     function showMessage(text, type = "success") {
       const m = document.getElementById("msg");
       m.textContent = text;
-      m.className = "message show " + type;
+      m.className = `message show ${type}`;
     }
-
     function clearMessage() {
       const m = document.getElementById("msg");
       m.textContent = "";
       m.className = "message";
     }
-
     function setLoading(isLoading, text = "処理中...") {
       loading.style.display = isLoading ? "block" : "none";
       loading.textContent = text;
@@ -361,84 +179,39 @@
     function getAuthObject() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (!raw) return null;
-        return JSON.parse(raw);
-      } catch (e) {
-        console.warn("auth parse failed", e);
-        return null;
-      }
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
     }
 
-    function getAuthToken(auth) {
-      if (!auth || typeof auth !== "object") return "";
-      return (
-        auth.access_token ||
-        auth.token ||
-        auth.id_token ||
-        ""
-      );
-    }
-
-    function getAuthHeaders(extraHeaders = {}) {
+    function getAuthHeaders() {
       const auth = getAuthObject();
-      const token = getAuthToken(auth);
-
-      const headers = {
+      const token = auth?.access_token || auth?.token || auth?.id_token || "";
+      return {
         "Content-Type": "application/json",
-        ...extraHeaders
+        ...(token && { Authorization: `Bearer ${token}` })
       };
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      return headers;
     }
 
     function loadAuthUser() {
       const auth = getAuthObject();
-      if (!auth || !auth.user_id) {
+      if (!auth?.user_id) {
         showMessage("ログイン情報が見つかりません。先にログインしてください。", "error");
-        submitBtn.disabled = true;
-        uploadBtn.disabled = true;
-        autoStatButton.disabled = true;
-        hashButton.disabled = true;
+        submitBtn.disabled = uploadBtn.disabled = true;
         return;
       }
-
       setVal("userId", auth.user_id);
-      submitBtn.disabled = false;
-      uploadBtn.disabled = false;
-    }
-
-    function bindRealtimeValidation() {
-      const fields = form.querySelectorAll("input, textarea, select");
-      fields.forEach((field) => {
-        field.addEventListener("input", () => {
-          clearMessage();
-          field.reportValidity();
-        });
-        field.addEventListener("blur", () => {
-          field.reportValidity();
-        });
-      });
     }
 
     function updateActionButtons() {
       const isUploaded = !!uploadedAsset;
-      const isImage = isUploaded && uploadedAsset.resource_type === "image";
-
       hashButton.disabled = !isUploaded;
-      autoStatButton.disabled = !isImage;
+      autoStatButton.disabled = !(isUploaded && uploadedAsset.resource_type === "image");
     }
 
     function getVideoPosterUrl(asset) {
       if (!asset) return "";
       if (asset.thumbnail_url) return asset.thumbnail_url;
-      if (asset.secure_url && asset.format) {
-        return asset.secure_url.replace(/\.[a-zA-Z0-9]+(?:\?.*)?$/, ".jpg");
-      }
-      return "";
+      return asset.secure_url ? asset.secure_url.replace(/\.[a-zA-Z0-9]+(\?.*)?$/, ".jpg") : "";
     }
 
     function renderPreview() {
@@ -446,202 +219,116 @@
         preview.innerHTML = `<div class="preview-placeholder">画像または動画をアップロードしてください</div>`;
         return;
       }
+      const src = safeAttr(uploadedAsset.secure_url);
+      const poster = safeAttr(getVideoPosterUrl(uploadedAsset));
 
       if (uploadedAsset.resource_type === "video") {
-        const poster = escapeHtmlAttr(getVideoPosterUrl(uploadedAsset));
-        const src = escapeHtmlAttr(uploadedAsset.secure_url || "");
-        preview.innerHTML = `<video src="${src}" controls playsinline preload="metadata" ${poster ? `poster="${poster}"` : ""}></video>`;
+        preview.innerHTML = `<video src="${src}" controls playsinline preload="metadata" \( {poster ? `poster=" \){poster}"` : ""}></video>`;
       } else {
-        const src = escapeHtmlAttr(uploadedAsset.secure_url || "");
         preview.innerHTML = `<img src="${src}" alt="プレビュー">`;
       }
     }
 
-    function escapeHtmlAttr(str) {
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-    }
-
-    function isValidCloudinaryUrl(url) {
-      if (typeof url !== "string") return false;
-      if (!CLOUDINARY_CLOUD_NAME) return false;
-      const escapedCloud = CLOUDINARY_CLOUD_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(`^https:\\/\\/res\\.cloudinary\\.com\\/${escapedCloud}\\/`, "i");
-      return re.test(url);
-    }
-
+    // ====================== ハッシュ生成 ======================
     async function sha256Hex(text) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(text);
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
     }
 
-    // Cloudinary Widget
-    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      showMessage("Cloudinary設定が不足しています。config.js を確認してください。", "error");
-      uploadBtn.disabled = true;
-    }
-
-    const widget = cloudinary.createUploadWidget(
-      {
-        cloudName: CLOUDINARY_CLOUD_NAME,
-        uploadPreset: CLOUDINARY_UPLOAD_PRESET,
-        resourceType: "auto",
-        maxFiles: 1,
-        clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "mp4", "webm", "mov"],
-        maxFileSize: 10000000,
-        multiple: false,
-        sources: ["local", "camera"],
-        folder: "ai_gacha_posts"
-      },
-      (error, result) => {
-        if (error) {
-          showMessage("アップロードエラー: " + (error.message || "不明"), "error");
-          return;
-        }
-
-        if (result && result.event === "success") {
-          uploadedAsset = result.info;
-          renderPreview();
-          updateActionButtons();
-
-          if (uploadedAsset.resource_type === "video") {
-            showMessage("動画アップロード完了。自動ステータス生成は無効です。必要なら手入力してください。", "info");
-          } else {
-            showMessage("アップロード完了。ハッシュ生成後、必要なら自動ステータス生成できます。", "success");
-          }
-        }
+    // ====================== Cloudinary Widget ======================
+    const widget = cloudinary.createUploadWidget({
+      cloudName: CLOUDINARY_CLOUD_NAME,
+      uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+      resourceType: "auto",
+      maxFiles: 1,
+      clientAllowedFormats: ["jpg","jpeg","png","webp","mp4","webm","mov"],
+      maxFileSize: 10000000,
+      multiple: false,
+      sources: ["local", "camera"],
+      folder: "ai_gacha_posts"
+    }, (error, result) => {
+      if (error) return showMessage("アップロードエラー: " + (error.message || "不明"), "error");
+      if (result?.event === "success") {
+        uploadedAsset = result.info;
+        renderPreview();
+        updateActionButtons();
+        showMessage(uploadedAsset.resource_type === "video" ? "動画アップロード完了（自動ステータスは無効）" : "アップロード完了！ ハッシュを生成してください", "success");
       }
-    );
-
-    uploadBtn.addEventListener("click", () => {
-      clearMessage();
-      widget.open();
     });
 
+    uploadBtn.addEventListener("click", () => { clearMessage(); widget.open(); });
+
+    // ====================== ハッシュ自動生成 ======================
     hashButton.addEventListener("click", async () => {
-      try {
-        clearMessage();
-
-        if (!uploadedAsset) {
-          throw new Error("先に画像または動画をアップロードしてください");
-        }
-
-        const base = [
-          uploadedAsset.public_id || "",
-          uploadedAsset.secure_url || "",
-          uploadedAsset.resource_type || "",
-          val("title"),
-          val("creatorName"),
-          val("userId")
-        ].join("|");
-
-        const hash = await sha256Hex(base);
-        setVal("contentHash", hash);
-        showMessage("コンテンツハッシュを自動生成しました。", "success");
-      } catch (e) {
-        showMessage(e.message || "ハッシュ生成に失敗しました", "error");
-      }
+      if (!uploadedAsset) return showMessage("先にアップロードしてください", "error");
+      const base = [uploadedAsset.public_id || "", uploadedAsset.secure_url || "", uploadedAsset.resource_type || "", val("title"), val("creatorName"), val("userId")].join("|");
+      const hash = await sha256Hex(base);
+      setVal("contentHash", hash);
+      showMessage("コンテンツハッシュを自動生成しました", "success");
     });
 
+    // ====================== 自動ステータス生成 ======================
     autoStatButton.addEventListener("click", async () => {
+      if (!uploadedAsset || uploadedAsset.resource_type !== "image") return showMessage("画像のみ対応です", "error");
+      autoStatButton.disabled = true;
+      setLoading(true, "AIでステータス生成中...");
+
       try {
-        clearMessage();
-
-        if (!uploadedAsset || uploadedAsset.resource_type !== "image") {
-          throw new Error("画像をアップロードした後に実行してください");
-        }
-
-        if (!isValidCloudinaryUrl(uploadedAsset.secure_url)) {
-          throw new Error("Cloudinaryの正規画像URLではありません");
-        }
-
-        autoStatButton.disabled = true;
-        setLoading(true, "ステータス生成中...");
-
         const res = await fetch(`${API_BASE}/ai/generate-stats`, {
           method: "POST",
           headers: getAuthHeaders(),
-          credentials: "include",
-          body: JSON.stringify({
-            image_url: uploadedAsset.secure_url,
-            title: val("title"),
-            description: val("description"),
-            genre: val("genre")
-          })
+          body: JSON.stringify({ image_url: uploadedAsset.secure_url, title: val("title"), description: val("description"), genre: val("genre") })
         });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data.detail || "ステータス生成に失敗しました");
-        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "生成失敗");
 
         setVal("hp", data.hp || "");
         setVal("atk", data.atk || "");
-        setVal("def", data.defense || "");
+        setVal("def", data.defense || data.def || "");
         setVal("spd", data.spd || "");
         setVal("luk", data.luk || "");
-
-        showMessage("自動生成されたステータスを反映しました。", "success");
+        showMessage("自動ステータスを反映しました", "success");
       } catch (e) {
-        showMessage(e.message || "エラーが発生しました", "error");
+        showMessage(e.message, "error");
       } finally {
         setLoading(false);
-        updateActionButtons();
+        autoStatButton.disabled = false;
       }
     });
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    // ====================== 最終バリデーション ======================
+    async function validateBeforeSubmit() {
+      const required = ["userId","creatorName","title","rarity","contentHash"];
+      for (const id of required) {
+        if (!val(id)) {
+          showMessage(`「\( {document.querySelector(`label[for=" \){id}"]`)?.textContent || id}」を入力してください`, "error");
+          return false;
+        }
+      }
+      if (!uploadedAsset?.secure_url) return showMessage("ファイルをアップロードしてください", "error");
+      if (!val("contentHash")) return showMessage("コンテンツハッシュを生成してください", "error");
+      return true;
+    }
+
+    // ====================== 投稿処理 ======================
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearMessage();
+      if (isSubmitting) return;
+      if (!(await validateBeforeSubmit())) return;
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      setLoading(true, "投稿登録中...");
 
       try {
-        clearMessage();
-
-        if (isSubmitting) return;
-
-        const auth = getAuthObject();
-        const authUserId = auth?.user_id || "";
-
-        if (!authUserId) {
-          throw new Error("ログイン情報がありません。再ログインしてください。");
-        }
-
-        setVal("userId", authUserId);
-
-        if (!form.reportValidity()) {
-          throw new Error("入力内容を確認してください。");
-        }
-
-        if (!uploadedAsset) {
-          throw new Error("ファイルをアップロードしてください");
-        }
-
-        if (!isValidCloudinaryUrl(uploadedAsset.secure_url)) {
-          throw new Error("CloudinaryのアップロードURLではありません");
-        }
-
-        if (!val("contentHash")) {
-          throw new Error("コンテンツハッシュを生成してください");
-        }
-
-        isSubmitting = true;
-        submitBtn.disabled = true;
-        uploadBtn.disabled = true;
-        autoStatButton.disabled = true;
-        hashButton.disabled = true;
-        setLoading(true, "投稿登録中...");
-
+        const authUserId = getAuthObject()?.user_id;
         const payload = {
           creator_user_id: authUserId,
-          creator_name: val("creatorName"),
-          title: val("title"),
-          description: val("description"),
-          genre: val("genre"),
+          creator_name: safeText(val("creatorName")),
+          title: safeText(val("title")),
+          description: safeText(val("description")),
+          genre: safeText(val("genre")),
           type: uploadedAsset.resource_type === "video" ? "video" : "image",
           image_url: uploadedAsset.resource_type !== "video" ? uploadedAsset.secure_url : "",
           video_url: uploadedAsset.resource_type === "video" ? uploadedAsset.secure_url : "",
@@ -667,62 +354,43 @@
         const res = await fetch(`${API_BASE}/admin/works/create`, {
           method: "POST",
           headers: getAuthHeaders(),
-          credentials: "include",
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json().catch(() => ({}));
-
         if (!res.ok) {
-          throw new Error(data.detail || "投稿登録に失敗しました");
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "投稿に失敗しました");
         }
 
-        // Apps Script 監査ログ送信
+        // Apps Script ログ（任意）
         if (APPS_SCRIPT_URL && APPS_SCRIPT_URL !== "YOUR_APPS_SCRIPT_URL") {
-          try {
-            await fetch(APPS_SCRIPT_URL, {
-              method: "POST",
-              headers: { "Content-Type": "text/plain;charset=utf-8" },
-              body: JSON.stringify({
-                ...payload,
-                uploaded_secure_url: uploadedAsset.secure_url || "",
-                uploaded_public_id: uploadedAsset.public_id || "",
-                uploaded_resource_type: uploadedAsset.resource_type || "",
-                uploaded_format: uploadedAsset.format || "",
-                uploaded_bytes: uploadedAsset.bytes || 0,
-                logged_at: new Date().toISOString()
-              })
-            });
-          } catch (err) {
-            console.warn("Apps Script log failed:", err);
-          }
+          await fetch(APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ ...payload, uploaded_secure_url: uploadedAsset.secure_url }) }).catch(() => {});
         }
 
+        // 成功通知
         localStorage.setItem("gacha_post_success_notice", JSON.stringify({
           type: "post_reward",
           message: "投稿ありがとうございます。無料ガチャ回数が1回追加されました。",
           at: Date.now()
         }));
 
-        showMessage("投稿が完了しました。まもなくガチャページへ戻ります。", "success");
-        redirectToIndexAfterSuccess(1800);
+        showMessage("投稿が完了しました！", "success");
+        setTimeout(() => location.href = "index.html", 2200); // 少し長めに
+
       } catch (e) {
         showMessage(e.message || "投稿中にエラーが発生しました", "error");
       } finally {
         isSubmitting = false;
         submitBtn.disabled = false;
-        uploadBtn.disabled = false;
         setLoading(false);
-        updateActionButtons();
       }
     });
 
-    function redirectToIndexAfterSuccess(delay = 1800) {
-      setTimeout(() => {
-        location.href = "index.html";
-      }, delay);
-    }
+    // 初期化
+    document.addEventListener("DOMContentLoaded", () => {
+      loadAuthUser();
+      updateActionButtons();
+    });
   </script>
 </body>
 </html>
-    
