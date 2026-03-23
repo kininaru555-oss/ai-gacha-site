@@ -33,6 +33,8 @@ const rewardNotice = document.getElementById("rewardNotice");
 const rewardNoticeText = document.getElementById("rewardNoticeText");
 const rewardDrawButton = document.getElementById("rewardDrawButton");
 
+const creatorTopList = document.getElementById("creatorTopList");
+
 let authUser = null;
 let isDrawing = false;
 let previousFreeDrawCount = null;
@@ -113,6 +115,19 @@ async function api(path, options = {}) {
   }
 
   return data;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
 
 function updateLoginUI() {
@@ -302,10 +317,8 @@ async function drawGacha(type) {
 
     const data = await api(path, { method: "POST" });
 
-    // ガチャ結果を保存してから結果ページへ遷移
     localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(data));
 
-    // プレビュー表示（遷移前の一瞬だけ見える）
     previewResult(data.result);
 
     location.href = "result.html";
@@ -404,6 +417,56 @@ function injectPointPurchaseButtons() {
   document.getElementById("buy1000Button")?.addEventListener("click", () => buyPoints("1000"));
 }
 
+function firstCreatorLink(item) {
+  return item.link_url || item.booth_url || item.fanbox_url || item.skeb_url || item.pixiv_url || "";
+}
+
+async function loadCreatorTopRanking() {
+  if (!creatorTopList) return;
+
+  try {
+    const data = await api("/creators/ranking");
+    const items = (data.items || []).slice(0, 3);
+
+    if (!items.length) {
+      creatorTopList.innerHTML = `<div class="sub">まだランキング対象のクリエイターがいません。</div>`;
+      return;
+    }
+
+    creatorTopList.innerHTML = items.map(item => {
+      const link = firstCreatorLink(item);
+
+      return `
+        <div class="creator-rank-card">
+          <div class="creator-rank-head">
+            <span class="creator-rank-badge">#${item.rank ?? "-"}</span>
+            <span class="creator-rank-badge">スコア ${item.score ?? 0}</span>
+            <span class="creator-rank-badge">作品 ${item.total_works ?? 0}</span>
+            <span class="creator-rank-badge">排出 ${item.total_draws ?? 0}</span>
+          </div>
+
+          <div class="creator-rank-name">${escapeHtml(item.creator_name || item.creator_id || "不明")}</div>
+
+          <div class="creator-rank-meta">
+            代表カード: ${escapeHtml(item.top_card?.title || "なし")}<br>
+            平均Lv: ${item.avg_level ?? 0}<br>
+            いいね: ${item.total_likes ?? 0}
+            ${item.legend_count > 0 ? `<br>LEGEND: ${item.legend_count}` : ""}
+          </div>
+
+          ${
+            link
+              ? `<a class="creator-rank-link" href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer">販売ページへ</a>`
+              : `<div class="sub">販売ページリンク未設定</div>`
+          }
+        </div>
+      `;
+    }).join("");
+  } catch (error) {
+    creatorTopList.innerHTML = `<div class="sub">ランキングを読み込めませんでした。</div>`;
+  }
+}
+
 function boot() {
   injectPointPurchaseButtons();
 
@@ -425,7 +488,6 @@ function boot() {
       })
       .catch((error) => {
         console.warn("refreshUser failed", error);
-        // refreshUser失敗時もキャッシュ済みのauthUserで表示を維持
         updateStatusUI(authUser);
       });
   } else {
@@ -456,6 +518,7 @@ function boot() {
   });
 
   handleStripeResult();
+  loadCreatorTopRanking();
 }
 
 document.addEventListener("DOMContentLoaded", boot);
