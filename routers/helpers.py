@@ -123,7 +123,7 @@ def create_owned_card_if_missing(conn, user_id: str, work_row):
         """, (
             user_id,
             work_row["id"],
-            "N",   # ← 全員 N スタート
+            "N",
             1,
             0,
             hp,
@@ -194,8 +194,14 @@ def weighted_draw(conn, user_id: str):
     pool = []
     for w in works:
         weight = rarity_weights.get((w["rarity"] or "N").upper(), 10)
+
         if w["is_ball"]:
             weight += 1
+
+        # 運営作品は20%増し
+        if w["creator_id"] == "admin":
+            weight = max(1, int(round(weight * 1.2)))
+
         pool.extend([w] * max(1, weight))
 
     return random.choice(pool)
@@ -355,7 +361,7 @@ def serialize_work(work: dict) -> dict:
         "fanbox_url": work.get("fanbox_url", ""),
         "skeb_url": work.get("skeb_url", ""),
         "pixiv_url": work.get("pixiv_url", ""),
-        "rarity": work["rarity"],  # 作品側レア度（排出率・演出用）
+        "rarity": work["rarity"],
         "hp": work["hp"],
         "atk": work["atk"],
         "def": work["def"],
@@ -385,12 +391,21 @@ def serialize_owned_card(conn, owned: dict) -> dict:
         "id": owned["id"],
         "work_id": owned["work_id"],
         "title": work["title"],
+        "creator_user_id": work["creator_id"],
         "creator_name": work["creator_name"],
         "type": work["type"],
         "image_url": work["image_url"],
         "video_url": work["video_url"],
+        "thumbnail_url": work["thumbnail_url"],
         "link_url": work["link_url"],
-        "rarity": owned["rarity"],  # 所有カード側レア度（育成用）
+        "x_url": work["x_url"],
+        "booth_url": work["booth_url"],
+        "chichipui_url": work["chichipui_url"],
+        "dlsite_url": work["dlsite_url"],
+        "fanbox_url": work.get("fanbox_url", ""),
+        "skeb_url": work.get("skeb_url", ""),
+        "pixiv_url": work.get("pixiv_url", ""),
+        "rarity": owned["rarity"],
         "hp": owned["hp"],
         "atk": owned["atk"],
         "def": owned["def"],
@@ -403,9 +418,11 @@ def serialize_owned_card(conn, owned: dict) -> dict:
         "battle_count": owned.get("battle_count", 0),
         "lose_streak_count": owned["lose_streak_count"],
         "is_legend": bool(owned["is_legend"]),
+        "legend_at": owned.get("legend_at", ""),
         "is_ball": bool(work["is_ball"]),
         "ball_code": work["ball_code"],
         "owner_user_id": owner["owner_id"] if owner else None,
         "draw_count": work["draw_count"],
+        "like_count": work["like_count"],
         "card_power": card_power,
-}
+    }
