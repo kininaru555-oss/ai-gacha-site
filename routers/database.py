@@ -43,6 +43,29 @@ def _safe_execute(cur, sql: str, params=None):
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cur:
+
+        CREATE TABLE IF NOT EXISTS stripe_events (
+    id BIGSERIAL PRIMARY KEY,
+    event_id TEXT UNIQUE NOT NULL,
+    event_type TEXT NOT NULL,
+    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+    
+  cur.execute(
+"""
+CREATE TABLE IF NOT EXISTS point_purchase_logs (
+    id BIGSERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    stripe_session_id TEXT NOT NULL UNIQUE,
+    stripe_payment_intent_id TEXT DEFAULT '',
+    product_type TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    amount_jpy INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+)
+"""
             # ─────────────────────────
             # users
             # ─────────────────────────
