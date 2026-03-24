@@ -87,4 +87,98 @@ def create_checkout_session(payload: CreateCheckoutSessionRequest):
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request):
-    if not STRIPE_WEBHOOK
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="STRIPE_WEBHOOK_SECRET が未設定です")
+
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=STRIPE_WEBHOOK_SECRET,
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    event_id = event["id"]
+    event_type = event["type"]
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM stripe_events WHERE event_id=%s", (event_id,))
+            already = cur.fetchone()
+            if already:
+                return JSONResponse({"message": "already processed"})
+
+    if event_type == "checkout.session.completed":
+        session = event["data"]["object"]
+        metadata = session.get("metadata", {})
+
+        user_id = metadata.get("user_id", "")
+        product_type = metadata.get("product_type", "")
+        points = int(metadata.get("points", "0"))
+        amount_jpy = int(metadata.get("amount_jpy", "0"))
+        payment_intent = session.get("payment_intent", "")
+
+        if not user_id or points <= 0:
+            raise HTTPException(status_code=400, detail="metadata 不正")
+
+        with get_db() as conn:
+            ensure_user(conn, user_id)
+
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, status FROM point_purchase_logs
+                    WHERE stripe_session_id=%s
+                    LIMIT 1
+                """, (session["id"],))
+                log = cur.fetchone()
+
+                if not log:
+                    cur.execute("""
+                        INSERT INTO point_purchase_logs(
+                            user_id, stripe_session_id, stripe_payment_intent_id,
+                            product_type, points, amount_jpy, status, completed_at
+                        ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (
+                        user_id,
+                        session["id"],
+                        payment_intent,
+                        product_type,
+                        points,
+                        amount_jpy,
+                        "completed",
+                        datetime.utcnow(),
+                    ))
+                    cur.execute(
+                        "UPDATE users SET points = points + %s WHERE user_id=%s",
+                        (points, user_id)
+                    )
+                elif log["status"] != "completed":
+                    cur.execute("""
+                        UPDATE point_purchase_logs
+                        SET stripe_payment_intent_id=%s,
+                            status='completed',
+                            completed_at=%s
+                        WHERE stripe_session_id=%s
+                    """, (
+                        payment_intent,
+                        datetime.utcnow(),
+                        session["id"],
+                    ))
+                    cur.execute(
+                        "UPDATE users SET points = points + %s WHERE user_id=%s",
+                        (points, user_id)
+                    )
+
+                cur.execute("""
+                    INSERT INTO stripe_events(event_id, event_type)
+                    VALUES(%s,%s)
+                    ON CONFLICT (event_id) DO NOTHING
+                """, (event_id, event_type))
+
+    return JSONResponse({"received": True})
