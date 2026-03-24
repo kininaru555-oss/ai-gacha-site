@@ -115,12 +115,7 @@ function consumePostSuccessNotice() {
 }
 
 function getAuthToken() {
-  return (
-    authUser?.token ||
-    authUser?.access_token ||
-    authUser?.jwt ||
-    null
-  );
+  return authUser?.token || authUser?.access_token || authUser?.jwt || null;
 }
 
 function buildAuthHeaders() {
@@ -130,15 +125,13 @@ function buildAuthHeaders() {
 }
 
 async function api(path, options = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...buildAuthHeaders(),
-    ...(options.headers || {})
-  };
-
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers
+    headers: {
+      "Content-Type": "application/json",
+      ...buildAuthHeaders(),
+      ...(options.headers || {})
+    }
   });
 
   const data = await response.json().catch(() => ({}));
@@ -166,12 +159,11 @@ function escapeAttr(value) {
 function updateLoginUI() {
   if (authUser && authUser.user_id) {
     loginStatus.textContent = `ログイン中: ${authUser.user_id}`;
-    logoutButton.style.display = "block";
-    userIdInput.value = authUser.user_id || "";
+    if (logoutButton) logoutButton.style.display = "block";
+    if (userIdInput) userIdInput.value = authUser.user_id || "";
   } else {
     loginStatus.textContent = "未ログイン";
-    logoutButton.style.display = "none";
-    userIdInput.value = "";
+    if (logoutButton) logoutButton.style.display = "none";
   }
 }
 
@@ -203,12 +195,12 @@ function updateStatusUI(user) {
   const newPoints = user.points ?? 0;
   const newFreeDrawCount = user.free_draw_count ?? 0;
 
-  pointsText.textContent = newPoints;
-  expText.textContent = user.exp ?? 0;
-  levelText.textContent = user.level ?? 1;
-  freeDrawText.textContent = newFreeDrawCount;
-  reviveText.textContent = user.revive_item_count ?? user.revive_items ?? 0;
-  ballText.textContent = `${user.ball_count ?? user.legend_ball_count ?? 0} / 7`;
+  if (pointsText) pointsText.textContent = newPoints;
+  if (expText) expText.textContent = user.exp ?? 0;
+  if (levelText) levelText.textContent = user.level ?? 1;
+  if (freeDrawText) freeDrawText.textContent = newFreeDrawCount;
+  if (reviveText) reviveText.textContent = user.revive_item_count ?? user.revive_items ?? 0;
+  if (ballText) ballText.textContent = `${user.legend_ball_count ?? user.ball_count ?? 0} / 7`;
 
   animatePointsIncrease(previousPointCount, newPoints);
   animateFreeDrawIncrease(previousFreeDrawCount, newFreeDrawCount);
@@ -242,14 +234,18 @@ function previewResult(result) {
     placeholder.style.display = "none";
   }
 
-  if (result.type === "video" && result.video_url) {
-    resultVideo.src = result.video_url;
-    resultVideo.style.display = "block";
-    resultImage.style.display = "none";
+  if ((result.media_type || result.type) === "video" && result.video_url) {
+    if (resultVideo) {
+      resultVideo.src = result.video_url;
+      resultVideo.style.display = "block";
+    }
+    if (resultImage) resultImage.style.display = "none";
   } else {
-    resultImage.src = result.image_url || "";
-    resultImage.style.display = "block";
-    resultVideo.style.display = "none";
+    if (resultImage) {
+      resultImage.src = result.image_url || "";
+      resultImage.style.display = "block";
+    }
+    if (resultVideo) resultVideo.style.display = "none";
   }
 }
 
@@ -257,13 +253,11 @@ async function refreshUser() {
   if (!authUser || !authUser.user_id) return;
 
   let data = null;
-  const token = getAuthToken();
-
-  if (token) {
+  if (getAuthToken()) {
     try {
       data = await api("/users/me");
     } catch (_) {
-      // 互換用 fallback
+      // fallback
     }
   }
 
@@ -277,14 +271,9 @@ async function refreshUser() {
   updateLoginUI();
 }
 
-async function loadUserStatus() {
-  if (!authUser || !authUser.user_id) return;
-  await refreshUser();
-}
-
 async function handleLogin() {
-  const userId = (userIdInput.value || "").trim();
-  const password = (passwordInput.value || "").trim();
+  const userId = (userIdInput?.value || "").trim();
+  const password = (passwordInput?.value || "").trim();
 
   if (!userId || !password) {
     showMessage("ユーザーIDとパスワードを入力してください。");
@@ -293,8 +282,10 @@ async function handleLogin() {
 
   try {
     clearMessage();
-    loginButton.disabled = true;
-    loginButton.textContent = "ログイン中...";
+    if (loginButton) {
+      loginButton.disabled = true;
+      loginButton.textContent = "ログイン中...";
+    }
 
     const data = await api("/auth/login", {
       method: "POST",
@@ -316,8 +307,10 @@ async function handleLogin() {
   } catch (error) {
     showMessage(error.message || "ログインに失敗しました。ユーザーIDとパスワードを確認してください。");
   } finally {
-    loginButton.disabled = false;
-    loginButton.textContent = "ログイン / 新規登録";
+    if (loginButton) {
+      loginButton.disabled = false;
+      loginButton.textContent = "ログイン / 新規登録";
+    }
   }
 }
 
@@ -337,7 +330,7 @@ function handleLogout() {
     level: 1,
     free_draw_count: 0,
     revive_item_count: 0,
-    ball_count: 0
+    legend_ball_count: 0
   });
 
   clearPreview();
@@ -356,20 +349,22 @@ async function drawGacha(type) {
     isDrawing = true;
     clearMessage();
 
-    freeDrawButton.disabled = true;
-    paidDrawButton.disabled = true;
-    freeDrawButton.textContent = "抽選中...";
-    paidDrawButton.textContent = "抽選中...";
+    if (freeDrawButton) {
+      freeDrawButton.disabled = true;
+      freeDrawButton.textContent = "抽選中...";
+    }
+    if (paidDrawButton) {
+      paidDrawButton.disabled = true;
+      paidDrawButton.textContent = "抽選中...";
+    }
 
     let data = null;
-    const token = getAuthToken();
 
-    // 新API優先、なければ旧互換APIへフォールバック
-    if (token) {
+    if (getAuthToken()) {
       try {
         data = await api(type === "paid" ? "/gacha/paid" : "/gacha/free", { method: "POST" });
       } catch (_) {
-        // fallback below
+        // fallback
       }
     }
 
@@ -388,10 +383,14 @@ async function drawGacha(type) {
     showMessage(error.message || "ガチャに失敗しました。しばらく待ってから再試行してください。");
   } finally {
     isDrawing = false;
-    freeDrawButton.disabled = false;
-    paidDrawButton.disabled = false;
-    freeDrawButton.textContent = "無料ガチャを引く";
-    paidDrawButton.textContent = "30ptガチャを引く";
+    if (freeDrawButton) {
+      freeDrawButton.disabled = false;
+      freeDrawButton.textContent = "無料ガチャを引く";
+    }
+    if (paidDrawButton) {
+      paidDrawButton.disabled = false;
+      paidDrawButton.textContent = "30ptガチャを引く";
+    }
   }
 }
 
@@ -408,9 +407,7 @@ async function waitForPointsUpdate(expectedMinPoints, maxRetry = 8, intervalMs =
       if ((authUser?.points ?? 0) >= expectedMinPoints) {
         return true;
       }
-    } catch (_) {
-      // リトライ継続
-    }
+    } catch (_) {}
   }
   return false;
 }
@@ -457,23 +454,15 @@ async function buyPoints(type) {
   try {
     clearMessage();
 
-    const token = getAuthToken();
-    let body;
-
-    if (token) {
-      body = JSON.stringify({ type });
-    } else {
-      body = JSON.stringify({
-        user_id: authUser.user_id,
-        type
-      });
-    }
+    const body = getAuthToken()
+      ? JSON.stringify({ type })
+      : JSON.stringify({ user_id: authUser.user_id, type });
 
     const response = await fetch(`${API_BASE}/create-checkout-session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...buildAuthHeaders(),
+        ...buildAuthHeaders()
       },
       body
     });
@@ -600,7 +589,7 @@ function boot() {
       level: 1,
       free_draw_count: 0,
       revive_item_count: 0,
-      ball_count: 0
+      legend_ball_count: 0
     });
     clearRewardNotice();
   }
@@ -611,10 +600,7 @@ function boot() {
   logoutButton?.addEventListener("click", handleLogout);
   freeDrawButton?.addEventListener("click", () => drawGacha("free"));
   paidDrawButton?.addEventListener("click", () => drawGacha("paid"));
-
-  if (rewardDrawButton) {
-    rewardDrawButton.addEventListener("click", drawFreeFromNotice);
-  }
+  rewardDrawButton?.addEventListener("click", drawFreeFromNotice);
 
   passwordInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") handleLogin();
@@ -626,7 +612,6 @@ function boot() {
 
 document.addEventListener("DOMContentLoaded", boot);
 '''
-
-path = Path("/mnt/data/gacha_fixed.js")
+path = Path("/mnt/data/gacha_fixed_v2.js")
 path.write_text(content, encoding="utf-8")
 print(path)
