@@ -1,4 +1,6 @@
-const API_BASE = window.APP_CONFIG.API_BASE;
+from pathlib import Path
+
+content = r'''const API_BASE = window.APP_CONFIG.API_BASE;
 const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
 const RESULT_STORAGE_KEY = window.APP_CONFIG.RESULT_STORAGE_KEY;
 const POST_SUCCESS_NOTICE_KEY = window.APP_CONFIG.POST_SUCCESS_NOTICE_KEY;
@@ -86,6 +88,19 @@ function clearAuth() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+function saveResult(data) {
+  const payload = {
+    saved_at: new Date().toISOString(),
+    user_id: authUser?.user_id || null,
+    data,
+  };
+  localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function clearResultCache() {
+  localStorage.removeItem(RESULT_STORAGE_KEY);
+}
+
 function consumePostSuccessNotice() {
   try {
     const raw = localStorage.getItem(POST_SUCCESS_NOTICE_KEY);
@@ -99,13 +114,31 @@ function consumePostSuccessNotice() {
   }
 }
 
+function getAuthToken() {
+  return (
+    authUser?.token ||
+    authUser?.access_token ||
+    authUser?.jwt ||
+    null
+  );
+}
+
+function buildAuthHeaders() {
+  const token = getAuthToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
 async function api(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...buildAuthHeaders(),
+    ...(options.headers || {})
+  };
+
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
+    ...options,
+    headers
   });
 
   const data = await response.json().catch(() => ({}));
@@ -138,6 +171,7 @@ function updateLoginUI() {
   } else {
     loginStatus.textContent = "未ログイン";
     logoutButton.style.display = "none";
+    userIdInput.value = "";
   }
 }
 
@@ -173,8 +207,8 @@ function updateStatusUI(user) {
   expText.textContent = user.exp ?? 0;
   levelText.textContent = user.level ?? 1;
   freeDrawText.textContent = newFreeDrawCount;
-  reviveText.textContent = user.revive_item_count ?? 0;
-  ballText.textContent = `${user.ball_count ?? 0} / 7`;
+  reviveText.textContent = user.revive_item_count ?? user.revive_items ?? 0;
+  ballText.textContent = `${user.ball_count ?? user.legend_ball_count ?? 0} / 7`;
 
   animatePointsIncrease(previousPointCount, newPoints);
   animateFreeDrawIncrease(previousFreeDrawCount, newFreeDrawCount);
@@ -221,7 +255,22 @@ function previewResult(result) {
 
 async function refreshUser() {
   if (!authUser || !authUser.user_id) return;
-  const data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
+
+  let data = null;
+  const token = getAuthToken();
+
+  if (token) {
+    try {
+      data = await api("/users/me");
+    } catch (_) {
+      // 互換用 fallback
+    }
+  }
+
+  if (!data) {
+    data = await api(`/users/${encodeURIComponent(authUser.user_id)}`);
+  }
+
   authUser = { ...authUser, ...data };
   saveAuth(authUser);
   updateStatusUI(authUser);
@@ -277,6 +326,7 @@ function handleLogout() {
   previousFreeDrawCount = null;
   previousPointCount = null;
   clearAuth();
+  clearResultCache();
   clearRewardNotice();
   localStorage.removeItem(POST_SUCCESS_NOTICE_KEY);
 
@@ -311,14 +361,26 @@ async function drawGacha(type) {
     freeDrawButton.textContent = "抽選中...";
     paidDrawButton.textContent = "抽選中...";
 
-    const path = type === "paid"
-      ? `/gacha/paid/${encodeURIComponent(authUser.user_id)}`
-      : `/gacha/free/${encodeURIComponent(authUser.user_id)}`;
+    let data = null;
+    const token = getAuthToken();
 
-    const data = await api(path, { method: "POST" });
+    // 新API優先、なければ旧互換APIへフォールバック
+    if (token) {
+      try {
+        data = await api(type === "paid" ? "/gacha/paid" : "/gacha/free", { method: "POST" });
+      } catch (_) {
+        // fallback below
+      }
+    }
 
-    localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(data));
+    if (!data) {
+      const path = type === "paid"
+        ? `/gacha/paid/${encodeURIComponent(authUser.user_id)}`
+        : `/gacha/free/${encodeURIComponent(authUser.user_id)}`;
+      data = await api(path, { method: "POST" });
+    }
 
+    saveResult(data);
     previewResult(data.result);
 
     location.href = "result.html";
@@ -338,22 +400,51 @@ async function drawFreeFromNotice() {
   await drawGacha("free");
 }
 
-function handleStripeResult() {
+async function waitForPointsUpdate(expectedMinPoints, maxRetry = 8, intervalMs = 1500) {
+  for (let i = 0; i < maxRetry; i++) {
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+    try {
+      await refreshUser();
+      if ((authUser?.points ?? 0) >= expectedMinPoints) {
+        return true;
+      }
+    } catch (_) {
+      // リトライ継続
+    }
+  }
+  return false;
+}
+
+async function handleStripeResult() {
   const params = new URLSearchParams(window.location.search);
   const success = params.get("success");
   const cancel = params.get("cancel");
 
   if (success === "1") {
-    showMessage("決済が完了しました。ポイントが反映されています。");
-    loadUserStatus()
-      .then(() => flashBox(pointsBox))
-      .catch(() => flashBox(pointsBox));
     history.replaceState({}, "", location.pathname);
+
+    if (!authUser || !authUser.user_id) {
+      showMessage("決済が完了しました。ログインしてポイントを確認してください。");
+      return;
+    }
+
+    const pointsBefore = authUser.points ?? 0;
+    showMessage("決済が完了しました。ポイントを反映中です…");
+
+    const reflected = await waitForPointsUpdate(pointsBefore + 1);
+
+    if (reflected) {
+      showMessage("✓ ポイントが反映されました！");
+      flashBox(pointsBox);
+    } else {
+      showMessage("決済は完了しています。ポイント反映に時間がかかる場合があります。しばらくお待ちください。");
+      refreshUser().catch(() => {});
+    }
   }
 
   if (cancel === "1") {
-    showMessage("決済がキャンセルされました。");
     history.replaceState({}, "", location.pathname);
+    showMessage("決済がキャンセルされました。");
   }
 }
 
@@ -366,13 +457,25 @@ async function buyPoints(type) {
   try {
     clearMessage();
 
+    const token = getAuthToken();
+    let body;
+
+    if (token) {
+      body = JSON.stringify({ type });
+    } else {
+      body = JSON.stringify({
+        user_id: authUser.user_id,
+        type
+      });
+    }
+
     const response = await fetch(`${API_BASE}/create-checkout-session`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: authUser.user_id,
-        type: type
-      })
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeaders(),
+      },
+      body
     });
 
     const data = await response.json().catch(() => ({}));
@@ -504,16 +607,16 @@ function boot() {
 
   clearPreview();
 
-  loginButton.addEventListener("click", handleLogin);
-  logoutButton.addEventListener("click", handleLogout);
-  freeDrawButton.addEventListener("click", () => drawGacha("free"));
-  paidDrawButton.addEventListener("click", () => drawGacha("paid"));
+  loginButton?.addEventListener("click", handleLogin);
+  logoutButton?.addEventListener("click", handleLogout);
+  freeDrawButton?.addEventListener("click", () => drawGacha("free"));
+  paidDrawButton?.addEventListener("click", () => drawGacha("paid"));
 
   if (rewardDrawButton) {
     rewardDrawButton.addEventListener("click", drawFreeFromNotice);
   }
 
-  passwordInput.addEventListener("keydown", (event) => {
+  passwordInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") handleLogin();
   });
 
@@ -522,3 +625,8 @@ function boot() {
 }
 
 document.addEventListener("DOMContentLoaded", boot);
+'''
+
+path = Path("/mnt/data/gacha_fixed.js")
+path.write_text(content, encoding="utf-8")
+print(path)
