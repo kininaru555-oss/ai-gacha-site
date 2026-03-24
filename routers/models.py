@@ -9,8 +9,12 @@ models_fixed.py — Pydantic request models (improved)
 - PointPurchaseRequest.type は Literal で制限
 """
 from __future__ import annotations
-
 from typing import Literal, Optional
+from pydantic import BaseModel
+
+class CreateCheckoutSessionRequest(BaseModel):
+    user_id: str
+    product_type: Literal["300", "1000", "3000", "5000"]
 
 from pydantic import BaseModel, Field, model_validator
 
