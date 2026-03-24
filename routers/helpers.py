@@ -1,309 +1,66 @@
+from pathlib import Path
+
+content = r'''"""
+helpers.py — DBヘルパー・シリアライザー・ゲームロジック（完成版）
+
+方針:
+- 二次流通会計は points / royalty_balance を分離
+- 1作品 = 1育成個体 前提に寄せる
+- レジェンドボール表記へ段階移行（旧 is_ball / ball_code は互換維持）
+- 日次EXP処理は日本時間基準
 """
-helpers.py — DBヘルパー・シリアライザー・ゲームロジック（SQLite版）
-"""
+from __future__ import annotations
+
 import random
-from datetime import datetime, date, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
 
 from fastapi import HTTPException
 
-from db import safe_int, get_columns, table_exists  # ← 前回のdb.pyからインポート想定
+
+JST = timezone(timedelta(hours=9))
 
 
 # ─────────────────────────────────────────────
 # 日付ユーティリティ
 # ─────────────────────────────────────────────
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def today_str() -> str:
-    return date.today().isoformat()
+    return datetime.now(JST).date().isoformat()
 
 
 # ─────────────────────────────────────────────
-# ユーザー / 作品 取得（SQLite版）
+# ユーザー / 作品 取得
 # ─────────────────────────────────────────────
-def ensure_user(conn, user_id: str) -> dict:
-    row = conn.execute(
-        "SELECT * FROM users WHERE user_id = ?",
-        (user_id,)
-    ).fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="ユーザーが見つかりません。")
-    return dict(row)
+def ensure_user(conn, user_id: str):
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM users WHERE user_id=%s", (user_id,))
+        user = cur.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが存在しません")
+    return user
 
 
-def ensure_work(conn, work_id: int) -> dict:
-    row = conn.execute(
-        "SELECT * FROM works WHERE id = ?",
-        (work_id,)
-    ).fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="作品が見つかりません。")
-    return dict(row)
+def ensure_work(conn, work_id: int):
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM works WHERE id=%s AND is_active=1", (work_id,))
+        work = cur.fetchone()
+    if not work:
+        raise HTTPException(status_code=404, detail="作品が存在しません")
+    return work
 
 
-def get_work_owner(conn, work_id: int) -> str | None:
-    if table_exists(conn, "work_owners"):
-        row = conn.execute(
-            "SELECT owner_user_id FROM work_owners WHERE work_id = ?",
-            (work_id,)
-        ).fetchone()
-        return row["owner_user_id"] if row else None
+def ensure_system_user(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM users WHERE user_id=%s", ("system",))
+        if not cur.fetchone():
+            cur.execute(
+                """
+                INSERT INTO users(user_id, password, password_hash, points, exp, level, free_draw_count, revive_items, royalty_balance, daily_duplicate_exp, last_exp_reset)
+                VALUES(%s,%s,%s,0,0,1,0,0,0,0,%s)
+                """,
+                ("system", "", "", today_str()),
+            )
 
-    cols = get_columns(conn, "works")
-    owner_col = next((c for c in ["owner_user_id", "current_owner_user_id"] if c in cols), None)
-    if owner_col:
-        row = conn.execute(
-            f"SELECT {owner_col} FROM works WHERE id = ?",
-            (work_id,)
-        ).fetchone()
-        return row[owner_col] if row else None
-    return None
-
-
-# ─────────────────────────────────────────────
-# Cloudinary ぼかしURL（変更なし）
-# ─────────────────────────────────────────────
-def _is_cloudinary_url(url: str) -> bool:
-    if not url:
-        return False
-    try:
-        return "res.cloudinary.com" in urlparse(url).netloc.lower()
-    except:
-        return False
-
-
-def build_locked_cloudinary_url(url: str, media_type: str = "image") -> str:
-    if not _is_cloudinary_url(url):
-        return url
-
-    marker = "/upload/"
-    if marker not in url:
-        return url
-
-    if media_type == "video":
-        transform = "so_0,e_blur:800,w_480,q_auto:low,f_auto"
-    else:
-        transform = "e_blur:900,w_480,q_auto:low,f_auto"
-
-    return url.replace(marker, f"/upload/{transform}/", 1)
-
-
-def resolve_media_access(work: dict, can_view_full: bool) -> dict:
-    media_type = work.get("type", "image")
-    image_url = work.get("image_url", "")
-    video_url = work.get("video_url", "")
-
-    if can_view_full:
-        return {"image_url": image_url, "video_url": video_url, "needs_front_blur": False}
-
-    locked_image = build_locked_cloudinary_url(image_url, "image")
-    locked_video = build_locked_cloudinary_url(video_url, "video")
-
-    needs_blur_image = locked_image == image_url and bool(image_url)
-    needs_blur_video = locked_video == video_url and bool(video_url)
-
-    return {
-        "image_url": locked_image,
-        "video_url": locked_video,
-        "needs_front_blur": needs_blur_image or needs_blur_video,
-    }
-
-
-# ─────────────────────────────────────────────
-# EXP / レベル（簡略化・トランザクション外で呼ぶ前提）
-# ─────────────────────────────────────────────
-def update_user_level(conn, user_id: str):
-    user = ensure_user(conn, user_id)
-    level = max(1, 1 + (safe_int(user.get("exp", 0)) // 100))
-    conn.execute(
-        "UPDATE users SET level = ? WHERE user_id = ?",
-        (level, user_id)
-    )
-
-
-# ─────────────────────────────────────────────
-# ポイント分配（point_transactions対応版）
-# ─────────────────────────────────────────────
-def distribute_points(
-    conn,
-    work_id: int,
-    buyer_user_id: str,
-    seller_user_id: str,
-    total_points: int,
-    tx_type: str = "market_buy"
-):
-    buyer = ensure_user(conn, buyer_user_id)
-    if safe_int(buyer.get("points", 0)) < total_points:
-        raise HTTPException(status_code=400, detail="ポイントが不足しています。")
-
-    work = ensure_work(conn, work_id)
-    creator_id = work.get("creator_id") or work.get("creator_user_id")
-
-    fee_rate = 0.30
-    fee = int(total_points * fee_rate)
-    remain = total_points - fee
-    seller_share = remain // 2
-    creator_share = remain - seller_share
-
-    # トランザクションは呼び出し側でBEGIN/COMMIT
-    conn.execute(
-        "UPDATE users SET points = points - ? WHERE user_id = ?",
-        (total_points, buyer_user_id)
-    )
-    conn.execute(
-        "UPDATE users SET points = points + ?, royalty_balance = COALESCE(royalty_balance, 0) + ? WHERE user_id = ?",
-        (seller_share, seller_share, seller_user_id)
-    )
-    if creator_id:
-        conn.execute(
-            "UPDATE users SET points = points + ?, royalty_balance = COALESCE(royalty_balance, 0) + ? WHERE user_id = ?",
-            (creator_share, creator_share, creator_id)
-        )
-
-    # 履歴記録
-    conn.execute(
-        """
-        INSERT INTO point_transactions (
-            user_id, amount, transaction_type, reference_id, description, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (buyer_user_id, -total_points, tx_type, work_id, "購入", utc_now_iso())
-    )
-    conn.execute(
-        """
-        INSERT INTO point_transactions (
-            user_id, amount, transaction_type, reference_id, description, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (seller_user_id, seller_share, tx_type, work_id, "販売シェア", utc_now_iso())
-    )
-    if creator_id:
-        conn.execute(
-            """
-            INSERT INTO point_transactions (
-                user_id, amount, transaction_type, reference_id, description, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (creator_id, creator_share, tx_type, work_id, "ロイヤリティ", utc_now_iso())
-        )
-
-    return {
-        "platform_fee": fee,
-        "seller_share": seller_share,
-        "creator_share": creator_share
-    }
-
-
-# ─────────────────────────────────────────────
-# ガチャ抽選（簡略化版）
-# ─────────────────────────────────────────────
-def weighted_draw(conn, user_id: str):
-    user = ensure_user(conn, user_id)
-    rows = conn.execute("SELECT * FROM works WHERE is_active = 1").fetchall()
-    works = [dict(r) for r in rows]
-
-    if not works:
-        raise HTTPException(status_code=400, detail="排出対象がありません")
-
-    level = safe_int(user.get("level", 1))
-    rarity_weights = {
-        "N": max(55 - level, 20),
-        "R": 25 + min(level, 10),
-        "SR": min(10 + level, 24),
-        "SSR": min(3 + level // 3, 10),
-        "LEGEND": 1,
-    }
-
-    pool = []
-    for w in works:
-        rarity = (w.get("rarity") or "N").upper()
-        weight = rarity_weights.get(rarity, 10)
-
-        if w.get("is_ball"):
-            weight += 1
-        # creator_id が admin なら少し優遇（任意）
-        if w.get("creator_id") == "admin" or w.get("creator_user_id") == "admin":
-            weight = max(1, int(weight * 1.2))
-
-        pool.extend([w] * max(1, weight))
-
-    return random.choice(pool) if pool else None
-
-
-# ─────────────────────────────────────────────
-# バトル簡易スコア
-# ─────────────────────────────────────────────
-def battle_score(card: dict) -> float:
-    return (
-        safe_int(card.get("hp")) * 0.30 +
-        safe_int(card.get("atk")) * 1.25 +
-        safe_int(card.get("defense")) * 0.95 +   # def → defense に統一
-        safe_int(card.get("spd")) * 0.75 +
-        safe_int(card.get("luk")) * 0.55 +
-        random.randint(0, 15)
-    )
-
-
-# ─────────────────────────────────────────────
-# シリアライザー（me_routerと整合）
-# ─────────────────────────────────────────────
-def serialize_work(work: dict, can_view_full: bool = False) -> dict:
-    media = resolve_media_access(work, can_view_full)
-
-    return {
-        "work_id": work["id"],
-        "title": work.get("title", ""),
-        "creator_name": work.get("creator_name", ""),
-        "rarity": work.get("rarity", "N"),
-        "image_url": media["image_url"],
-        "video_url": media["video_url"],
-        "thumbnail_url": work.get("thumbnail_url", ""),
-        "hp": safe_int(work.get("hp")),
-        "atk": safe_int(work.get("atk")),
-        "defense": safe_int(work.get("defense", work.get("def"))),
-        "spd": safe_int(work.get("spd")),
-        "luk": safe_int(work.get("luk")),
-        "level": safe_int(work.get("level", 1)),
-        "exp": safe_int(work.get("exp")),
-        "total_exp": safe_int(work.get("total_exp")),
-        "win_count": safe_int(work.get("win_count")),
-        "battle_count": safe_int(work.get("battle_count")),
-        "is_legend": bool(work.get("is_legend")),
-        "is_ball": bool(work.get("is_ball")),
-        "ball_code": work.get("ball_code", ""),
-        "can_view_full": can_view_full,
-        "needs_front_blur": media["needs_front_blur"],
-    }
-
-
-def serialize_owned_card(conn, owned: dict) -> dict:
-    work = ensure_work(conn, owned["work_id"])
-    owner_id = get_work_owner(conn, owned["work_id"])
-
-    card_power = sum(safe_int(owned.get(k, 0)) for k in ["hp", "atk", "defense", "spd", "luk"])
-
-    return {
-        "card_id": owned.get("id"),
-        "work_id": owned["work_id"],
-        **serialize_work(work, can_view_full=True),
-        "hp": safe_int(owned.get("hp")),
-        "atk": safe_int(owned.get("atk")),
-        "defense": safe_int(owned.get("defense", owned.get("def"))),
-        "spd": safe_int(owned.get("spd")),
-        "luk": safe_int(owned.get("luk")),
-        "level": safe_int(owned.get("level", 1)),
-        "exp": safe_int(owned.get("exp")),
-        "total_exp": safe_int(owned.get("total_exp")),
-        "win_count": safe_int(owned.get("win_count")),
-        "battle_count": safe_int(owned.get("battle_count")),
-        "lose_streak_count": safe_int(owned.get("lose_streak_count")),
-        "is_legend": bool(owned.get("is_legend")),
-        "card_power": card_power,
-        "owner_user_id": owner_id,
-                         }
 
 # ─────────────────────────────────────────────
 # 閲覧権管理
@@ -342,11 +99,6 @@ def _is_cloudinary_url(url: str) -> bool:
 
 
 def build_locked_cloudinary_url(url: str, media_type: str = "image") -> str:
-    """
-    Cloudinary URL の場合だけ、軽い閲覧制限用URLへ変換。
-    image: blur + resize
-    video: ぼかしサムネ or video transform
-    """
     if not url or not _is_cloudinary_url(url):
         return url
 
@@ -355,7 +107,6 @@ def build_locked_cloudinary_url(url: str, media_type: str = "image") -> str:
         return url
 
     if media_type == "video":
-        # Cloudinary動画なら軽めの変換
         transform = "so_0,e_blur:800,w_480,q_auto:low,f_auto"
     else:
         transform = "e_blur:900,w_480,q_auto:low,f_auto"
@@ -364,11 +115,7 @@ def build_locked_cloudinary_url(url: str, media_type: str = "image") -> str:
 
 
 def resolve_media_access(work: dict, can_view_full: bool) -> dict:
-    """
-    can_view_full に応じて返却URLを調整。
-    Cloudinary以外はURLはそのまま返し、フロントで blur する前提。
-    """
-    media_type = work.get("type", "image")
+    media_type = work.get("media_type") or work.get("type", "image")
     image_url = work.get("image_url", "") or ""
     video_url = work.get("video_url", "") or ""
 
@@ -402,7 +149,7 @@ def resolve_media_access(work: dict, can_view_full: bool) -> dict:
 # ─────────────────────────────────────────────
 def reset_daily_duplicate_exp_if_needed(conn, user_id: str):
     user = ensure_user(conn, user_id)
-    if user["last_exp_reset"] != today_str():
+    if (user.get("last_exp_reset") or "") != today_str():
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE users
@@ -413,7 +160,7 @@ def reset_daily_duplicate_exp_if_needed(conn, user_id: str):
 
 def update_user_level(conn, user_id: str):
     user = ensure_user(conn, user_id)
-    level = max(1, 1 + (user["exp"] // 100))
+    level = max(1, 1 + (int(user["exp"] or 0) // 100))
     with conn.cursor() as cur:
         cur.execute("UPDATE users SET level=%s WHERE user_id=%s", (level, user_id))
 
@@ -435,12 +182,12 @@ def transfer_ownership(conn, work_id: int, new_owner_id: str):
                 UPDATE ownership
                 SET owner_id=%s, acquired_at=%s
                 WHERE work_id=%s
-            """, (new_owner_id, datetime.utcnow(), work_id))
+            """, (new_owner_id, datetime.now(timezone.utc), work_id))
         else:
             cur.execute("""
                 INSERT INTO ownership(work_id, owner_id, acquired_at)
                 VALUES(%s,%s,%s)
-            """, (work_id, new_owner_id, datetime.utcnow()))
+            """, (work_id, new_owner_id, datetime.now(timezone.utc)))
 
 
 # ─────────────────────────────────────────────
@@ -451,7 +198,6 @@ def get_owned_card(conn, user_id: str, work_id: int):
         cur.execute("""
             SELECT * FROM owned_cards
             WHERE user_id=%s AND work_id=%s
-            ORDER BY id DESC
             LIMIT 1
         """, (user_id, work_id))
         return cur.fetchone()
@@ -462,14 +208,14 @@ def create_owned_card_if_missing(conn, user_id: str, work_row):
     if existing:
         return existing
 
-    user = ensure_user(conn, user_id)
-    level_bonus = max(0, user["level"] - 1)
+    # 作品ベース値を個体初期値として採用（所有者依存の再ロールはしない）
+    hp = int(work_row["hp"] or 10)
+    atk = int(work_row["atk"] or 10)
+    ddef = int(work_row["def"] or 10)
+    spd = int(work_row["spd"] or 10)
+    luk = int(work_row["luk"] or 10)
 
-    hp = work_row["hp"] + random.randint(0, 6) + level_bonus
-    atk = work_row["atk"] + random.randint(0, 6) + level_bonus
-    ddef = work_row["def"] + random.randint(0, 6) + level_bonus
-    spd = work_row["spd"] + random.randint(0, 4)
-    luk = work_row["luk"] + random.randint(0, 4)
+    rarity = (work_row.get("rarity") or "N").upper().strip()
 
     with conn.cursor() as cur:
         cur.execute("""
@@ -479,9 +225,9 @@ def create_owned_card_if_missing(conn, user_id: str, work_row):
                 total_exp, win_count, battle_count
             ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (
-            user_id, work_row["id"], "N", 1, 0,
+            user_id, work_row["id"], rarity, 1, 0,
             hp, atk, ddef, spd, luk,
-            0, 0, "",
+            0, 1 if rarity == "LEGEND" else 0, "",
             0, 0, 0,
         ))
 
@@ -495,14 +241,15 @@ def gain_duplicate_exp(conn, user_id: str, work_row):
     reset_daily_duplicate_exp_if_needed(conn, user_id)
     user = ensure_user(conn, user_id)
 
-    exp_gain = int(work_row["exp_reward"] * 0.3)
+    exp_gain = int((work_row.get("exp_reward") or 5) * 0.3)
     exp_gain = max(3, min(exp_gain, 10))
 
-    if user["daily_duplicate_exp"] >= 100:
+    daily = int(user.get("daily_duplicate_exp") or 0)
+    if daily >= 100:
         return 0
 
-    if user["daily_duplicate_exp"] + exp_gain > 100:
-        exp_gain = 100 - user["daily_duplicate_exp"]
+    if daily + exp_gain > 100:
+        exp_gain = 100 - daily
 
     with conn.cursor() as cur:
         cur.execute("""
@@ -522,13 +269,18 @@ def gain_duplicate_exp(conn, user_id: str, work_row):
 def weighted_draw(conn, user_id: str):
     user = ensure_user(conn, user_id)
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM works WHERE is_active=1")
+        cur.execute("""
+            SELECT * FROM works
+            WHERE is_active=1
+              AND COALESCE(gacha_enabled, 1)=1
+              AND COALESCE(is_deleted, 0)=0
+        """)
         works = cur.fetchall()
 
     if not works:
         raise HTTPException(status_code=400, detail="排出対象がありません")
 
-    level = user["level"]
+    level = int(user.get("level") or 1)
     rarity_weights = {
         "N":      max(55 - level, 20),
         "R":      25 + min(level, 10),
@@ -539,12 +291,15 @@ def weighted_draw(conn, user_id: str):
 
     pool = []
     for w in works:
-        weight = rarity_weights.get((w["rarity"] or "N").upper(), 10)
+        weight = rarity_weights.get((w.get("rarity") or "N").upper(), 10)
 
-        if w["is_ball"]:
+        # レジェンドボールは少しだけ出やすくしてもよいが過剰にはしない
+        item_type = (w.get("item_type") or "").strip()
+        is_legend_ball = item_type == "legend_ball" or bool(w.get("is_ball"))
+        if is_legend_ball:
             weight += 1
 
-        if w["creator_id"] == "admin":
+        if w.get("creator_id") in ("admin", "system"):
             weight = max(1, int(round(weight * 1.2)))
 
         pool.extend([w] * max(1, weight))
@@ -553,35 +308,45 @@ def weighted_draw(conn, user_id: str):
 
 
 # ─────────────────────────────────────────────
-# ポイント分配
+# ポイント分配（互換関数）
 # ─────────────────────────────────────────────
 def distribute_points(conn, work_id: int, buyer_user_id: str, seller_user_id: str, total_points: int, tx_type: str):
+    """
+    互換用。
+    二次流通では以下で分離する:
+    - buyer: points 減少
+    - seller: points 増加
+    - creator: royalty_balance 増加
+    - system: points 増加
+    """
+    if total_points <= 0:
+        raise HTTPException(status_code=400, detail="取引金額が不正です")
+
     buyer = ensure_user(conn, buyer_user_id)
-    if buyer["points"] < total_points:
+    if int(buyer["points"] or 0) < total_points:
         raise HTTPException(status_code=400, detail="ポイント不足です")
 
     work = ensure_work(conn, work_id)
     creator_id = work["creator_id"]
 
+    ensure_system_user(conn)
+
     fee = int(total_points * 0.30)
     remain = total_points - fee
-    seller_share = remain // 2
-    creator_share = remain - seller_share
+
+    if creator_id == seller_user_id:
+        seller_share = remain
+        creator_share = 0
+    else:
+        seller_share = remain // 2
+        creator_share = remain - seller_share
 
     with conn.cursor() as cur:
         cur.execute("UPDATE users SET points = points - %s WHERE user_id=%s", (total_points, buyer_user_id))
-        cur.execute("""
-            UPDATE users
-            SET points = points + %s,
-                royalty_balance = royalty_balance + %s
-            WHERE user_id=%s
-        """, (seller_share, seller_share, seller_user_id))
-        cur.execute("""
-            UPDATE users
-            SET points = points + %s,
-                royalty_balance = royalty_balance + %s
-            WHERE user_id=%s
-        """, (creator_share, creator_share, creator_id))
+        cur.execute("UPDATE users SET points = points + %s WHERE user_id=%s", (fee, "system"))
+        cur.execute("UPDATE users SET points = points + %s WHERE user_id=%s", (seller_share, seller_user_id))
+        if creator_share > 0:
+            cur.execute("UPDATE users SET royalty_balance = royalty_balance + %s WHERE user_id=%s", (creator_share, creator_id))
         cur.execute("""
             INSERT INTO transactions(
                 work_id, buyer_user_id, seller_user_id, creator_user_id,
@@ -604,11 +369,11 @@ def distribute_points(conn, work_id: int, buyer_user_id: str, seller_user_id: st
 # ─────────────────────────────────────────────
 def battle_score(card) -> float:
     return (
-        card["hp"] * 0.30 +
-        card["atk"] * 1.25 +
-        card["def"] * 0.95 +
-        card["spd"] * 0.75 +
-        card["luk"] * 0.55 +
+        (card["hp"] or 0) * 0.30 +
+        (card["atk"] or 0) * 1.25 +
+        (card["def"] or 0) * 0.95 +
+        (card["spd"] or 0) * 0.75 +
+        (card["luk"] or 0) * 0.55 +
         random.randint(0, 15)
     )
 
@@ -620,22 +385,24 @@ def level_up_card_if_needed(conn, card_id: int):
     if not card:
         return
 
-    exp = card["exp"]
-    level = card["level"]
-    hp = card["hp"]
-    atk = card["atk"]
-    ddef = card["def"]
-    spd = card["spd"]
-    luk = card["luk"]
+    exp = int(card["exp"] or 0)
+    level = int(card["level"] or 1)
+    hp = int(card["hp"] or 0)
+    atk = int(card["atk"] or 0)
+    ddef = int(card["def"] or 0)
+    spd = int(card["spd"] or 0)
+    luk = int(card["luk"] or 0)
 
-    while exp >= 30:
-        exp -= 30
+    need = max(30, level * 20)
+    while exp >= need:
+        exp -= need
         level += 1
         hp += 2
         atk += 2
         ddef += 2
         spd += 1
         luk += 1
+        need = max(30, level * 20)
 
     with conn.cursor() as cur:
         cur.execute("""
@@ -646,27 +413,31 @@ def level_up_card_if_needed(conn, card_id: int):
 
 
 # ─────────────────────────────────────────────
-# トラゴンボウル
+# レジェンドボール
 # ─────────────────────────────────────────────
 def count_ball_codes(conn, user_id: str) -> int:
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT w.ball_code
+            SELECT COALESCE(NULLIF(w.legend_code, ''), NULLIF(w.ball_code, '')) AS legend_code
             FROM ownership o
             JOIN works w ON w.id = o.work_id
-            WHERE o.owner_id = %s AND w.is_ball = 1
+            WHERE o.owner_id = %s
+              AND (w.item_type = 'legend_ball' OR w.is_ball = 1)
         """, (user_id,))
         rows = cur.fetchall()
-    return len({r["ball_code"] for r in rows if r["ball_code"]})
+    return len({r["legend_code"] for r in rows if r["legend_code"]})
 
 
 def steal_random_ball_if_any(conn, loser_id: str, winner_id: str):
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT o.work_id, w.ball_code, w.title
+            SELECT o.work_id,
+                   COALESCE(NULLIF(w.legend_code, ''), NULLIF(w.ball_code, '')) AS legend_code,
+                   w.title
             FROM ownership o
             JOIN works w ON w.id = o.work_id
-            WHERE o.owner_id = %s AND w.is_ball = 1
+            WHERE o.owner_id = %s
+              AND (w.item_type = 'legend_ball' OR w.is_ball = 1)
         """, (loser_id,))
         balls = cur.fetchall()
 
@@ -679,8 +450,8 @@ def steal_random_ball_if_any(conn, loser_id: str, winner_id: str):
             UPDATE ownership
             SET owner_id=%s, acquired_at=%s
             WHERE work_id=%s
-        """, (winner_id, datetime.utcnow(), target["work_id"]))
-    return target["ball_code"] or target["title"]
+        """, (winner_id, datetime.now(timezone.utc), target["work_id"]))
+    return target["legend_code"] or target["title"]
 
 
 # ─────────────────────────────────────────────
@@ -688,6 +459,8 @@ def steal_random_ball_if_any(conn, loser_id: str, winner_id: str):
 # ─────────────────────────────────────────────
 def serialize_work(work: dict, can_view_full: bool = False) -> dict:
     media = resolve_media_access(work, can_view_full)
+    item_type = (work.get("item_type") or ("legend_ball" if work.get("is_ball") else "work")).strip()
+    legend_code = work.get("legend_code") or work.get("ball_code") or ""
 
     return {
         "id": work["id"],
@@ -696,15 +469,17 @@ def serialize_work(work: dict, can_view_full: bool = False) -> dict:
         "creator_name": work["creator_name"],
         "description": work["description"],
         "genre": work["genre"],
-        "type": work["type"],
+        "type": work.get("type"),
+        "media_type": work.get("media_type") or work.get("type"),
+        "item_type": item_type,
         "image_url": media["image_url"],
         "video_url": media["video_url"],
-        "thumbnail_url": work["thumbnail_url"],
-        "link_url": work["link_url"],
-        "x_url": work["x_url"],
-        "booth_url": work["booth_url"],
-        "chichipui_url": work["chichipui_url"],
-        "dlsite_url": work["dlsite_url"],
+        "thumbnail_url": work.get("thumbnail_url", ""),
+        "link_url": work.get("link_url", ""),
+        "x_url": work.get("x_url", ""),
+        "booth_url": work.get("booth_url", ""),
+        "chichipui_url": work.get("chichipui_url", ""),
+        "dlsite_url": work.get("dlsite_url", ""),
         "fanbox_url": work.get("fanbox_url", ""),
         "skeb_url": work.get("skeb_url", ""),
         "pixiv_url": work.get("pixiv_url", ""),
@@ -714,11 +489,13 @@ def serialize_work(work: dict, can_view_full: bool = False) -> dict:
         "def": work["def"],
         "spd": work["spd"],
         "luk": work["luk"],
-        "exp_reward": work["exp_reward"],
-        "draw_count": work["draw_count"],
-        "likes": work["like_count"],
-        "is_ball": bool(work["is_ball"]),
-        "ball_code": work["ball_code"],
+        "exp_reward": work.get("exp_reward", 5),
+        "draw_count": work.get("draw_count", 0),
+        "likes": work.get("like_count", 0),
+        "is_ball": bool(work.get("is_ball")),
+        "ball_code": work.get("ball_code", ""),
+        "is_legend_ball": item_type == "legend_ball",
+        "legend_code": legend_code,
         "can_view_full": can_view_full,
         "needs_front_blur": media["needs_front_blur"],
     }
@@ -736,21 +513,26 @@ def serialize_owned_card(conn, owned: dict) -> dict:
         (owned.get("luk") or 0)
     )
 
+    item_type = (work.get("item_type") or ("legend_ball" if work.get("is_ball") else "work")).strip()
+    legend_code = work.get("legend_code") or work.get("ball_code") or ""
+
     return {
         "id": owned["id"],
         "work_id": owned["work_id"],
         "title": work["title"],
         "creator_user_id": work["creator_id"],
         "creator_name": work["creator_name"],
-        "type": work["type"],
-        "image_url": work["image_url"],
-        "video_url": work["video_url"],
-        "thumbnail_url": work["thumbnail_url"],
-        "link_url": work["link_url"],
-        "x_url": work["x_url"],
-        "booth_url": work["booth_url"],
-        "chichipui_url": work["chichipui_url"],
-        "dlsite_url": work["dlsite_url"],
+        "type": work.get("type"),
+        "media_type": work.get("media_type") or work.get("type"),
+        "item_type": item_type,
+        "image_url": work.get("image_url", ""),
+        "video_url": work.get("video_url", ""),
+        "thumbnail_url": work.get("thumbnail_url", ""),
+        "link_url": work.get("link_url", ""),
+        "x_url": work.get("x_url", ""),
+        "booth_url": work.get("booth_url", ""),
+        "chichipui_url": work.get("chichipui_url", ""),
+        "dlsite_url": work.get("dlsite_url", ""),
         "fanbox_url": work.get("fanbox_url", ""),
         "skeb_url": work.get("skeb_url", ""),
         "pixiv_url": work.get("pixiv_url", ""),
@@ -768,12 +550,18 @@ def serialize_owned_card(conn, owned: dict) -> dict:
         "lose_streak_count": owned["lose_streak_count"],
         "is_legend": bool(owned["is_legend"]),
         "legend_at": owned.get("legend_at", ""),
-        "is_ball": bool(work["is_ball"]),
-        "ball_code": work["ball_code"],
+        "is_ball": bool(work.get("is_ball")),
+        "ball_code": work.get("ball_code", ""),
+        "is_legend_ball": item_type == "legend_ball",
+        "legend_code": legend_code,
         "owner_user_id": owner["owner_id"] if owner else None,
-        "draw_count": work["draw_count"],
-        "like_count": work["like_count"],
+        "draw_count": work.get("draw_count", 0),
+        "like_count": work.get("like_count", 0),
         "card_power": card_power,
         "can_view_full": True,
         "needs_front_blur": False,
     }
+'''
+path = Path("/mnt/data/helpers_fixed.py")
+path.write_text(content, encoding="utf-8")
+print(path)
