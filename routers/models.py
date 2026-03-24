@@ -1,35 +1,46 @@
 """
-models.py — Pydantic リクエスト/レスポンスモデル
+models_fixed.py — Pydantic request models (improved)
+
+方針:
+- 将来の認証導入を見据えつつ、既存 payload 互換をできるだけ維持
+- 数値バリデーションを追加
+- 旧名称(type / is_ball / ball_code)を残しつつ、新名称(media_type / item_type / legend_code)を追加
+- def_ / defense の両対応を吸収
+- PointPurchaseRequest.type は Literal で制限
 """
-from typing import Optional
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field, model_validator
 
 
 # ─────────────────────────────────────────────
-# 認証（ログインは別途扱うことが多いので残すが、me系では不要）
+# 認証
 # ─────────────────────────────────────────────
 class LoginRequest(BaseModel):
-    user_id: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=8)
+    user_id: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 # ─────────────────────────────────────────────
 # マーケット / オファー
 # ─────────────────────────────────────────────
-class OfferCreateRequest(BaseModel):
-    """オファー作成リクエスト（送信側が指定）"""
+class OfferRequest(BaseModel):
+    from_user_id: str = Field(..., min_length=1, max_length=64)
+    to_user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
-    offer_points: int = Field(..., gt=0)
+    offer_points: int = Field(..., ge=30, le=10_000_000)
 
 
 class MarketListRequest(BaseModel):
-    """マーケット出品リクエスト"""
+    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
-    price_points: int = Field(..., gt=0)
+    price_points: int = Field(..., ge=1, le=10_000_000)
 
 
 class MarketBuyRequest(BaseModel):
-    """マーケット即時購入リクエスト（将来的に追加する場合）"""
+    buyer_user_id: str = Field(..., min_length=1, max_length=64)
     listing_id: int = Field(..., gt=0)
 
 
@@ -37,30 +48,38 @@ class MarketBuyRequest(BaseModel):
 # バトル
 # ─────────────────────────────────────────────
 class BattleEntryRequest(BaseModel):
-    """バトル参加リクエスト"""
+    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
+
+
+# ─────────────────────────────────────────────
+# 汎用
+# ─────────────────────────────────────────────
+class UserOnlyRequest(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=64)
 
 
 # ─────────────────────────────────────────────
 # 出金
 # ─────────────────────────────────────────────
-class WithdrawRequest(BaseModel):
-    """出金申請リクエスト（ユーザー側）"""
-    amount: int = Field(..., ge=1000, description="出金申請額（ポイント単位）")
+class WithdrawRequestIn(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=64)
+    amount: int = Field(..., ge=1000, le=10_000_000, description="円単位")
 
 
 # ─────────────────────────────────────────────
 # レジェンド化
 # ─────────────────────────────────────────────
-class LegendActivateRequest(BaseModel):
-    """レジェンド化リクエスト"""
+class LegendRequest(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
 
 
 # ─────────────────────────────────────────────
-# いいね（将来的に追加する場合）
+# いいね
 # ─────────────────────────────────────────────
 class LikeRequest(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
 
 
@@ -68,69 +87,115 @@ class LikeRequest(BaseModel):
 # 管理者作品登録
 # ─────────────────────────────────────────────
 class AdminCreateWorkRequest(BaseModel):
-    creator_user_id: str = Field(..., min_length=3)
-    creator_name: str = Field(..., min_length=1, max_length=100)
-    title: str = Field(..., min_length=1, max_length=200)
+    creator_user_id: str = Field(..., min_length=1, max_length=64)
+    creator_name: str = Field(..., min_length=1, max_length=128)
+    title: str = Field(..., min_length=1, max_length=255)
 
-    description: str = ""
-    genre: str = Field(default="", max_length=50)
+    description: str = Field(default="", max_length=5000)
+    genre: str = Field(default="", max_length=255)
 
-    type: str = Field(default="image", pattern="^(image|video|audio)$")
-    image_url: str = ""
-    video_url: str = ""
-    thumbnail_url: str = ""
+    # 旧互換: type
+    type: Optional[str] = None
+    # 新推奨: media_type / item_type
+    media_type: str = Field(default="image")
+    item_type: str = Field(default="work")
 
-    link_url: str = ""
-    x_url: str = ""
-    booth_url: str = ""
-    chichipui_url: str = ""
-    dlsite_url: str = ""
-    fanbox_url: str = ""
-    skeb_url: str = ""
-    pixiv_url: str = ""
+    image_url: str = Field(default="", max_length=2000)
+    video_url: str = Field(default="", max_length=2000)
+    thumbnail_url: str = Field(default="", max_length=2000)
 
-    rarity: str = Field(default="N", pattern="^(N|R|SR|SSR|UR|LR)$")
+    link_url: str = Field(default="", max_length=2000)
+    x_url: str = Field(default="", max_length=2000)
+    booth_url: str = Field(default="", max_length=2000)
+    chichipui_url: str = Field(default="", max_length=2000)
+    dlsite_url: str = Field(default="", max_length=2000)
+    fanbox_url: str = Field(default="", max_length=2000)
+    skeb_url: str = Field(default="", max_length=2000)
+    pixiv_url: str = Field(default="", max_length=2000)
 
-    hp: Optional[int] = Field(None, ge=0)
-    atk: Optional[int] = Field(None, ge=0)
-    defense: Optional[int] = Field(None, ge=0)  # def_ → defense に変更
-    spd: Optional[int] = Field(None, ge=0)
-    luk: Optional[int] = Field(None, ge=0)
+    rarity: str = Field(default="N", min_length=1, max_length=16)
 
-    exp_reward: int = Field(default=5, ge=0)
+    hp: Optional[int] = Field(default=None, ge=5, le=999)
+    atk: Optional[int] = Field(default=None, ge=5, le=999)
+    def_: Optional[int] = Field(default=None, ge=5, le=999)
+    defense: Optional[int] = Field(default=None, ge=5, le=999)
+    spd: Optional[int] = Field(default=None, ge=5, le=999)
+    luk: Optional[int] = Field(default=None, ge=5, le=999)
 
-    content_hash: str = Field(..., min_length=32, max_length=128)
+    exp_reward: int = Field(default=5, ge=0, le=1000)
 
+    content_hash: str = Field(..., min_length=1, max_length=255)
+
+    # 旧互換
     is_ball: int = Field(default=0, ge=0, le=1)
-    ball_code: str = ""
+    ball_code: str = Field(default="", max_length=64)
+    # 新推奨
+    legend_code: str = Field(default="", max_length=64)
+
+    @model_validator(mode="after")
+    def normalize_and_validate(self):
+        # 旧 type 互換
+        if self.type and not self.media_type:
+            self.media_type = self.type
+        if self.type and self.media_type == "image":
+            self.media_type = self.type
+
+        self.media_type = (self.media_type or "image").strip().lower()
+        self.item_type = (self.item_type or "work").strip().lower()
+        self.rarity = (self.rarity or "N").strip().upper()
+
+        if self.media_type not in {"image", "video"}:
+            raise ValueError("media_type は 'image' または 'video' を指定してください")
+
+        if self.item_type not in {"work", "legend_ball", "material", "reward"}:
+            raise ValueError("item_type が不正です")
+
+        # 旧 def_ / defense 吸収
+        if self.defense is None and self.def_ is not None:
+            self.defense = self.def_
+        if self.def_ is None and self.defense is not None:
+            self.def_ = self.defense
+
+        # 旧 is_ball / ball_code 互換を新仕様へ寄せる
+        if self.is_ball == 1 and self.item_type == "work":
+            self.item_type = "legend_ball"
+        if self.legend_code and not self.ball_code:
+            self.ball_code = self.legend_code
+        if self.ball_code and not self.legend_code:
+            self.legend_code = self.ball_code
+
+        # メディア必須条件
+        if self.media_type == "image" and not self.image_url:
+            raise ValueError("image作品には image_url が必要です")
+        if self.media_type == "video" and not self.video_url:
+            raise ValueError("video作品には video_url が必要です")
+
+        return self
 
 
 # ─────────────────────────────────────────────
-# AIステータス自動生成リクエスト
+# AIステータス生成
 # ─────────────────────────────────────────────
 class AutoStatRequest(BaseModel):
-    image_url: str = Field(..., min_length=10)
-    title: str = ""
-    description: str = ""
-    genre: str = ""
+    image_url: str = Field(..., min_length=1, max_length=2000)
+    title: str = Field(default="", max_length=255)
+    description: str = Field(default="", max_length=5000)
+    genre: str = Field(default="", max_length=255)
 
 
 # ─────────────────────────────────────────────
-# ポイント購入（例：ショップ）
+# ポイント購入
 # ─────────────────────────────────────────────
 class PointPurchaseRequest(BaseModel):
-    purchase_type: str = Field(..., pattern="^(300|1000|5000)$", 
-                               description="購入パック: '300', '1000', '5000' など")
+    user_id: str = Field(..., min_length=1, max_length=64)
+    type: Literal["300", "1000"]
 
 
 # ─────────────────────────────────────────────
-# 共通レスポンス（オプションで使う）
+# 経験値購入（新仕様）
 # ─────────────────────────────────────────────
-class SuccessResponse(BaseModel):
-    ok: bool = True
-    message: str
-
-
-class ErrorResponse(BaseModel):
-    ok: bool = False
-    detail: str
+class ExpBuyRequest(BaseModel):
+    user_id: str = Field(..., min_length=1, max_length=64)
+    work_id: int = Field(..., gt=0)
+    # 将来拡張用。現状は basic のみ想定。
+    pack_type: Literal["basic"] = "basic"
