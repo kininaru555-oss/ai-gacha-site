@@ -37,6 +37,7 @@ from routers.battle import router as battle_router
 from routers.gacha import router as gacha_router
 from routers.market import router as market_router
 from routers.works import router as works_router
+from routers.auth import router as auth_router
 
 # 任意ルーター（存在する場合のみ有効化したいなら try/except にしてもよい）
 from routers.creators import router as creators_router
@@ -58,6 +59,8 @@ def create_app() -> FastAPI:
         title=APP_TITLE,
         version=APP_VERSION,
     )
+
+  
 
     app.add_middleware(
         CORSMiddleware,
@@ -89,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(creators_router)
     app.include_router(payments_router)
     app.include_router(me_router)
+    app.include_router(auth_router)
 
     return app
 
