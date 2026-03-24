@@ -68,6 +68,37 @@ def init_item_db():
 
         conn.commit()
 
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS user_items(
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    item_id BIGINT NOT NULL,
+                    quantity INTEGER DEFAULT 1,
+                    level INTEGER DEFAULT 1,
+                    exp INTEGER DEFAULT 0,
+                    is_equipped INTEGER DEFAULT 0,
+                    slot_no INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS item_logs(
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    item_id BIGINT NOT NULL,
+                    action_type TEXT NOT NULL,
+                    amount INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            _safe_execute(cur, "CREATE INDEX IF NOT EXISTS idx_user_items_user_id ON user_items(user_id)")
+            _safe_execute(cur, "CREATE INDEX IF NOT EXISTS idx_user_items_item_id ON user_items(item_id)")
+            _safe_execute(cur, "CREATE INDEX IF NOT EXISTS idx_items_item_type ON items(item_type)")
+
+        conn.commit()
+
 app = FastAPI()
 
 app.add_middleware(
