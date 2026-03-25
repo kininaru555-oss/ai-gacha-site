@@ -43,12 +43,6 @@ class BattleEntryPayload(BaseModel):
     work_id: int = Field(..., ge=1)
 
 
-# ====================== 内部関数（変更なし） ======================
-# _ensure_user_exists, _ensure_user_owns_work, _get_owned_card_for_update,
-# _get_waiting_opponent_for_update, _reward_for_result, _calc_turn_damage,
-# _decide_turn_order, _run_turn_battle, _apply_card_result, _apply_user_exp,
-# _insert_battle_log は前回と同じです（省略せず全部含めています）
-
 def _ensure_user_exists(conn, user_id: str) -> dict[str, Any]:
     with conn.cursor() as cur:
         cur.execute("SELECT user_id, is_active FROM users WHERE user_id = %s", (user_id,))
@@ -80,6 +74,21 @@ def _get_owned_card_for_update(conn, user_id: str, work_id: int) -> dict[str, An
     return card
 
 
+def _get_my_waiting_entry(conn, user_id: str) -> Optional[dict[str, Any]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM battle_queue
+            WHERE user_id = %s
+            ORDER BY id ASC
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (user_id,),
+        )
+        return cur.fetchone()
+
+
 def _get_waiting_opponent_for_update(conn, user_id: str) -> Optional[dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(
@@ -103,8 +112,10 @@ def _enqueue_current_user(conn, user_id: str, work_id: int) -> bool:
 
 
 def _reward_for_result(result: str) -> int:
-    if result == "win": return WIN_EXP
-    if result == "draw": return DRAW_EXP
+    if result == "win":
+        return WIN_EXP
+    if result == "draw":
+        return DRAW_EXP
     return LOSE_EXP
 
 
@@ -131,8 +142,18 @@ def _decide_turn_order(card_a: dict, card_b: dict) -> tuple[dict, dict, str]:
 
 def _run_turn_battle(card_me: dict, card_opp: dict, my_user_id: str, opp_user_id: str, conn) -> dict[str, Any]:
     state = {
-        "A": {"card_id": card_me["id"], "max_hp": int(card_me.get("hp") or 1), "current_hp": int(card_me.get("hp") or 1), "revive_used": False},
-        "B": {"card_id": card_opp["id"], "max_hp": int(card_opp.get("hp") or 1), "current_hp": int(card_opp.get("hp") or 1), "revive_used": False},
+        "A": {
+            "card_id": card_me["id"],
+            "max_hp": int(card_me.get("hp") or 1),
+            "current_hp": int(card_me.get("hp") or 1),
+            "revive_used": False,
+        },
+        "B": {
+            "card_id": card_opp["id"],
+            "max_hp": int(card_opp.get("hp") or 1),
+            "current_hp": int(card_opp.get("hp") or 1),
+            "revive_used": False,
+        },
         "turn_logs": [],
     }
     first, second, first_key = _decide_turn_order(card_me, card_opp)
@@ -160,29 +181,33 @@ def _run_turn_battle(card_me: dict, card_opp: dict, my_user_id: str, opp_user_id
         dmg1, crit1 = _calc_turn_damage(first, second)
         state[second_key]["current_hp"] -= dmg1
         msg1 = f"{first_key}の攻撃: {dmg1}ダメージ"
-        if crit1: msg1 += "（クリティカル）"
+        if crit1:
+            msg1 += "（クリティカル）"
         msg1 += f" / {second_key} HP={max(0, state[second_key]['current_hp'])}"
         state["turn_logs"].append(msg1)
 
         if state[second_key]["current_hp"] <= 0:
-            if not maybe_revive(second_key): break
+            if not maybe_revive(second_key):
+                break
 
         dmg2, crit2 = _calc_turn_damage(second, first)
         state[first_key]["current_hp"] -= dmg2
         msg2 = f"{second_key}の攻撃: {dmg2}ダメージ"
-        if crit2: msg2 += "（クリティカル）"
+        if crit2:
+            msg2 += "（クリティカル）"
         msg2 += f" / {first_key} HP={max(0, state[first_key]['current_hp'])}"
         state["turn_logs"].append(msg2)
 
         if state[first_key]["current_hp"] <= 0:
-            if not maybe_revive(first_key): break
+            if not maybe_revive(first_key):
+                break
 
     hp_a = state["A"]["current_hp"]
     hp_b = state["B"]["current_hp"]
 
-    if hp_a <= 0 and hp_b <= 0:
-        result_a = result_b = "draw"
-    elif hp_a <= 0:
+    # ターン制で先攻→後攻の順に死亡判定するため両者同時HP0は発生しない
+    # 先にHP0になった方が負け
+    if hp_a <= 0:
         result_a, result_b = "lose", "win"
     elif hp_b <= 0:
         result_a, result_b = "win", "lose"
@@ -194,11 +219,16 @@ def _run_turn_battle(card_me: dict, card_opp: dict, my_user_id: str, opp_user_id
         else:
             result_a, result_b = ("win", "lose") if ratio_a > ratio_b else ("lose", "win")
 
-    state.update({
-        "result_a": result_a, "result_b": result_b,
-        "final_hp_a": max(0, hp_a), "final_hp_b": max(0, hp_b),
-        "revive_a": state["A"]["revive_used"], "revive_b": state["B"]["revive_used"],
-    })
+    state.update(
+        {
+            "result_a": result_a,
+            "result_b": result_b,
+            "final_hp_a": max(0, hp_a),
+            "final_hp_b": max(0, hp_b),
+            "revive_a": state["A"]["revive_used"],
+            "revive_b": state["B"]["revive_used"],
+        }
+    )
     return state
 
 
@@ -207,33 +237,55 @@ def _apply_card_result(conn, card_id: int, result: str, exp_gain: int, revive_bo
     bonus_triggered = False
     with conn.cursor() as cur:
         if result == "win":
-            cur.execute("""UPDATE owned_cards SET exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s,
+            cur.execute(
+                """UPDATE owned_cards SET exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s,
                            battle_count = COALESCE(battle_count, 0) + 1, win_count = COALESCE(win_count, 0) + 1,
-                           lose_streak_count = 0 WHERE id = %s""", (total_gain, total_gain, card_id))
+                           lose_streak_count = 0 WHERE id = %s""",
+                (total_gain, total_gain, card_id),
+            )
         elif result == "draw":
-            cur.execute("""UPDATE owned_cards SET exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s,
-                           battle_count = COALESCE(battle_count, 0) + 1 WHERE id = %s""", (total_gain, total_gain, card_id))
+            cur.execute(
+                """UPDATE owned_cards SET exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s,
+                           battle_count = COALESCE(battle_count, 0) + 1 WHERE id = %s""",
+                (total_gain, total_gain, card_id),
+            )
         else:
-            cur.execute("""UPDATE owned_cards SET exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s,
+            cur.execute(
+                """UPDATE owned_cards SET exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s,
                            battle_count = COALESCE(battle_count, 0) + 1, lose_streak_count = COALESCE(lose_streak_count, 0) + 1
-                           WHERE id = %s RETURNING lose_streak_count""", (total_gain, total_gain, card_id))
+                           WHERE id = %s RETURNING lose_streak_count""",
+                (total_gain, total_gain, card_id),
+            )
             row = cur.fetchone()
             streak = int(row["lose_streak_count"]) if row else 0
             if streak >= 3:
-                cur.execute("""UPDATE owned_cards SET lose_streak_count = 0, exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s
-                               WHERE id = %s""", (LOSE_STREAK_BONUS, LOSE_STREAK_BONUS, card_id))
+                cur.execute(
+                    """UPDATE owned_cards SET lose_streak_count = 0, exp = exp + %s, total_exp = COALESCE(total_exp, 0) + %s
+                               WHERE id = %s""",
+                    (LOSE_STREAK_BONUS, LOSE_STREAK_BONUS, card_id),
+                )
                 bonus_triggered = True
     return bonus_triggered
 
 
 def _apply_user_exp(conn, user_id: str, exp_gain: int, revive_bonus: int = 0, lose_bonus: int = 0) -> None:
     total = exp_gain + revive_bonus + lose_bonus
-    if total <= 0: return
+    if total <= 0:
+        return
     with conn.cursor() as cur:
         cur.execute("UPDATE users SET exp = exp + %s WHERE user_id = %s", (total, user_id))
 
 
-def _insert_battle_log(conn, user_id: str, opponent_user_id: str, result: str, log_text: str, reward_exp: int, work_id: int, opponent_work_id: int) -> None:
+def _insert_battle_log(
+    conn,
+    user_id: str,
+    opponent_user_id: str,
+    result: str,
+    log_text: str,
+    reward_exp: int,
+    work_id: int,
+    opponent_work_id: int,
+) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """INSERT INTO battle_logs(user_id, opponent_user_id, result, log_text, reward_exp, work_id, opponent_work_id)
@@ -252,6 +304,11 @@ def battle_entry(payload: BattleEntryPayload, current_user=Depends(get_current_u
             _ensure_user_owns_work(conn, user_id, payload.work_id)
             my_card = _get_owned_card_for_update(conn, user_id, payload.work_id)
 
+            my_waiting = _get_my_waiting_entry(conn, user_id)
+            if my_waiting:
+                conn.rollback()
+                return {"message": "すでに対戦待機中です。次の参加者とバトルします。"}
+
             waiting = _get_waiting_opponent_for_update(conn, user_id)
 
             if not waiting:
@@ -260,7 +317,7 @@ def battle_entry(payload: BattleEntryPayload, current_user=Depends(get_current_u
                     conn.commit()
                     return {"message": "対戦待機に入りました。次の参加者とバトルします。"}
                 else:
-                    conn.rollback()                                   # ← 安全のため明示 rollback
+                    conn.rollback()
                     return {"message": "すでに対戦待機中です。次の参加者とバトルします。"}
 
             opp_user_id = waiting["user_id"]
@@ -302,7 +359,6 @@ def battle_entry(payload: BattleEntryPayload, current_user=Depends(get_current_u
             if opp_bonus:
                 extra_opp.append("3連敗ボーナスEXP+20")
 
-            # ====================== 修正ポイント1: ボール奪取ログの対称性確保 ======================
             stolen_info = None
             if final_me == "win":
                 stolen_info = steal_random_ball_if_any(conn, winner_user_id=user_id, loser_user_id=opp_user_id)
@@ -314,7 +370,6 @@ def battle_entry(payload: BattleEntryPayload, current_user=Depends(get_current_u
                 if stolen_info:
                     extra_me.append(f"レジェンドボール喪失: {stolen_info}")
                     extra_opp.append(f"レジェンドボール奪取: {stolen_info}")
-            # ======================================================================================
 
             level_up_card_if_needed(conn, my_card["id"])
             level_up_card_if_needed(conn, opp_card["id"])
@@ -324,12 +379,26 @@ def battle_entry(payload: BattleEntryPayload, current_user=Depends(get_current_u
             my_log = " / ".join(battle["turn_logs"] + extra_me)
             opp_log = " / ".join(battle["turn_logs"] + extra_opp)
 
-            _insert_battle_log(conn, user_id, opp_user_id, final_me, my_log,
-                               exp_me + revive_bonus_me + (LOSE_STREAK_BONUS if me_bonus else 0),
-                               payload.work_id, opp_work_id)
-            _insert_battle_log(conn, opp_user_id, user_id, final_opp, opp_log,
-                               exp_opp + revive_bonus_opp + (LOSE_STREAK_BONUS if opp_bonus else 0),
-                               opp_work_id, payload.work_id)
+            _insert_battle_log(
+                conn,
+                user_id,
+                opp_user_id,
+                final_me,
+                my_log,
+                exp_me + revive_bonus_me + (LOSE_STREAK_BONUS if me_bonus else 0),
+                payload.work_id,
+                opp_work_id,
+            )
+            _insert_battle_log(
+                conn,
+                opp_user_id,
+                user_id,
+                final_opp,
+                opp_log,
+                exp_opp + revive_bonus_opp + (LOSE_STREAK_BONUS if opp_bonus else 0),
+                opp_work_id,
+                payload.work_id,
+            )
 
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM battle_queue WHERE id = %s", (waiting["id"],))
@@ -338,15 +407,42 @@ def battle_entry(payload: BattleEntryPayload, current_user=Depends(get_current_u
 
             return {
                 "message": "バトル完了",
-                "your_result": final_me,
-                "opponent_result": final_opp,
-                "your_final_hp": battle["final_hp_a"],
-                "opponent_final_hp": battle["final_hp_b"],
-                "your_revive_used": battle["revive_a"],
-                "opponent_revive_used": battle["revive_b"],
-                "your_reward_exp": exp_me + revive_bonus_me + (LOSE_STREAK_BONUS if me_bonus else 0),
-                "log": battle["turn_logs"],
-                "stolen_ball_for_you": stolen_info if final_me == "win" else None,
+                "result": {
+                    "your_result": final_me,
+                    "opponent_result": final_opp,
+                    "is_draw": final_me == "draw",
+                },
+                "hp": {
+                    "your_final_hp": battle["final_hp_a"],
+                    "opponent_final_hp": battle["final_hp_b"],
+                },
+                "revive": {
+                    "your_revive_used": battle["revive_a"],
+                    "opponent_revive_used": battle["revive_b"],
+                },
+                "exp": {
+                    "your_reward_exp": exp_me + revive_bonus_me + (LOSE_STREAK_BONUS if me_bonus else 0),
+                    "your_base_exp": exp_me,
+                    "your_revive_bonus_exp": revive_bonus_me,
+                    "your_lose_streak_bonus_exp": LOSE_STREAK_BONUS if me_bonus else 0,
+                    "opponent_reward_exp": exp_opp + revive_bonus_opp + (LOSE_STREAK_BONUS if opp_bonus else 0),
+                    "opponent_base_exp": exp_opp,
+                    "opponent_revive_bonus_exp": revive_bonus_opp,
+                    "opponent_lose_streak_bonus_exp": LOSE_STREAK_BONUS if opp_bonus else 0,
+                },
+                "ball": {
+                    "stolen_ball_for_you": stolen_info if final_me == "win" else None,
+                    "stolen_ball_from_you": stolen_info if final_me == "lose" else None,
+                },
+                "bonus": {
+                    "your_lose_streak_bonus_triggered": me_bonus,
+                    "opponent_lose_streak_bonus_triggered": opp_bonus,
+                },
+                "battle": {
+                    "turn_count": len([x for x in battle["turn_logs"] if x.startswith("Turn ")]),
+                    "log": battle["turn_logs"],
+                },
+                "summary": extra_me,
             }
 
         except HTTPException:
@@ -408,16 +504,18 @@ def battle_ranking(limit: int = Query(50, ge=1, le=100)):
 
             ranking = []
             for idx, row in enumerate(rows, start=1):
-                ranking.append({
-                    "rank": idx,
-                    "owned_card_id": row["owned_card_id"],
-                    "user_id": row["user_id"],
-                    "work_id": row["work_id"],
-                    "win_count": row["win_count"],
-                    "battle_count": row["battle_count"],
-                    "win_rate": round((row["win_count"] / max(row["battle_count"], 1)) * 100, 2),
-                    "total_exp": row["total_exp"],
-                })
+                ranking.append(
+                    {
+                        "rank": idx,
+                        "owned_card_id": row["owned_card_id"],
+                        "user_id": row["user_id"],
+                        "work_id": row["work_id"],
+                        "win_count": row["win_count"],
+                        "battle_count": row["battle_count"],
+                        "win_rate": round((row["win_count"] / max(row["battle_count"], 1)) * 100, 2),
+                        "total_exp": row["total_exp"],
+                    }
+                )
             return {"count": len(ranking), "ranking": ranking}
         except Exception:
             logger.exception("battle_ranking error")
