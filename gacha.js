@@ -1,6 +1,4 @@
-from pathlib import Path
-
-content = r'''const API_BASE = window.APP_CONFIG.API_BASE;
+const API_BASE = window.APP_CONFIG.API_BASE;
 const AUTH_STORAGE_KEY = window.APP_CONFIG.AUTH_STORAGE_KEY;
 const RESULT_STORAGE_KEY = window.APP_CONFIG.RESULT_STORAGE_KEY;
 const POST_SUCCESS_NOTICE_KEY = window.APP_CONFIG.POST_SUCCESS_NOTICE_KEY;
@@ -124,8 +122,9 @@ function buildAuthHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
+// ==================== 修正済み api() 関数 ====================
 async function api(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`\( {API_BASE} \){path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -142,6 +141,7 @@ async function api(path, options = {}) {
 
   return data;
 }
+// ============================================================
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -256,9 +256,7 @@ async function refreshUser() {
   if (getAuthToken()) {
     try {
       data = await api("/users/me");
-    } catch (_) {
-      // fallback
-    }
+    } catch (_) {}
   }
 
   if (!data) {
@@ -611,7 +609,3 @@ function boot() {
 }
 
 document.addEventListener("DOMContentLoaded", boot);
-'''
-path = Path("/mnt/data/gacha_fixed_v2.js")
-path.write_text(content, encoding="utf-8")
-print(path)
