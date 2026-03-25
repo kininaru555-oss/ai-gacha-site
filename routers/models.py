@@ -13,8 +13,8 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 class CreateCheckoutSessionRequest(BaseModel):
-    user_id: str
     product_type: Literal["300", "1000", "3000", "5000"]
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -31,60 +31,60 @@ class LoginRequest(BaseModel):
 # マーケット / オファー
 # ─────────────────────────────────────────────
 class OfferRequest(BaseModel):
-    from_user_id: str = Field(..., min_length=1, max_length=64)
     to_user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
     offer_points: int = Field(..., ge=30, le=10_000_000)
+    # from_user_id は JWT認証（get_current_user）から取得するため不要
 
 
 class MarketListRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
     price_points: int = Field(..., ge=1, le=10_000_000)
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 class MarketBuyRequest(BaseModel):
-    buyer_user_id: str = Field(..., min_length=1, max_length=64)
     listing_id: int = Field(..., gt=0)
+    # buyer_user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
 # バトル
 # ─────────────────────────────────────────────
 class BattleEntryRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
 # 汎用
 # ─────────────────────────────────────────────
 class UserOnlyRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
+    pass  # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
 # 出金
 # ─────────────────────────────────────────────
 class WithdrawRequestIn(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
     amount: int = Field(..., ge=1000, le=10_000_000, description="円単位")
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
 # レジェンド化
 # ─────────────────────────────────────────────
 class LegendRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
 # いいね
 # ─────────────────────────────────────────────
 class LikeRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
@@ -191,15 +191,15 @@ class AutoStatRequest(BaseModel):
 # ポイント購入
 # ─────────────────────────────────────────────
 class PointPurchaseRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
-    type: Literal["300", "1000"]
+    type: Literal["300", "1000","3000","10000"]
+    # user_id は JWT認証（get_current_user）から取得するため不要
 
 
 # ─────────────────────────────────────────────
 # 経験値購入（新仕様）
 # ─────────────────────────────────────────────
 class ExpBuyRequest(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=64)
     work_id: int = Field(..., gt=0)
     # 将来拡張用。現状は basic のみ想定。
     pack_type: Literal["basic"] = "basic"
+    # user_id は JWT認証（get_current_user）から取得するため不要
