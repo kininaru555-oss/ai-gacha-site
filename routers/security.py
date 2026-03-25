@@ -32,7 +32,7 @@ if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY が設定されていません")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
@@ -187,60 +187,58 @@ async def get_current_official_user(current_user=Depends(get_current_user)):
     return current_user
 
 
-def authenticate_user(user_id: str, plain_password: str):
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT
-                    user_id,
-                    password_hash,
-                    token_version,
-                    is_admin,
-                    is_official,
-                    is_active
-                FROM users
-                WHERE user_id = %s
-                """,
-                (user_id,),
-            )
-            user = cur.fetchone()
+def authenticate_user(conn, user_id: str, plain_password: str):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                user_id,
+                password_hash,
+                token_version,
+                is_admin,
+                is_official,
+                is_active
+            FROM users
+            WHERE user_id = %s
+            """,
+            (user_id,),
+        )
+        user = cur.fetchone()
 
-            if not user:
-                return None
+        if not user:
+            return None
 
-            if not bool(user.get("is_active", True)):
-                return None
+        if not bool(user.get("is_active", True)):
+            return None
 
-            hashed_password = user.get("password_hash", "")
-            verified, new_hash = verify_password_and_update_hash(plain_password, hashed_password)
-            if not verified:
-                return None
+        hashed_password = user.get("password_hash", "")
+        verified, new_hash = verify_password_and_update_hash(plain_password, hashed_password)
+        if not verified:
+            return None
 
-            if new_hash:
-                cur.execute(
-                    """
-                    UPDATE users
-                    SET password_hash = %s
-                    WHERE user_id = %s
-                    """,
-                    (new_hash, user_id),
-                )
-                conn.commit()
-                user["password_hash"] = new_hash
-
-            return user
-
-
-def revoke_user_tokens(user_id: str) -> None:
-    with get_db() as conn:
-        with conn.cursor() as cur:
+        if new_hash:
             cur.execute(
                 """
                 UPDATE users
-                SET token_version = token_version + 1
+                SET password_hash = %s
                 WHERE user_id = %s
                 """,
-                (user_id,),
+                (new_hash, user_id),
             )
-        conn.commit()
+            conn.commit()
+            user["password_hash"] = new_hash
+
+        return user
+
+
+def revoke_user_tokens(conn, user_id: str) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE users
+            SET token_version = token_version + 1
+            WHERE user_id = %s
+            """,
+            (user_id,),
+        )
+    conn.commit()
