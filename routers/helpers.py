@@ -932,23 +932,6 @@ def distribute_points(
 # ─────────────────────────────────────────────
 # バトル
 # ─────────────────────────────────────────────
-def battle_score(card_row: dict[str, Any]) -> float:
-    """
-    旧仕様固定。
-    ⚠️ このロジックはゲームバランスの根幹のため変更禁止。
-    """
-    atk = int(card_row.get("atk") or 10)
-    defense = int(card_row.get("defense") or 10)
-    spd = int(card_row.get("spd") or 10)
-    luk = int(card_row.get("luk") or 10)
-
-    return (
-        atk * 1.5
-        + defense * 1.2
-        + spd * 1.0
-        + luk * 0.8
-        + random.randint(0, 15)
-    )
 
 
 def level_up_card_if_needed(conn, card_id: int) -> dict[str, Any]:
