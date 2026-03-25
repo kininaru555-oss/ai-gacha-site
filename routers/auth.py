@@ -1,5 +1,5 @@
 """
-routers/auth.py — 認証ルーター（完全版）
+routers/auth.py
 
 方針:
 - POST /auth/login を提供
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from database import get_db
 from helpers import serialize_user
@@ -41,14 +41,20 @@ def auth_login(payload: LoginRequest):
     with get_db() as conn:
         user = authenticate_user(conn, payload.user_id, payload.password)
 
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ユーザーIDまたはパスワードが正しくありません",
+            )
+
         token = create_access_token(
-            data={
-                "sub": user["user_id"],
+            user_id=user["user_id"],
+            token_version=int(user.get("token_version") or 0),
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+            extra_claims={
                 "is_admin": bool(user.get("is_admin", False)),
                 "is_official": bool(user.get("is_official", False)),
-                "token_version": int(user.get("token_version") or 0),
             },
-            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 
         profile = serialize_user(conn, user["user_id"])
@@ -70,4 +76,3 @@ def auth_logout_all(current_user=Depends(get_current_user)):
         "ok": True,
         "message": "すべてのログイン状態を無効化しました",
     }
-
