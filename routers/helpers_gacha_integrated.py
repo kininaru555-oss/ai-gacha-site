@@ -1034,57 +1034,22 @@ def count_ball_codes(conn, owner_user_id: str) -> int:
 
 
 def steal_random_ball_if_any(
-    conn,
-    from_user_id: str,
-    to_user_id: str,
-    rng: Optional[random.Random] = None,
-) -> Optional[str]:
-    rng = rng or random
-
+def get_user_legend_ball_count(conn, user_id: str) -> int:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT
-                o.work_id,
-                COALESCE(w.legend_code, w.ball_code, '') AS legend_name
-            FROM ownership o
-            JOIN works w
-              ON w.id = o.work_id
-            WHERE o.owner_id = %s
-              AND (
-                    COALESCE(w.item_type, 'work') = 'legend_ball'
-                    OR COALESCE(w.is_ball, FALSE) = TRUE
-                  )
-            ORDER BY o.work_id ASC
-            FOR UPDATE
+            SELECT COALESCE(SUM(ui.quantity), 0) AS ball_count
+            FROM user_items ui
+            JOIN items i ON i.id = ui.item_id
+            WHERE ui.user_id = %s
+              AND ui.quantity > 0
+              AND COALESCE(i.item_type, '') = 'legend_ball'
+              AND COALESCE(i.is_active, 1) = 1
             """,
-            (from_user_id,),
+            (user_id,),
         )
-        rows = cur.fetchall()
-
-        if not rows:
-            return None
-
-        chosen = rng.choice(rows)
-
-        cur.execute(
-            """
-            UPDATE ownership
-            SET owner_id = %s,
-                acquired_at = NOW()
-            WHERE work_id = %s
-              AND owner_id = %s
-            RETURNING work_id
-            """,
-            (to_user_id, chosen["work_id"], from_user_id),
-        )
-        moved = cur.fetchone()
-
-    if not moved:
-        return None
-
-    return str(chosen.get("legend_name") or f"work:{chosen['work_id']}")
-
+        row = cur.fetchone()
+    return int(row["ball_count"] or 0)
 
 # ─────────────────────────────────────────────
 # シリアライズ
