@@ -144,7 +144,7 @@ def serialize_user(conn, user_id: str) -> dict[str, Any]:
         "free_draw_count": int(user.get("free_draw_count") or 0),
         "revive_item_count": int(user.get("revive_items") or 0),
         "royalty_balance": int(user.get("royalty_balance") or 0),
-        "ball_count": count_ball_codes(conn, user_id),
+        "ball_count": get_user_legend_ball_count(conn, user_id),
         "daily_duplicate_exp": int(user.get("daily_duplicate_exp") or 0),
     }
 
@@ -1006,34 +1006,8 @@ def level_up_card_if_needed(conn, card_id: int) -> dict[str, Any]:
 
 
 # ─────────────────────────────────────────────
-# レジェンドボール
+# レジェンドボール（items / user_items 正本）
 # ─────────────────────────────────────────────
-def _is_legend_ball_row(work_row: dict[str, Any]) -> bool:
-    item_type = str(work_row.get("item_type") or "work")
-    return item_type == "legend_ball" or bool(work_row.get("is_ball"))
-
-
-def count_ball_codes(conn, owner_user_id: str) -> int:
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT COUNT(*) AS cnt
-            FROM ownership o
-            JOIN works w
-              ON w.id = o.work_id
-            WHERE o.owner_id = %s
-              AND (
-                    COALESCE(w.item_type, 'work') = 'legend_ball'
-                    OR COALESCE(w.is_ball, FALSE) = TRUE
-                  )
-            """,
-            (owner_user_id,),
-        )
-        row = cur.fetchone()
-    return int(row["cnt"] if row else 0)
-
-
-def steal_random_ball_if_any(
 def get_user_legend_ball_count(conn, user_id: str) -> int:
     with conn.cursor() as cur:
         cur.execute(
@@ -1050,6 +1024,150 @@ def get_user_legend_ball_count(conn, user_id: str) -> int:
         )
         row = cur.fetchone()
     return int(row["ball_count"] or 0)
+
+
+def steal_random_ball_if_any(conn, winner_user_id: str, loser_user_id: str) -> Optional[str]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                ui.id AS user_item_id,
+                ui.item_id,
+                ui.quantity,
+                i.name
+            FROM user_items ui
+            JOIN items i ON i.id = ui.item_id
+            WHERE ui.user_id = %s
+              AND ui.quantity > 0
+              AND COALESCE(i.item_type, '') = 'legend_ball'
+              AND COALESCE(i.is_active, 1) = 1
+            ORDER BY RANDOM()
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (loser_user_id,),
+        )
+        stolen_row = cur.fetchone()
+
+        if not stolen_row:
+            return None
+
+        loser_user_item_id = int(stolen_row["user_item_id"])
+        item_id = int(stolen_row["item_id"])
+        item_name = str(stolen_row["name"] or "")
+
+        cur.execute(
+            """
+            UPDATE user_items
+            SET quantity = quantity - 1
+            WHERE id = %s
+            """,
+            (loser_user_item_id,),
+        )
+
+        cur.execute(
+            """
+            DELETE FROM user_items
+            WHERE id = %s
+              AND quantity <= 0
+            """,
+            (loser_user_item_id,),
+        )
+
+        cur.execute(
+            """
+            SELECT id, quantity
+            FROM user_items
+            WHERE user_id = %s
+              AND item_id = %s
+            ORDER BY id ASC
+            LIMIT 1
+            FOR UPDATE
+            """,
+            (winner_user_id, item_id),
+        )
+        winner_row = cur.fetchone()
+
+        if winner_row:
+            winner_user_item_id = int(winner_row["id"])
+            cur.execute(
+                """
+                UPDATE user_items
+                SET quantity = quantity + 1
+                WHERE id = %s
+                """,
+                (winner_user_item_id,),
+            )
+        else:
+            cur.execute(
+                """
+                INSERT INTO user_items(
+                    user_id,
+                    item_id,
+                    quantity,
+                    level,
+                    exp,
+                    total_exp,
+                    is_locked,
+                    is_equipped,
+                    slot_no
+                )
+                VALUES(%s, %s, 1, 1, 0, 0, 0, 0, 0)
+                RETURNING id
+                """,
+                (winner_user_id, item_id),
+            )
+            inserted = cur.fetchone()
+            if not inserted:
+                raise HTTPException(status_code=500, detail="奪取アイテム付与に失敗しました")
+            winner_user_item_id = int(inserted["id"])
+
+        cur.execute(
+            """
+            INSERT INTO item_logs(
+                user_id,
+                item_id,
+                user_item_id,
+                action_type,
+                amount,
+                memo
+            )
+            VALUES(%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                loser_user_id,
+                item_id,
+                loser_user_item_id,
+                "battle_lost",
+                1,
+                f"battleで{winner_user_id}に奪取された",
+            ),
+        )
+
+        cur.execute(
+            """
+            INSERT INTO item_logs(
+                user_id,
+                item_id,
+                user_item_id,
+                action_type,
+                amount,
+                memo
+            )
+            VALUES(%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                winner_user_id,
+                item_id,
+                winner_user_item_id,
+                "battle_stolen",
+                1,
+                f"battleで{loser_user_id}から奪取した",
+            ),
+        )
+
+        return item_name
+
 
 # ─────────────────────────────────────────────
 # シリアライズ
